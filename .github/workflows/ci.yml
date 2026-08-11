@@ -51,18 +51,11 @@ jobs:
         with:
           python-version: "3.12"
       - uses: astral-sh/setup-uv@v5
+      - run: uv sync --group dev --all-extras --frozen
       - name: Download test assets
         env:
           HF_HUB_DISABLE_XET: "1"
-        run: |
-          uvx --from huggingface-hub hf download \
-            abcamiletto/body-models-assets \
-            --repo-type dataset \
-            --local-dir tests/assets \
-            --include 'models_hub/brainco/**' \
-            --include 'models_hub/g1/**' \
-            --include 'models_hub/myofullbody/**'
-      - run: uv sync --group dev --all-extras --frozen
+        run: uv run robot-models download all --output-dir tests/assets/models_hub
       - name: Run cross-runtime functional tests
         run: |
           uv run pytest -q \

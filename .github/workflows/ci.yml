@@ -45,7 +45,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       UV_PYTHON: "3.12"
-      HF_TOKEN: ${{ secrets.HF_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -60,7 +59,9 @@ jobs:
             abcamiletto/body-models-assets \
             --repo-type dataset \
             --local-dir tests/assets \
-            --token "$HF_TOKEN"
+            --include 'models_hub/brainco/**' \
+            --include 'models_hub/g1/**' \
+            --include 'models_hub/myofullbody/**'
       - run: uv sync --group dev --all-extras --frozen
       - name: Run cross-runtime functional tests
         run: |

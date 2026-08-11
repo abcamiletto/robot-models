@@ -1,0 +1,41 @@
+site_name: robot-models
+site_url: https://abcamiletto.github.io/robot-models/
+site_author: Andrea Boscolo Camiletto
+site_description: Rigid articulated robot models for NumPy, PyTorch, and JAX
+repo_name: robot-models
+repo_url: https://github.com/abcamiletto/robot-models
+
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - navigation.sections
+    - search.suggest
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: true
+            inherited_members: true
+            members_order: source
+            merge_init_into_class: true
+
+markdown_extensions:
+  - tables
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+nav:
+  - Home: index.md
+  - API Reference: api.md
+  - Architecture: architecture.md
+  - Models:
+      - BrainCo: models/brainco.md
+      - G1: models/g1.md
+      - MyoFullBody: models/myofullbody.md
+      - SmplHumanoid: models/smpl-humanoid.md
+
+strict: true

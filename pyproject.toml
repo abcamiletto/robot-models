@@ -1,0 +1,86 @@
+[project]
+name = "robot-models"
+version = "0.1.0"
+description = "Rigid articulated robot models for NumPy, PyTorch, and JAX"
+readme = "README.md"
+authors = [
+    { name = "Andrea Boscolo Camiletto", email = "abcamiletto@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "array-api-compat>=1.14.0",
+    "huggingface-hub>=1.11.0",
+    "jaxtyping>=0.2.28",
+    "nanomanifold>=0.8.0",
+    "numpy>=2.0.0",
+    "platformdirs>=4.6",
+    "trimesh>=4.0.0",
+    "typer>=0.9.0",
+]
+
+[project.scripts]
+robot-models = "robot_models._cli:main"
+
+[project.optional-dependencies]
+torch = [
+    "torch>=2.3.0",
+]
+jax = [
+    "jax>=0.4.33",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.11,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "mujoco>=3.3.7",
+    "ruff>=0.16.0",
+    "ty>=0.0.1a13",
+    # Include optional runtimes for type checking
+    "torch>=2.3.0",
+    "jax>=0.4.33",
+]
+docs = [
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.7.6",
+    "mkdocstrings[python]>=1.0.4",
+]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu126", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[tool.ty.src]
+exclude = [
+    "tests/",
+    "scripts/visualize.py",
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+ignore = [
+    "F722",  # jaxtyping annotations use syntax ruff doesn't understand
+    "F821",  # jaxtyping dimension names appear as undefined
+    "UP037",  # quoted jaxtyping dimensions are shape expressions, not forward references
+    "E741",  # ambiguous variable names (I, l, O) are standard in math notation
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "fast: tests included in pull request CI",
+    "slow: exhaustive or compiler-heavy tests excluded from fast CI",
+]
+filterwarnings = [
+    "error:scatter inputs have incompatible types:FutureWarning",
+]

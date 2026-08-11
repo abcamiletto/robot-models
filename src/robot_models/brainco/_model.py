@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any, Literal
 
 from jaxtyping import Float
-from trimesh import Trimesh
 
 from robot_models._base import ParameterSpec, RigidBodyModel
 from robot_models._common import coordinates
@@ -16,7 +15,7 @@ from robot_models._constants import Joint
 from robot_models._runtime import ArrayRuntime
 from robot_models.brainco import _core as core
 from robot_models.brainco._constants import BRAINCO_HAND_PRESETS, LEFT_BRAINCO_JOINTS, RIGHT_BRAINCO_JOINTS
-from robot_models.brainco._io import Side, load_model_data
+from robot_models.brainco._io import BrainCoWeights, Side, load_model_data
 
 Array = Any
 
@@ -29,6 +28,7 @@ class BrainCoConfig:
 class BrainCoHand(RigidBodyModel):
     """Rigid articulated BrainCo Revo 2 hand."""
 
+    _weights: BrainCoWeights
     has_hands = True
 
     def __init__(
@@ -51,10 +51,6 @@ class BrainCoHand(RigidBodyModel):
     @property
     def common_joints(self) -> Mapping[Joint, str]:
         return LEFT_BRAINCO_JOINTS if self.side == "left" else RIGHT_BRAINCO_JOINTS
-
-    @property
-    def actuated_joint_types(self) -> list[str]:
-        return ["hinge"] * self.num_dofs
 
     @property
     def _pose_control_joints(self) -> tuple[tuple[int, ...], ...]:
@@ -104,36 +100,6 @@ class BrainCoHand(RigidBodyModel):
             joint_indices=joint_indices,
             xp=self._runtime.xp,
         )
-
-    def forward_links(
-        self,
-        hand_pose: Float[Array, "*batch Q"],
-        *,
-        global_rotation: Float[Array, "*batch 3"] | None = None,
-        global_translation: Float[Array, "*batch 3"] | None = None,
-    ) -> Float[Array, "*batch L 4 4"]:
-        """Compute posed link transforms."""
-        skeleton = self.forward_skeleton(
-            hand_pose,
-            global_rotation=global_rotation,
-            global_translation=global_translation,
-        )
-        return self._link_transforms(skeleton)
-
-    def forward_meshes(
-        self,
-        hand_pose: Float[Array, "*batch Q"],
-        *,
-        global_rotation: Float[Array, "*batch 3"] | None = None,
-        global_translation: Float[Array, "*batch 3"] | None = None,
-    ) -> list[Trimesh]:
-        """Build one posed render mesh per batch element."""
-        links = self.forward_links(
-            hand_pose,
-            global_rotation=global_rotation,
-            global_translation=global_translation,
-        )
-        return self._meshes_from_links(links)
 
     def get_rest_pose(
         self,

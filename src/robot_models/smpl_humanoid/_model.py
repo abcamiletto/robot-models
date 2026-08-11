@@ -9,14 +9,13 @@ from typing import Any, Literal
 
 from jaxtyping import Float
 from nanomanifold import SO3
-from trimesh import Trimesh
 
 from robot_models import _common as common
 from robot_models._base import ParameterSpec, RigidBodyModel
 from robot_models._runtime import ArrayRuntime
 from robot_models.smpl_humanoid import _core as core
 from robot_models.smpl_humanoid._constants import BODY_JOINTS, SMPL_BODY_PRESETS, SMPL_HUMANOID_JOINTS
-from robot_models.smpl_humanoid._io import load_model_data
+from robot_models.smpl_humanoid._io import SmplHumanoidWeights, load_model_data
 
 Array = Any
 
@@ -31,6 +30,7 @@ class SmplHumanoid(RigidBodyModel):
     """Rigid SMPL-compatible humanoid loaded from MJCF."""
 
     _COMMON_JOINTS = SMPL_HUMANOID_JOINTS
+    _weights: SmplHumanoidWeights
 
     def __init__(
         self,
@@ -43,10 +43,6 @@ class SmplHumanoid(RigidBodyModel):
         self._config = SmplHumanoidConfig(model_path, variant)
         source = variant if model_path is None else model_path
         self._weights = runtime._materialize(load_model_data(source))
-
-    @property
-    def actuated_joint_types(self) -> list[str]:
-        return self._weights.actuated_joint_types
 
     @property
     def parameter_spec(self) -> dict[str, ParameterSpec]:
@@ -77,36 +73,6 @@ class SmplHumanoid(RigidBodyModel):
             joint_indices=joint_indices,
             xp=self._runtime.xp,
         )
-
-    def forward_links(
-        self,
-        body_pose: Float[Array, "*batch Q"],
-        *,
-        global_rotation: Float[Array, "*batch 3"] | None = None,
-        global_translation: Float[Array, "*batch 3"] | None = None,
-    ) -> Float[Array, "*batch L 4 4"]:
-        """Compute posed link transforms."""
-        skeleton = self.forward_skeleton(
-            body_pose,
-            global_rotation=global_rotation,
-            global_translation=global_translation,
-        )
-        return self._link_transforms(skeleton)
-
-    def forward_meshes(
-        self,
-        body_pose: Float[Array, "*batch Q"],
-        *,
-        global_rotation: Float[Array, "*batch 3"] | None = None,
-        global_translation: Float[Array, "*batch 3"] | None = None,
-    ) -> list[Trimesh]:
-        """Build one posed render mesh per batch element."""
-        links = self.forward_links(
-            body_pose,
-            global_rotation=global_rotation,
-            global_translation=global_translation,
-        )
-        return self._meshes_from_links(links)
 
     def get_tpose(
         self,

@@ -9,14 +9,13 @@ from typing import Any
 
 from jaxtyping import Float
 from nanomanifold import SO3
-from trimesh import Trimesh
 
 from robot_models._base import ParameterSpec, RigidBodyModel
 from robot_models._common import coordinates
 from robot_models._runtime import ArrayRuntime
 from robot_models.g1 import _core as core
 from robot_models.g1._constants import G1_BODY_PRESETS, G1_JOINTS
-from robot_models.g1._io import load_model_data
+from robot_models.g1._io import G1Weights, load_model_data
 
 Array = Any
 
@@ -30,6 +29,7 @@ class G1(RigidBodyModel):
     """Rigid articulated Unitree G1 model."""
 
     _COMMON_JOINTS = G1_JOINTS
+    _weights: G1Weights
 
     def __init__(
         self,
@@ -52,10 +52,6 @@ class G1(RigidBodyModel):
         if self.convention == "soma":
             return coordinates.MUJOCO_Z_UP_TO_Y_UP
         return super()._mujoco_to_model()
-
-    @property
-    def actuated_joint_types(self) -> list[str]:
-        return ["hinge"] * self.num_dofs
 
     @property
     def parameter_spec(self) -> dict[str, ParameterSpec]:
@@ -87,36 +83,6 @@ class G1(RigidBodyModel):
             joint_indices=joint_indices,
             xp=self._runtime.xp,
         )
-
-    def forward_links(
-        self,
-        body_pose: Float[Array, "*batch Q"],
-        *,
-        global_rotation: Float[Array, "*batch 3"] | None = None,
-        global_translation: Float[Array, "*batch 3"] | None = None,
-    ) -> Float[Array, "*batch L 4 4"]:
-        """Compute posed link transforms."""
-        skeleton = self.forward_skeleton(
-            body_pose,
-            global_rotation=global_rotation,
-            global_translation=global_translation,
-        )
-        return self._link_transforms(skeleton)
-
-    def forward_meshes(
-        self,
-        body_pose: Float[Array, "*batch Q"],
-        *,
-        global_rotation: Float[Array, "*batch 3"] | None = None,
-        global_translation: Float[Array, "*batch 3"] | None = None,
-    ) -> list[Trimesh]:
-        """Build one posed render mesh per batch element."""
-        links = self.forward_links(
-            body_pose,
-            global_rotation=global_rotation,
-            global_translation=global_translation,
-        )
-        return self._meshes_from_links(links)
 
     def get_tpose(
         self,

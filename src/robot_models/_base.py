@@ -10,7 +10,6 @@ from jaxtyping import Float, Int
 from nanomanifold import SO3
 from trimesh import Trimesh
 
-from robot_models import _pose_layout as pose_layout
 from robot_models import _state as state
 from robot_models._common import eye_as, zeros_as
 from robot_models._common import rigid as rigid_ops
@@ -57,11 +56,10 @@ class RigidBodyModel(ABC):
     """Base class for rigid articulated models."""
 
     _COMMON_JOINTS: ClassVar[Mapping[Joint, str]] = {}
-    _POSE_LAYOUT: ClassVar[pose_layout.PoseLayout | None] = None
     _state_fields: ClassVar[tuple[str, ...]] = ("_weights",)
     _config: Any
     _runtime: ArrayRuntime
-    has_face: ClassVar[bool] = False
+    _weights: rigid_ops.RigidWeights
     has_hands: ClassVar[bool] = False
 
     @property
@@ -94,18 +92,12 @@ class RigidBodyModel(ABC):
     @property
     def pose_joint_indices(self) -> Mapping[str, tuple[int, ...]]:
         """Canonical joints whose local transforms are driven by each pose parameter."""
-        layout = self._pose_layout
-        if layout is None:
-            return {}
-        pose_parameters = {name for name, spec in self.parameter_spec.items() if spec.role == "pose"}
-        joint_indices = layout.joint_indices
-        if set(joint_indices) != pose_parameters:
-            raise ValueError("Pose layout does not match pose parameters")
-        return joint_indices
-
-    @property
-    def _pose_layout(self) -> pose_layout.PoseLayout | None:
-        return self._POSE_LAYOUT
+        (pose_parameter,) = (name for name, spec in self.parameter_spec.items() if spec.role == "pose")
+        control_joints = self._pose_control_joints
+        if len(control_joints) != self.num_dofs:
+            raise ValueError("Pose controls do not match model degrees of freedom")
+        joints = (joint for control in control_joints for joint in control)
+        return {pose_parameter: tuple(dict.fromkeys(joints))}
 
     def joint_index(self, joint: Joint) -> int:
         """Resolve a common joint to this model's native joint index."""
@@ -121,11 +113,6 @@ class RigidBodyModel(ABC):
     @abstractmethod
     def parameter_spec(self) -> Mapping[str, ParameterSpec]:
         """Machine-readable parameters accepted by this model."""
-
-    @property
-    @abstractmethod
-    def _parameter_reference(self) -> Float[Array, "..."]:
-        """Array whose backend, device, and dtype parameter defaults follow."""
 
     @abstractmethod
     def forward_skeleton(self, *args, **kwargs) -> Float[Array, "*batch J 4 4"]:
@@ -178,8 +165,6 @@ class RigidBodyModel(ABC):
 
         value = runtime.zeros((*batch_dims, *spec.shape), like=reference, dtype=dtype)
         return value if spec.default == 0.0 else value + spec.default
-
-    _weights: Any
 
     @property
     def faces(self) -> Int[Array, "F 3"]:
@@ -234,11 +219,6 @@ class RigidBodyModel(ABC):
     def num_dofs(self) -> int:
         """Number of scalar pose degrees of freedom."""
         return len(self.actuated_joint_names)
-
-    @property
-    def _pose_layout(self) -> pose_layout.PoseLayout:
-        (pose_parameter,) = (name for name, spec in self.parameter_spec.items() if spec.role == "pose")
-        return pose_layout.PoseLayout(((pose_parameter, self.num_dofs),), self._pose_control_joints)
 
     @property
     def _pose_control_joints(self) -> tuple[tuple[int, ...], ...]:
@@ -330,17 +310,17 @@ class RigidBodyModel(ABC):
         return MUJOCO_TO_MODEL
 
     @property
-    @abstractmethod
     def actuated_joint_types(self) -> list[str]:
         """Actuated pose coordinate types in ``actuated_joint_names`` order."""
+        return ["hinge"] * self.num_dofs
 
-    @abstractmethod
-    def forward_links(self, *args, **kwargs) -> Float[Array, "*batch L 4 4"]:
+    def forward_links(self, **parameters: Float[Array, "..."]) -> Float[Array, "*batch L 4 4"]:
         """Compute world-space 4x4 link transforms as the array/autograd primitive."""
+        return self._link_transforms(self.forward_skeleton(**parameters))
 
-    @abstractmethod
-    def forward_meshes(self, *args, **kwargs) -> Sequence[Trimesh]:
+    def forward_meshes(self, **parameters: Float[Array, "..."]) -> list[Trimesh]:
         """Build one renderer-facing mesh per batch element from link transforms."""
+        return self._meshes_from_links(self.forward_links(**parameters))
 
     def _link_transforms(
         self,

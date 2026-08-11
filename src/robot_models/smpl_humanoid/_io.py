@@ -15,6 +15,7 @@ from trimesh import Trimesh
 from robot_models import _config as config
 from robot_models._cache import download_hf_archive, get_cache_dir
 from robot_models._common import mjcf
+from robot_models._common.rigid import RigidWeights
 from robot_models.smpl_humanoid._constants import BODY_JOINTS, JOINT_NAMES, PARENTS, SMPL_HUMANOID_VARIANTS
 
 Array = Any
@@ -23,25 +24,8 @@ SMPL_HUMANOID_SOURCES = {name: f"{name}.xml" for name in SMPL_HUMANOID_VARIANTS}
 
 
 @dataclass(frozen=True)
-class SmplHumanoidWeights:
-    joint_names: list[str]
-    parents: list[int]
-    local_offsets: Float[Array, "J 3"]
-    rest_local_rotations: Float[Array, "J 3 3"]
-    vertices: Float[Array, "V 3"]
-    faces: Int[Array, "F 3"]
-    link_joint_indices: list[int]
-    link_vertex_starts: list[int]
-    link_vertex_counts: list[int]
-    link_face_starts: list[int]
-    link_face_counts: list[int]
-    link_geom_positions: Float[Array, "L 3"]
-    link_geom_rotations: Float[Array, "L 3 3"]
-    link_names: list[str]
+class SmplHumanoidWeights(RigidWeights):
     actuated_joint_indices: list[int]
-    actuated_joint_limits: Float[Array, "Q 2"]
-    actuated_joint_names: list[str]
-    actuated_joint_types: list[str]
 
 
 def load_model_data(source: PathLike = "humenv", *, dtype=np.float32) -> SmplHumanoidWeights:
@@ -81,7 +65,6 @@ def load_model_data(source: PathLike = "humenv", *, dtype=np.float32) -> SmplHum
     actuated_joint_indices = [by_name[name] for name, _ in BODY_JOINTS]
     actuated_joint_names = [name for name, _ in BODY_JOINTS for _ in range(3)]
     actuated_joint_limits = _actuated_joint_limits(parsed_bodies, root=root, dtype=dtype)
-    num_dofs = len(actuated_joint_names)
     return SmplHumanoidWeights(
         joint_names=JOINT_NAMES.copy(),
         parents=PARENTS.copy(),
@@ -100,7 +83,6 @@ def load_model_data(source: PathLike = "humenv", *, dtype=np.float32) -> SmplHum
         actuated_joint_indices=actuated_joint_indices,
         actuated_joint_limits=actuated_joint_limits,
         actuated_joint_names=actuated_joint_names,
-        actuated_joint_types=["hinge"] * num_dofs,
     )
 
 

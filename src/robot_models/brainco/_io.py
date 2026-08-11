@@ -12,8 +12,8 @@ from jaxtyping import Float, Int
 
 from robot_models import _config as config
 from robot_models._cache import download_hf_archive, get_cache_dir
-from robot_models._common import coordinates, mjcf
-from robot_models._common.stl import load_stl_mesh as _load_stl_mesh
+from robot_models._common import coordinates, mjcf, stl
+from robot_models._common.rigid import RigidWeights
 
 PathLike = Path | str
 Side = Literal["left", "right"]
@@ -46,26 +46,10 @@ ACTIVE_JOINT_SUFFIXES = {
 
 
 @dataclass(frozen=True)
-class BrainCoWeights:
+class BrainCoWeights(RigidWeights):
     side: Side
-    joint_names: list[str]
-    parents: list[int]
-    local_offsets: Float[Array, "J 3"]
-    rest_local_rotations: Float[Array, "J 3 3"]
-    vertices: Float[Array, "V 3"]
-    faces: Int[Array, "F 3"]
-    link_joint_indices: list[int]
-    link_vertex_starts: list[int]
-    link_vertex_counts: list[int]
-    link_face_starts: list[int]
-    link_face_counts: list[int]
-    link_geom_positions: Float[Array, "L 3"]
-    link_geom_rotations: Float[Array, "L 3 3"]
-    link_names: list[str]
     actuated_joint_indices: list[int]
     actuated_joint_axes: Float[Array, "Q 3"]
-    actuated_joint_limits: Float[Array, "Q 2"]
-    actuated_joint_names: list[str]
     coupled_joint_indices: list[int]
     coupled_joint_axes: Float[Array, "C 3"]
     coupled_driver_indices: list[int]
@@ -287,7 +271,7 @@ def _load_link_meshes(
         path = mesh_dir / mesh_file
         if not path.exists():
             raise FileNotFoundError(f"BrainCo mesh not found: {path}")
-        vertices, faces = load_stl_mesh(path, dtype=dtype)
+        vertices, faces = stl.load_stl_mesh(path, coord=_MUJOCO_TO_MODEL, dtype=dtype)
         vertices_by_link.append(vertices)
         faces_by_link.append(faces + vertex_offset)
         link_data["joint_indices"].append(by_name[_mesh_joint_name(mesh_file)])
@@ -305,10 +289,6 @@ def _load_link_meshes(
     link_data["geom_positions"] = np.asarray(link_data["geom_positions"])
     link_data["geom_rotations"] = np.asarray(link_data["geom_rotations"])
     return np.concatenate(vertices_by_link), np.concatenate(faces_by_link), link_data
-
-
-def load_stl_mesh(path: Path, *, dtype=np.float32) -> tuple[Float[np.ndarray, "V 3"], Int[np.ndarray, "F 3"]]:
-    return _load_stl_mesh(path, coord=_MUJOCO_TO_MODEL, dtype=dtype)
 
 
 def _add_mesh_transforms(

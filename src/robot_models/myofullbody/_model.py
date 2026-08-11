@@ -8,13 +8,12 @@ from pathlib import Path
 from typing import Any
 
 from jaxtyping import Float
-from trimesh import Trimesh
 
 from robot_models._base import ParameterSpec, RigidBodyModel
 from robot_models._runtime import ArrayRuntime
 from robot_models.myofullbody import _constants as constants
 from robot_models.myofullbody import _core as core
-from robot_models.myofullbody._io import load_model_data
+from robot_models.myofullbody._io import MyoFullBodyWeights, load_model_data
 
 Array = Any
 
@@ -28,6 +27,7 @@ class MyoFullBody(RigidBodyModel):
     """Rigid articulated musculoskeletal full-body model."""
 
     _COMMON_JOINTS = constants.MYOFULLBODY_JOINTS
+    _weights: MyoFullBodyWeights
 
     def __init__(
         self,
@@ -100,36 +100,6 @@ class MyoFullBody(RigidBodyModel):
             joint_indices=joint_indices,
             xp=self._runtime.xp,
         )
-
-    def forward_links(
-        self,
-        body_pose: Float[Array, "*batch Q"],
-        *,
-        global_rotation: Float[Array, "*batch 3"] | None = None,
-        global_translation: Float[Array, "*batch 3"] | None = None,
-    ) -> Float[Array, "*batch L 4 4"]:
-        """Compute posed link transforms."""
-        skeleton = self.forward_skeleton(
-            body_pose,
-            global_rotation=global_rotation,
-            global_translation=global_translation,
-        )
-        return self._link_transforms(skeleton)
-
-    def forward_meshes(
-        self,
-        body_pose: Float[Array, "*batch Q"],
-        *,
-        global_rotation: Float[Array, "*batch 3"] | None = None,
-        global_translation: Float[Array, "*batch 3"] | None = None,
-    ) -> list[Trimesh]:
-        """Build one posed render mesh per batch element."""
-        links = self.forward_links(
-            body_pose,
-            global_rotation=global_rotation,
-            global_translation=global_translation,
-        )
-        return self._meshes_from_links(links)
 
     def world_sites(self, skeleton: Float[Array, "*batch J 4 4"]) -> Float[Array, "*batch S 3"]:
         """Transform body-local muscle sites with a prepared skeleton."""

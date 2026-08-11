@@ -61,5 +61,7 @@ jobs:
           uv run pytest -q \
             tests/test_runtime.py \
             tests/test_backend_consistency.py \
+            tests/test_compile.py \
+            tests/test_gradients.py \
             tests/test_g1.py \
             tests/test_smpl_humanoid.py

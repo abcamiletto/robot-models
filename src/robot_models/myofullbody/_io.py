@@ -18,8 +18,8 @@ from jaxtyping import Float, Int
 
 from robot_models import _config as config
 from robot_models._cache import download_hf_archive, get_cache_dir
-from robot_models._common import mjcf
-from robot_models._common.stl import load_stl_mesh as _load_stl_mesh
+from robot_models._common import mjcf, stl
+from robot_models._common.rigid import RigidWeights
 from robot_models.myofullbody import _constants as constants
 
 _MUJOCO_TO_MODEL = np.asarray(constants.MUJOCO_TO_MYOFULLBODY, dtype=np.float32)
@@ -29,30 +29,14 @@ Array = Any
 
 
 @dataclass(frozen=True)
-class MyoFullBodyWeights:
-    joint_names: list[str]
-    parents: list[int]
-    local_offsets: Float[Array, "J 3"]
-    rest_local_rotations: Float[Array, "J 3 3"]
-    actuated_joint_names: list[str]
+class MyoFullBodyWeights(RigidWeights):
     actuated_joint_axes: Float[Array, "Q 3"]
     actuated_joint_anchors: Float[Array, "Q 3"]
     actuated_joint_types: list[str]
-    actuated_joint_limits: Float[Array, "Q 2"]
     hinge_mask: Float[Array, "Q"]
     slide_mask: Float[Array, "Q"]
     body_actuated_starts: list[int]
     body_actuated_counts: list[int]
-    vertices: Float[Array, "V 3"]
-    faces: Int[Array, "F 3"]
-    link_joint_indices: list[int]
-    link_vertex_starts: list[int]
-    link_vertex_counts: list[int]
-    link_face_starts: list[int]
-    link_face_counts: list[int]
-    link_geom_positions: Float[Array, "L 3"]
-    link_geom_rotations: Float[Array, "L 3 3"]
-    link_names: list[str]
     site_names: list[str]
     site_positions: Float[Array, "S 3"]
     site_body_indices: list[int]
@@ -417,7 +401,7 @@ def _build_link_meshes(
         path = (model_dir / mesh_file).resolve()
         if not path.exists():
             raise FileNotFoundError(f"MyoFullBody mesh file not found: {path}")
-        verts, faces = load_stl_mesh(path, dtype=dtype, scale=scale)
+        verts, faces = stl.load_stl_mesh(path, coord=_MUJOCO_TO_MODEL, dtype=dtype, scale=scale)
         local_faces = faces + vertex_offset
 
         vertices_chunks.append(verts)
@@ -447,19 +431,3 @@ def _build_link_meshes(
             "names": names,
         },
     )
-
-
-def load_stl_mesh(
-    path: Path,
-    *,
-    dtype=np.float32,
-    scale: Float[np.ndarray, "3"] | None = None,
-) -> tuple[Float[np.ndarray, "V 3"], Int[np.ndarray, "F 3"]]:
-    """Load an STL into model coordinates, applying an optional per-mesh ``scale``.
-
-    ``scale`` is the MJCF ``<mesh scale="...">`` triple, applied in the STL's own
-    MuJoCo frame before rotating into model coordinates. Reflective scales
-    (``det < 0``)
-    flip triangle winding so outward normals stay consistent.
-    """
-    return _load_stl_mesh(path, coord=_MUJOCO_TO_MODEL, dtype=dtype, scale=scale)

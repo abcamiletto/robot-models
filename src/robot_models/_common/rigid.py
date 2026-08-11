@@ -1,6 +1,7 @@
 """Shared rigid articulated mesh helpers."""
 
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -11,24 +12,31 @@ from trimesh.util import concatenate
 
 from robot_models._common.kinematics import affine_transforms
 from robot_models._common.ops import at_set, eye_as, zeros_as
-from robot_models._rotations import RotationType
 
 Array = Any
 _ToNumpy = Callable[[Any], np.ndarray]
 
 
-def rotate_transforms(
-    transforms: Float[Array, "... J 4 4"],
-    rotation: Float[Array, "... N"] | Float[Array, "... 3 3"] | None,
-    rotation_type: RotationType,
-    xp: Any,
-) -> Float[Array, "... J 4 4"]:
-    """Rotate world-space transforms about the origin."""
-    if rotation is None:
-        return transforms
-    rotation_matrix = SO3.convert(rotation, src=rotation_type, dst="rotmat", xp=xp)
-    rotated = rotation_matrix[..., None, :, :] @ transforms[..., :3, :]
-    return at_set(transforms, (..., slice(None, 3), slice(None)), rotated, xp=xp)
+@dataclass(frozen=True)
+class RigidWeights:
+    """Model state shared by every rigid articulated model."""
+
+    joint_names: list[str]
+    parents: list[int]
+    local_offsets: Float[Array, "J 3"]
+    rest_local_rotations: Float[Array, "J 3 3"]
+    vertices: Float[Array, "V 3"]
+    faces: Int[Array, "F 3"]
+    link_joint_indices: list[int]
+    link_vertex_starts: list[int]
+    link_vertex_counts: list[int]
+    link_face_starts: list[int]
+    link_face_counts: list[int]
+    link_geom_positions: Float[Array, "L 3"]
+    link_geom_rotations: Float[Array, "L 3 3"]
+    link_names: list[str]
+    actuated_joint_limits: Float[Array, "Q 2"]
+    actuated_joint_names: list[str]
 
 
 def forward_skeleton_from_local_rotations(

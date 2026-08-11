@@ -34,4 +34,4 @@ def rotation_shape(rotation_type: RotationType) -> tuple[int, ...]:
     raise ValueError(f"Invalid rotation_type: {rotation_type!r}")
 
 
-__all__ = ["VALID_ROTATION_TYPES", "RotationType", "rotation_ndim", "rotation_shape"]
+__all__ = ["RotationType", "rotation_ndim", "rotation_shape"]

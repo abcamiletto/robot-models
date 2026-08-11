@@ -5,10 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 import array_api_compat
-from jaxtyping import Float, Int, Num
+from jaxtyping import Float, Num
 
 Array = Any
-__all__ = ["Array", "at_set", "eye_as", "take_along_axis", "zeros_as"]
+__all__ = ["Array", "at_set", "eye_as", "zeros_as"]
 
 
 def at_set(
@@ -28,19 +28,6 @@ def at_set(
 
     array[slices] = values
     return array
-
-
-def take_along_axis(
-    array: Num[Array, "..."],
-    indices: Int[Array, "..."],
-    axis: int,
-    *,
-    xp: Any,
-) -> Num[Array, "..."]:
-    """Select values along one axis using backend-native naming."""
-    if array_api_compat.is_torch_array(array):
-        return xp.take_along_dim(array, indices, dim=axis)
-    return xp.take_along_axis(array, indices, axis=axis)
 
 
 def zeros_as(

@@ -36,6 +36,7 @@ EXPECTED_PARAMETER_SPECS = {
     "inspire": {"hand_pose": ((6,), "pose", None), **_ROOT_TRANSFORM},
     "leap": {"hand_pose": ((16,), "pose", None), **_ROOT_TRANSFORM},
     "gr1": {"body_pose": ((32,), "pose", None), **_ROOT_TRANSFORM},
+    "talos": {"body_pose": ((44,), "pose", None), **_ROOT_TRANSFORM},
 }
 
 

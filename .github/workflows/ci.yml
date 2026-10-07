@@ -77,3 +77,4 @@ jobs:
             tests/test_inspire.py
             tests/test_leap.py
             tests/test_gr1.py
+            tests/test_talos.py

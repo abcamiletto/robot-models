@@ -18,6 +18,7 @@ TEST_MODEL_PATHS = {
     "inspire": ASSET_DIR / "inspire",
     "leap": ASSET_DIR / "leap",
     "gr1": ASSET_DIR / "gr1",
+    "talos": ASSET_DIR / "talos",
 }
 
 

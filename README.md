@@ -40,6 +40,7 @@ The equivalent NumPy and JAX classes live in `robot_models.g1.numpy` and
 - LEAP Hand v1 robotic hand
 - Fourier GR1 humanoid robot
 - PSYONIC Ability Hand robotic hand
+- PAL Robotics TALOS humanoid robot
 - Unitree G1 humanoid robot
 - Unitree H1 humanoid robot
 - Booster Robotics T1 humanoid robot

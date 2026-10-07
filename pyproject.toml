@@ -1,6 +1,6 @@
 [project]
 name = "robot-models"
-version = "0.1.0"
+version = "0.2.0"
 description = "Rigid articulated robot models for NumPy, PyTorch, and JAX"
 readme = "README.md"
 authors = [

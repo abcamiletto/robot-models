@@ -1,31 +1,31 @@
 # GR1
 
-GR1 is a rigid articulated Fourier GR1T2 humanoid model with STL link meshes
-attached to a 33-joint skeleton. It has 32 hinge degrees of freedom: 6 per
-leg, 3 in the waist, 7 per arm, and 3 in the head. Dexterous hands are not
-included.
+GR1 is the Fourier GR1T2 humanoid without dexterous hands. Its skeleton has 33 joints, one per MJCF body, and `body_pose` has 32 hinge coordinates.
 
 ## Setup
 
-GR1 downloads automatically on first use from the
+The assets come from Fourier `Wiki-GRx-Models`, converted from URDF to MJCF (GPL-3.0). They download on first use from the
 [`abcamiletto/robot-models`](https://huggingface.co/abcamiletto/robot-models)
-Hugging Face repository. The assets are converted to MJCF from the official
-Fourier [`Wiki-GRx-Models`](https://github.com/FFTAI/Wiki-GRx-Models) GR1T2
-URDF, which is licensed under GPL-3.0. The license and the list of changes are
-included with the hosted assets. To prefetch the assets:
+Hugging Face repository, with the upstream license and a list of changes. To prefetch them:
 
 ```bash
 robot-models download gr1
 ```
 
-When passed manually, `model_path` should contain `gr1.xml` and
-`meshes/*.STL`.
+A manual `model_path` is a directory with `gr1.xml` and its meshes.
+
+## Usage
+
+```python
+from robot_models.gr1.numpy import GR1
+
+model = GR1()
+params = model.get_tpose()
+```
 
 ## Notes
 
-GR1 does not define `skin_weights`. Use `forward_links()` for link transforms and
-`forward_meshes()` for renderable meshes. `get_tpose()` and `get_apose()` return
-arm presets for the T-pose and the A-pose.
+Data recorded with the robosuite GR1 variant (RoboCasa, DexMimicGen, GR00T) uses another joint order and slightly different offsets.
 
 ## API
 

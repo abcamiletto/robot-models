@@ -36,7 +36,7 @@ EXPECTED_PARAMETER_SPECS = {
     "leap": {"hand_pose": ((16,), "pose", None), **_ROOT_TRANSFORM},
     "shadow": {"hand_pose": ((24,), "pose", None), **_ROOT_TRANSFORM},
     "t1": {"body_pose": ((23,), "pose", None), **_ROOT_TRANSFORM},
-    "talos": {"body_pose": ((44,), "pose", None), **_ROOT_TRANSFORM},
+    "talos": {"body_pose": ((38,), "pose", None), **_ROOT_TRANSFORM},
 }
 
 

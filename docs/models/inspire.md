@@ -1,29 +1,18 @@
 # Inspire
 
-Inspire is a rigid articulated model of the Inspire Robots RH56 dexterous hand
-(DFQ variant), the hand that Unitree mounts on the G1 and H1 humanoids. The
-assets come from the Unitree
-[`unitree_ros`](https://github.com/unitreerobotics/unitree_ros) G1 description.
+Inspire is the Inspire RH56 hand as mounted on the Unitree G1. Its skeleton has 13 joints, one per MJCF body, and `hand_pose` has 6 hinge coordinates; 6 more hinges are coupled to them.
 
 ## Setup
 
-Inspire downloads from the public
+The assets come from Unitree's `unitree_ros` description, converted from URDF to MJCF (BSD-3-Clause). They download on first use from the
 [`abcamiletto/robot-models`](https://huggingface.co/abcamiletto/robot-models)
-Hugging Face repository on first use. To prefetch the assets:
+Hugging Face repository, with the upstream license and a list of changes. To prefetch them:
 
 ```bash
 robot-models download inspire
 ```
 
-When passed manually, `model_path` should contain `left.xml`, `right.xml`, and
-`meshes/{left,right}/*.STL`.
-
-## License
-
-The upstream URDF and STL files are licensed under the BSD 3-Clause License
-by Unitree Robotics. The hosted assets convert the URDF files to MuJoCo XML and
-turn the URDF mimic joints into MuJoCo joint equality constraints. The license
-text and a list of changes are included with the hosted assets.
+A manual `model_path` is a directory with `left.xml`, `right.xml` and their meshes.
 
 ## Usage
 
@@ -31,18 +20,12 @@ text and a list of changes are included with the hosted assets.
 from robot_models.inspire.numpy import InspireHand
 
 hand = InspireHand(side="right")
+params = hand.get_rest_pose(hands="rest")
 ```
 
 ## Notes
 
-The model exposes the six actuated RH56 joints for each hand: thumb yaw, thumb
-pitch, and the proximal joints for index, middle, ring, and pinky. The thumb
-intermediate and distal joints follow thumb pitch with ratios 1.6 and 2.4. Each
-finger intermediate joint follows its proximal joint with ratio 1.
-
-The root frame is the hand base, rotated to align with the G1
-`*_wrist_yaw_link` frame. On the G1, the hand base is 0.0415 m along the wrist
-x axis.
+Intermediate and distal hinges follow their drivers through the URDF mimic ratios. The root is the hand base; on a G1 it sits 0.0415 m along the `*_wrist_yaw_link` x axis.
 
 ## API
 

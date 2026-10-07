@@ -1,22 +1,18 @@
 # Allegro
 
-Allegro is a rigid articulated model of the Wonik Robotics Allegro Hand V3
-using the MuJoCo Menagerie `wonik_allegro` XML and STL assets.
+Allegro is the Wonik Robotics Allegro Hand V3. Its skeleton has 21 joints, one per MJCF body, and `hand_pose` has 16 hinge coordinates.
 
 ## Setup
 
-Allegro downloads from the public
+The assets come from MuJoCo Menagerie `wonik_allegro` (BSD-2-Clause). They download on first use from the
 [`abcamiletto/robot-models`](https://huggingface.co/abcamiletto/robot-models)
-Hugging Face repository on first use. To prefetch the assets:
+Hugging Face repository, with the upstream license and a list of changes. To prefetch them:
 
 ```bash
 robot-models download allegro
 ```
 
-When passed manually, `model_path` should contain `left.xml`, `right.xml`, and
-`meshes/{left,right}/*.STL`.
-
-The original BSD-2-Clause license is included with the hosted assets.
+A manual `model_path` is a directory with `left.xml`, `right.xml` and their meshes.
 
 ## Usage
 
@@ -24,13 +20,12 @@ The original BSD-2-Clause license is included with the hosted assets.
 from robot_models.allegro.numpy import AllegroHand
 
 hand = AllegroHand(side="right")
+params = hand.get_rest_pose(hands="rest")
 ```
 
 ## Notes
 
-The model exposes 16 hinge joints for each hand: four joints for each of the
-index, middle, and ring fingers and four for the thumb. Allegro has no pinky.
-`Joint.*_WRIST` maps to the palm frame, which is at the base of the fingers.
+The hand has four fingers and no coupled joints. The common wrist joint is the palm origin at the finger bases; the upstream model has no wrist body.
 
 ## API
 

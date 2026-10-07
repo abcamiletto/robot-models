@@ -7,19 +7,6 @@ import pytest
 from robot_models import _config as config
 
 ASSET_DIR = Path(__file__).parent / "assets" / "models_hub"
-TEST_MODEL_PATHS = {
-    "ability": ASSET_DIR / "ability",
-    "allegro": ASSET_DIR / "allegro",
-    "brainco": ASSET_DIR / "brainco",
-    "g1": ASSET_DIR / "g1",
-    "gr1": ASSET_DIR / "gr1",
-    "h1": ASSET_DIR / "h1",
-    "inspire": ASSET_DIR / "inspire",
-    "leap": ASSET_DIR / "leap",
-    "shadow": ASSET_DIR / "shadow",
-    "t1": ASSET_DIR / "t1",
-    "talos": ASSET_DIR / "talos",
-}
 
 
 @pytest.fixture(autouse=True)
@@ -28,11 +15,10 @@ def setup_model_paths(monkeypatch):
     get_config_model_path = config.get_model_path
 
     def get_model_path(model: str):
-        model_path = get_config_model_path(model)
-        if model_path is not None:
-            return model_path
-
-        test_path = TEST_MODEL_PATHS.get(model)
-        return test_path if test_path is not None and test_path.exists() else None
+        configured = get_config_model_path(model)
+        if configured is not None:
+            return configured
+        test_path = ASSET_DIR / model
+        return test_path if test_path.exists() else None
 
     monkeypatch.setattr(config, "get_model_path", get_model_path)

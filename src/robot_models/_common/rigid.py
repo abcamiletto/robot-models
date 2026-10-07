@@ -19,51 +19,66 @@ _ToNumpy = Callable[[Any], np.ndarray]
 
 @dataclass(frozen=True)
 class RigidAssets:
-    """Model state shared by every rigid articulated model."""
+    """Skeleton, hinge, and link-mesh data of one rigid articulated model.
+
+    Every hinge angle is a polynomial of one pose coordinate:
+    ``angle[h] = sum_k hinge_polycoef[h, k] * pose[hinge_drivers[h]] ** k``.
+    Independent hinges use the identity polynomial on their own coordinate.
+    """
 
     joint_names: list[str]
     parents: list[int]
     local_offsets: Float[Array, "J 3"]
     rest_local_rotations: Float[Array, "J 3 3"]
+    hinge_joint_indices: list[int]
+    hinge_axes: Float[Array, "H 3"]
+    hinge_drivers: list[int]
+    hinge_polycoef: Float[Array, "H 5"]
+    actuated_joint_names: list[str]
+    actuated_joint_limits: Float[Array, "Q 2"]
     vertices: Float[Array, "V 3"]
     faces: Int[Array, "F 3"]
+    link_names: list[str]
     link_joint_indices: list[int]
     link_vertex_starts: list[int]
     link_vertex_counts: list[int]
     link_face_starts: list[int]
     link_face_counts: list[int]
-    link_geom_positions: Float[Array, "L 3"]
-    link_geom_rotations: Float[Array, "L 3 3"]
-    link_names: list[str]
-    actuated_joint_limits: Float[Array, "Q 2"]
-    actuated_joint_names: list[str]
 
 
-def forward_skeleton_from_local_rotations(
-    body_rotations: Float[Array, "... Q 3 3"],
+def hinge_angles(assets: RigidAssets, pose: Float[Array, "... Q"], *, xp: Any) -> Float[Array, "... H"]:
+    """Evaluate every hinge angle from the pose coordinates."""
+    coef = xp.asarray(assets.hinge_polycoef, dtype=pose.dtype)
+    x = pose[..., assets.hinge_drivers]
+    return coef[:, 0] + x * (coef[:, 1] + x * (coef[:, 2] + x * (coef[:, 3] + x * coef[:, 4])))
+
+
+def forward_skeleton(
+    assets: RigidAssets,
+    pose: Float[Array, "... Q"],
     *,
-    local_offsets: Float[Array, "J 3"],
-    rest_local_rotations: Float[Array, "J 3 3"],
-    actuated_joint_indices: list[int],
-    parents: list[int],
-    global_translation: Float[Array, "... 3"] | None = None,
-    global_rotation: Float[Array, "... 3"] | None = None,
-    joint_indices: Sequence[int] | None = None,
+    global_rotation: Float[Array, "... 3"] | None,
+    global_translation: Float[Array, "... 3"] | None,
+    joint_indices: Sequence[int] | None,
     xp: Any,
 ) -> Float[Array, "... J 4 4"]:
-    """Compute rigid hierarchy transforms from local actuated joint rotations."""
-    batch_shape = tuple(body_rotations.shape[:-3])
-    dtype = body_rotations.dtype
-    num_joints = len(parents)
+    """Compute world-space joint transforms from pose coordinates."""
+    num_dofs = len(assets.actuated_joint_names)
+    if pose.ndim < 1 or pose.shape[-1] != num_dofs:
+        raise ValueError(f"pose must have shape [..., {num_dofs}], got {tuple(pose.shape)}")
+    batch_shape = tuple(pose.shape[:-1])
+    num_joints = len(assets.parents)
+    axes = xp.asarray(assets.hinge_axes, dtype=pose.dtype)
+    angles = hinge_angles(assets, pose, xp=xp)
+    hinge_rot = SO3.convert(angles[..., None], src="hinge", dst="rotmat", src_kwargs={"axes": axes}, xp=xp)
 
-    rest_rot = xp.asarray(rest_local_rotations, dtype=dtype)
-    local_rot = eye_as(body_rotations, batch_dims=(*batch_shape, num_joints), xp=xp)
-    local_rot = at_set(local_rot, (..., actuated_joint_indices, slice(None), slice(None)), body_rotations, xp=xp)
-    local_rot = xp.broadcast_to(rest_rot, (*batch_shape, num_joints, 3, 3)) @ local_rot
+    local_rot = eye_as(hinge_rot, batch_dims=(*batch_shape, num_joints), xp=xp)
+    local_rot = at_set(local_rot, (..., assets.hinge_joint_indices, slice(None), slice(None)), hinge_rot, xp=xp)
+    rest_rot = xp.asarray(assets.rest_local_rotations, dtype=pose.dtype)
     return forward_skeleton_from_local_transforms(
-        local_rot,
-        local_offsets=local_offsets,
-        parents=parents,
+        rest_rot @ local_rot,
+        local_offsets=assets.local_offsets,
+        parents=assets.parents,
         global_translation=global_translation,
         global_rotation=global_rotation,
         joint_indices=joint_indices,
@@ -116,33 +131,6 @@ def forward_skeleton_from_local_transforms(
         rot = global_rot[..., None, :, :] @ rot
         trans = xp.squeeze(global_rot[..., None, :, :] @ trans[..., None], axis=-1)
     trans = trans + global_translation[..., None, :]
-    return affine_transforms(rot, trans, xp=xp)
-
-
-def forward_link_transforms(
-    skeleton: Float[Array, "... J 4 4"],
-    link_joint_indices: list[int],
-    link_geom_positions: Float[Array, "L 3"],
-    link_geom_rotations: Float[Array, "L 3 3"],
-    *,
-    xp: Any,
-) -> Float[Array, "... L 4 4"]:
-    """Apply each link's local geom transform to its parent joint transform."""
-    joint_rot = skeleton[..., :3, :3]
-    joint_pos = skeleton[..., :3, 3]
-    geom_pos = xp.asarray(link_geom_positions, dtype=skeleton.dtype)
-    geom_rot = xp.asarray(link_geom_rotations, dtype=skeleton.dtype)
-
-    rotations = []
-    translations = []
-    for link_idx, joint_idx in enumerate(link_joint_indices):
-        link_rot = joint_rot[..., joint_idx, :, :]
-        link_pos = xp.squeeze(link_rot @ geom_pos[link_idx][..., None], axis=-1)
-        rotations.append(link_rot @ geom_rot[link_idx])
-        translations.append(joint_pos[..., joint_idx, :] + link_pos)
-
-    rot = xp.stack(rotations, axis=-3)
-    trans = xp.stack(translations, axis=-2)
     return affine_transforms(rot, trans, xp=xp)
 
 

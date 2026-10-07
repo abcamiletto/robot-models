@@ -1,22 +1,18 @@
 # LEAP Hand
 
-LEAP Hand is a rigid articulated model of the CMU LEAP Hand v1 robotic hand
-using the MuJoCo Menagerie `leap_hand` XML and meshes.
+LEAP Hand is LEAP Hand v1. Its skeleton has 17 joints, one per MJCF body, and `hand_pose` has 16 hinge coordinates.
 
 ## Setup
 
-LEAP Hand downloads from the public
+The assets come from MuJoCo Menagerie `leap_hand` (MIT). They download on first use from the
 [`abcamiletto/robot-models`](https://huggingface.co/abcamiletto/robot-models)
-Hugging Face repository on first use. To prefetch the assets:
+Hugging Face repository, with the upstream license and a list of changes. To prefetch them:
 
 ```bash
 robot-models download leap
 ```
 
-When passed manually, `model_path` should contain `left.xml`, `right.xml`, and
-`meshes/{left,right}/*.STL`.
-
-The original MuJoCo Menagerie MIT license is included with the hosted assets.
+A manual `model_path` is a directory with `left.xml`, `right.xml` and their meshes.
 
 ## Usage
 
@@ -24,13 +20,12 @@ The original MuJoCo Menagerie MIT license is included with the hosted assets.
 from robot_models.leap.numpy import LeapHand
 
 hand = LeapHand(side="right")
+params = hand.get_rest_pose(hands="rest")
 ```
 
 ## Notes
 
-The model exposes the 16 actuated LEAP joints for each hand: MCP flexion, MCP
-rotation, PIP, and DIP for the index, middle, and ring fingers, and CMC, axial,
-MCP, and IP for the thumb. LEAP Hand has no pinky and no coupled joints.
+The hand has four fingers and no coupled joints.
 
 ## API
 

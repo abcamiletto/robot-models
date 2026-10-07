@@ -59,7 +59,7 @@ def test_rigid_body_contract(name, model_class, kwargs) -> None:
         global_rotation=params["global_rotation"],
         global_translation=params["global_translation"],
     )
-    assert qpos.shape == (2, 7 + model.num_dofs)
+    assert qpos.shape == (2, 7 + len(model._assets.hinge_axes))
 
 
 @pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.MODELS)

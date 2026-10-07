@@ -1,25 +1,18 @@
 # Shadow
 
-Shadow is a rigid articulated model of the Shadow Dexterous Hand E3M5 using the
-MuJoCo Menagerie `shadow_hand` assets.
+Shadow is the Shadow Dexterous Hand E3M5, from the forearm. Its skeleton has 25 joints, one per MJCF body, and `hand_pose` has 24 hinge coordinates.
 
 ## Setup
 
-Shadow downloads from the public
+The assets come from MuJoCo Menagerie `shadow_hand` (Apache-2.0). They download on first use from the
 [`abcamiletto/robot-models`](https://huggingface.co/abcamiletto/robot-models)
-Hugging Face repository on first use. To prefetch the assets:
+Hugging Face repository, with the upstream license and a list of changes. To prefetch them:
 
 ```bash
 robot-models download shadow
 ```
 
-When passed manually, `model_path` should contain `left.xml`, `right.xml`, and
-`meshes/{left,right}/*.STL`.
-
-The assets come from
-[MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie/tree/main/shadow_hand)
-under the Apache 2.0 license, copyright Shadow Robot Company. The hosted
-license notes the changes, mainly the OBJ to STL mesh conversion.
+A manual `model_path` is a directory with `left.xml`, `right.xml` and their meshes.
 
 ## Usage
 
@@ -27,15 +20,12 @@ license notes the changes, mainly the OBJ to STL mesh conversion.
 from robot_models.shadow.numpy import ShadowHand
 
 hand = ShadowHand(side="right")
+params = hand.get_rest_pose(hands="rest")
 ```
 
 ## Notes
 
-The model exposes all 24 hinge joints of each hand as `hand_pose`: two wrist
-joints, five thumb joints, four joints for each of the index, middle, and ring
-fingers, and five little-finger joints including the metacarpal. The real hand
-couples J1 and J2 of each finger through one tendon. This coupling is an
-actuation detail, so both joints stay independent in the model.
+Every hinge is independent: the J1/J2 tendon coupling of the real hand is actuation, not kinematics.
 
 ## API
 

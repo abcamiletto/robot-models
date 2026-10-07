@@ -42,7 +42,7 @@ def create_model(
         raise ValueError(f"Unknown model {model_name!r}. Available models: {available}") from exc
     module = import_module(f"{spec.module}.{runtime}")
     model_class = getattr(module, spec.class_name)
-    return model_class(**(dict(spec.defaults) | kwargs))
+    return model_class(**kwargs)
 
 
 def list_models(*, pattern: str | None = None) -> list[str]:

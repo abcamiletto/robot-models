@@ -1,22 +1,18 @@
 # BrainCo
 
-BrainCo is a rigid articulated model of the BrainCo Revo 2 robotic hand using
-the official MuJoCo XML and STL assets.
+BrainCo is the BrainCo Revo 2 hand. Its skeleton has 17 joints, one per MJCF body, and `hand_pose` has 6 hinge coordinates; 5 more hinges are coupled to them.
 
 ## Setup
 
-BrainCo downloads from the public
+The assets come from the official BrainCo Revo 2 MuJoCo package (see the hosted `LICENSE.md`). They download on first use from the
 [`abcamiletto/robot-models`](https://huggingface.co/abcamiletto/robot-models)
-Hugging Face repository on first use. To prefetch the assets:
+Hugging Face repository, with the upstream license and a list of changes. To prefetch them:
 
 ```bash
 robot-models download brainco
 ```
 
-When passed manually, `model_path` should contain `left.xml`, `right.xml`, and
-`meshes/{left,right}/*.STL`.
-
-The original BrainCo Revo 2 description license is included with the hosted assets.
+A manual `model_path` is a directory with `left.xml`, `right.xml` and their meshes.
 
 ## Usage
 
@@ -24,13 +20,12 @@ The original BrainCo Revo 2 description license is included with the hosted asse
 from robot_models.brainco.numpy import BrainCoHand
 
 hand = BrainCoHand(side="right")
+params = hand.get_rest_pose(hands="rest")
 ```
 
 ## Notes
 
-The model exposes the six active Revo 2 joints for each hand: thumb metacarpal,
-thumb proximal, and the proximal joints for index, middle, ring, and pinky.
-Passive distal joints are included in the skeleton and meshes.
+Each distal hinge follows its proximal hinge, as the BrainCo actuators drive the proximal joints. The hosted XML states these equalities in MuJoCo's `joint1 = poly(joint2)` order and keeps the fingertips rigid.
 
 ## API
 

@@ -1,97 +1,33 @@
-"""Authoritative catalog of public models and configurable assets."""
-
-from __future__ import annotations
+"""Authoritative catalog of public models."""
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any
 
 
 @dataclass(frozen=True)
 class ModelSpec:
-    """Lazy import and constructor defaults for one public factory name."""
+    """Package and class name of one public model; the name is also its asset folder."""
 
     module: str
     class_name: str
-    defaults: Mapping[str, Any] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class AssetSpec:
-    """Validation route for one persistent asset configuration key."""
-
-    validation_module: str
-
-
-@dataclass(frozen=True)
-class DownloadSpec:
-    """Lazy downloader that returns the asset path for one model family."""
-
-    module: str
-    function: str
-
-
-def _model(module: str, class_name: str, **defaults: Any) -> ModelSpec:
-    return ModelSpec(module, class_name, MappingProxyType(defaults))
 
 
 MODEL_SPECS: Mapping[str, ModelSpec] = MappingProxyType(
     {
-        "ability": _model("robot_models.ability", "AbilityHand"),
-        "allegro": _model("robot_models.allegro", "AllegroHand"),
-        "brainco": _model("robot_models.brainco", "BrainCoHand"),
-        "g1": _model("robot_models.g1", "G1"),
-        "gr1": _model("robot_models.gr1", "GR1"),
-        "h1": _model("robot_models.h1", "H1"),
-        "inspire": _model("robot_models.inspire", "InspireHand"),
-        "leap": _model("robot_models.leap", "LeapHand"),
-        "shadow": _model("robot_models.shadow", "ShadowHand"),
-        "t1": _model("robot_models.t1", "T1"),
-        "talos": _model("robot_models.talos", "Talos"),
+        "ability": ModelSpec("robot_models.ability", "AbilityHand"),
+        "allegro": ModelSpec("robot_models.allegro", "AllegroHand"),
+        "brainco": ModelSpec("robot_models.brainco", "BrainCoHand"),
+        "g1": ModelSpec("robot_models.g1", "G1"),
+        "gr1": ModelSpec("robot_models.gr1", "GR1"),
+        "h1": ModelSpec("robot_models.h1", "H1"),
+        "inspire": ModelSpec("robot_models.inspire", "InspireHand"),
+        "leap": ModelSpec("robot_models.leap", "LeapHand"),
+        "shadow": ModelSpec("robot_models.shadow", "ShadowHand"),
+        "t1": ModelSpec("robot_models.t1", "T1"),
+        "talos": ModelSpec("robot_models.talos", "Talos"),
     }
 )
 
 
-ASSET_SPECS: Mapping[str, AssetSpec] = MappingProxyType(
-    {
-        "ability": AssetSpec("robot_models.ability._io"),
-        "allegro": AssetSpec("robot_models.allegro._io"),
-        "brainco": AssetSpec("robot_models.brainco._io"),
-        "g1": AssetSpec("robot_models.g1._io"),
-        "gr1": AssetSpec("robot_models.gr1._io"),
-        "h1": AssetSpec("robot_models.h1._io"),
-        "inspire": AssetSpec("robot_models.inspire._io"),
-        "leap": AssetSpec("robot_models.leap._io"),
-        "shadow": AssetSpec("robot_models.shadow._io"),
-        "t1": AssetSpec("robot_models.t1._io"),
-        "talos": AssetSpec("robot_models.talos._io"),
-    }
-)
-
-
-DOWNLOAD_SPECS: Mapping[str, DownloadSpec] = MappingProxyType(
-    {
-        "ability": DownloadSpec("robot_models.ability._io", "download_model"),
-        "allegro": DownloadSpec("robot_models.allegro._io", "download_model"),
-        "brainco": DownloadSpec("robot_models.brainco._io", "download_model"),
-        "g1": DownloadSpec("robot_models.g1._io", "download_model"),
-        "gr1": DownloadSpec("robot_models.gr1._io", "download_model"),
-        "h1": DownloadSpec("robot_models.h1._io", "download_model"),
-        "inspire": DownloadSpec("robot_models.inspire._io", "download_model"),
-        "leap": DownloadSpec("robot_models.leap._io", "download_model"),
-        "shadow": DownloadSpec("robot_models.shadow._io", "download_model"),
-        "t1": DownloadSpec("robot_models.t1._io", "download_model"),
-        "talos": DownloadSpec("robot_models.talos._io", "download_model"),
-    }
-)
-
-
-__all__ = [
-    "ASSET_SPECS",
-    "DOWNLOAD_SPECS",
-    "MODEL_SPECS",
-    "AssetSpec",
-    "DownloadSpec",
-    "ModelSpec",
-]
+__all__ = ["MODEL_SPECS", "ModelSpec"]

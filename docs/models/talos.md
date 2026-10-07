@@ -1,35 +1,31 @@
 # TALOS
 
-TALOS is a rigid articulated PAL Robotics TALOS model with STL link meshes
-attached to a 48-joint render skeleton. `body_pose` has 44 hinge coordinates:
-torso, head, two 7-DoF arms, two 7-joint grippers, and two 6-DoF legs.
+TALOS is the PAL Robotics TALOS humanoid with its two grippers. Its skeleton has 45 joints, one per MJCF body, and `body_pose` has 38 hinge coordinates; 6 more hinges are coupled to them.
 
 ## Setup
 
-TALOS downloads automatically on first use from the
+The assets come from MuJoCo Menagerie `pal_talos` (Apache-2.0). They download on first use from the
 [`abcamiletto/robot-models`](https://huggingface.co/abcamiletto/robot-models)
-Hugging Face repository, which records the original MuJoCo Menagerie
-`pal_talos` provenance (Apache-2.0). To prefetch the assets:
+Hugging Face repository, with the upstream license and a list of changes. To prefetch them:
 
 ```bash
 robot-models download talos
 ```
 
-When passed manually, `model_path` should point to `talos.xml` or to a
-directory that contains `talos.xml` and `meshes/`.
+A manual `model_path` is a directory with `talos.xml` and its meshes.
+
+## Usage
+
+```python
+from robot_models.talos.numpy import Talos
+
+model = Talos()
+params = model.get_tpose()
+```
 
 ## Notes
 
-TALOS does not define `skin_weights`. Use `forward_links()` for link transforms
-and `forward_meshes()` for renderable meshes.
-
-Skeleton joint names move the side to the front of the MJCF joint name, so
-`arm_left_1_joint` becomes `left_arm_1_skel`. The `head`, `left_foot`, and
-`right_foot` joints are leaf joints at the MJCF sites with the same names.
-
-Each gripper exposes all seven MJCF hinge joints as independent coordinates.
-The MJCF equality constraints that couple the gripper joints are not applied
-by the kinematics.
+Each gripper has one driven hinge, `gripper_*_inner_double_joint`, that three coupled hinges follow, plus three free fingertip hinges.
 
 ## API
 

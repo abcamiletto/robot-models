@@ -1,24 +1,18 @@
 # Ability Hand
 
-Ability Hand is a rigid articulated model of the PSYONIC Ability Hand (large
-size) using the official MuJoCo XML and STL assets from
-[`psyonicinc/ability-hand-api`](https://github.com/psyonicinc/ability-hand-api).
+Ability Hand is the PSYONIC Ability Hand (large size). Its skeleton has 11 joints, one per MJCF body, and `hand_pose` has 6 hinge coordinates; 4 more hinges are coupled to them.
 
 ## Setup
 
-Ability Hand downloads from the public
+The assets come from the official PSYONIC MuJoCo model in `psyonicinc/ability-hand-api` (MIT). They download on first use from the
 [`abcamiletto/robot-models`](https://huggingface.co/abcamiletto/robot-models)
-Hugging Face repository on first use. To prefetch the assets:
+Hugging Face repository, with the upstream license and a list of changes. To prefetch them:
 
 ```bash
 robot-models download ability
 ```
 
-When passed manually, `model_path` should contain `left.xml`, `right.xml`, and
-`meshes/{left,right}/*.STL`.
-
-The upstream assets are MIT licensed. The license and a list of changes are
-included with the hosted assets.
+A manual `model_path` is a directory with `left.xml`, `right.xml` and their meshes.
 
 ## Usage
 
@@ -26,19 +20,12 @@ included with the hosted assets.
 from robot_models.ability.numpy import AbilityHand
 
 hand = AbilityHand(side="right")
+params = hand.get_rest_pose(hands="rest")
 ```
 
 ## Notes
 
-The model exposes the six actuated joints for each hand: thumb rotator
-(`thumb_cmc`), thumb flexor (`thumb_mcp`), and the proximal `mcp` joints for
-index, middle, ring, and pinky. The thumb has no coupled joint.
-
-Each finger has a coupled distal `pip` joint. The real hand uses a nonlinear
-four-bar linkage. This model uses the linear approximation from the official
-PSYONIC MuJoCo simulator, `pip = 0.72349796 + 1.05851325 * mcp`. It is stored
-as a MuJoCo joint equality. Over the `mcp` range, the approximation differs
-from the exact four-bar angle by at most 2.4 degrees.
+Each finger's distal `pip` hinge follows its `mcp` hinge through `pip = 0.72349796 + 1.05851325 * mcp`, the linear four-bar approximation of the official simulator. It differs from the exact linkage by at most 2.4 degrees.
 
 ## API
 

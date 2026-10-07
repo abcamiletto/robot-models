@@ -2,18 +2,16 @@
 
 import json
 import tomllib
-from importlib import import_module
 from pathlib import Path
 from typing import Any
 
 from platformdirs import user_config_dir
 
-from robot_models._catalog import ASSET_SPECS
+from robot_models._catalog import MODEL_SPECS
 
 CONFIG_DIR = Path(user_config_dir("robot-models"))
 CONFIG_FILE = CONFIG_DIR / "config.toml"
 
-ASSET_KEYS = tuple(ASSET_SPECS)
 Config = dict[str, Any]
 
 
@@ -25,16 +23,17 @@ def get_config() -> Config:
 
 
 def get_model_path(model: str) -> Path | None:
-    """Return the configured path for an asset key, if present."""
+    """Return the configured asset directory for a model, if present."""
     path = get_config().get("paths", {}).get(model)
     return Path(path) if path else None
 
 
 def set_model_path(model: str, path: str | Path) -> None:
-    """Validate and store a model asset path."""
-    path = str(validate_model_path(model, path))
+    """Validate and store a model asset directory."""
+    if model not in MODEL_SPECS:
+        raise ValueError(f"Unknown model: {model!r}")
     config = get_config()
-    config.setdefault("paths", {})[model] = path
+    config.setdefault("paths", {})[model] = str(validate_model_path(path))
     _write_config(config)
 
 
@@ -48,14 +47,12 @@ def unset_model_path(model: str) -> None:
         _write_config(config)
 
 
-def validate_model_path(model: str, path: str | Path) -> Path:
-    """Validate an asset path with its model-family loader."""
-    try:
-        spec = ASSET_SPECS[model]
-    except KeyError as exc:
-        raise ValueError(f"Unknown model asset: {model!r}") from exc
-    validate_path = import_module(spec.validation_module).validate_path
-    return validate_path(path)
+def validate_model_path(path: str | Path) -> Path:
+    """Return ``path`` as an absolute asset directory, failing if it does not exist."""
+    path = Path(path).resolve()
+    if not path.is_dir():
+        raise FileNotFoundError(f"Model asset directory not found: {path}")
+    return path
 
 
 def _write_config(config: Config) -> None:

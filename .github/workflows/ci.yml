@@ -67,13 +67,4 @@ jobs:
             tests/test_backend_consistency.py \
             tests/test_compile.py \
             tests/test_gradients.py \
-            tests/test_ability.py \
-            tests/test_allegro.py \
-            tests/test_g1.py \
-            tests/test_gr1.py \
-            tests/test_h1.py \
-            tests/test_inspire.py \
-            tests/test_leap.py \
-            tests/test_shadow.py \
-            tests/test_t1.py \
-            tests/test_talos.py
+            tests/test_models.py

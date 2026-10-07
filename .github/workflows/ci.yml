@@ -70,3 +70,4 @@ jobs:
             tests/test_g1.py \
             tests/test_h1.py
             tests/test_t1.py
+            tests/test_shadow.py

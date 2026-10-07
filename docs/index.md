@@ -30,6 +30,7 @@ robot-models set g1 /path/to/g1
 | [G1](models/g1.md) | Unitree G1 humanoid | auto-download |
 | [H1](models/h1.md) | Unitree H1 humanoid | auto-download |
 | [T1](models/t1.md) | Booster Robotics T1 humanoid | auto-download |
+| [Shadow](models/shadow.md) | Shadow Dexterous Hand E3M5 | auto-download |
 
 ## Usage
 

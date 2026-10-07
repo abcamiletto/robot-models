@@ -37,5 +37,6 @@ nav:
       - G1: models/g1.md
       - H1: models/h1.md
       - T1: models/t1.md
+      - Shadow: models/shadow.md
 
 strict: true

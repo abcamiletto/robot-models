@@ -30,6 +30,7 @@ EXPECTED_PARAMETER_SPECS = {
     "g1": {"body_pose": ((29,), "pose", None), **_ROOT_TRANSFORM},
     "h1": {"body_pose": ((19,), "pose", None), **_ROOT_TRANSFORM},
     "t1": {"body_pose": ((23,), "pose", None), **_ROOT_TRANSFORM},
+    "shadow": {"hand_pose": ((24,), "pose", None), **_ROOT_TRANSFORM},
 }
 
 

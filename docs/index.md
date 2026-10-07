@@ -28,6 +28,7 @@ robot-models set g1 /path/to/g1
 | --- | --- | --- |
 | [BrainCo](models/brainco.md) | BrainCo Revo 2 robotic hand | auto-download |
 | [G1](models/g1.md) | Unitree G1 humanoid | auto-download |
+| [Inspire](models/inspire.md) | Inspire RH56 robotic hand | auto-download |
 
 ## Usage
 

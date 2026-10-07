@@ -35,5 +35,6 @@ nav:
   - Models:
       - BrainCo: models/brainco.md
       - G1: models/g1.md
+      - Inspire: models/inspire.md
 
 strict: true

@@ -26,6 +26,7 @@ robot-models set g1 /path/to/g1
 
 | Model | Scope | Setup |
 | --- | --- | --- |
+| [Allegro](models/allegro.md) | Wonik Robotics Allegro robotic hand | auto-download |
 | [BrainCo](models/brainco.md) | BrainCo Revo 2 robotic hand | auto-download |
 | [G1](models/g1.md) | Unitree G1 humanoid | auto-download |
 

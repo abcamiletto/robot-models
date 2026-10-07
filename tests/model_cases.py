@@ -2,10 +2,12 @@
 
 from importlib import import_module
 
+from robot_models.allegro.numpy import AllegroHand
 from robot_models.brainco.numpy import BrainCoHand
 from robot_models.g1.numpy import G1
 
 MODELS = [
+    ("allegro", AllegroHand, {}),
     ("brainco", BrainCoHand, {}),
     ("g1", G1, {}),
 ]

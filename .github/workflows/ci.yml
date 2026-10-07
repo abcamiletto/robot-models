@@ -30,13 +30,16 @@ jobs:
 
   fast-tests:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
     env:
-      UV_PYTHON: "3.12"
+      UV_PYTHON: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
       - uses: astral-sh/setup-uv@v5
       - run: uv run --group dev --all-extras pytest -q -m fast
 
@@ -59,9 +62,9 @@ jobs:
       - name: Run cross-runtime functional tests
         run: |
           uv run pytest -q \
+            tests/test_public_api.py \
             tests/test_runtime.py \
             tests/test_backend_consistency.py \
             tests/test_compile.py \
             tests/test_gradients.py \
-            tests/test_g1.py \
-            tests/test_smpl_humanoid.py
+            tests/test_g1.py

@@ -15,7 +15,7 @@ from robot_models._common import coordinates
 from robot_models._runtime import ArrayRuntime
 from robot_models.g1 import _core as core
 from robot_models.g1._constants import G1_BODY_PRESETS, G1_JOINTS
-from robot_models.g1._io import G1Weights, load_model_data
+from robot_models.g1._io import G1Assets, load_model_data
 
 Array = Any
 
@@ -29,7 +29,8 @@ class G1(RigidBodyModel):
     """Rigid articulated Unitree G1 model."""
 
     _COMMON_JOINTS = G1_JOINTS
-    _weights: G1Weights
+    _SIDE_PREFIXES = ("left_", "right_")
+    _assets: G1Assets
 
     def __init__(
         self,
@@ -42,7 +43,7 @@ class G1(RigidBodyModel):
             raise ValueError(f"Invalid G1 convention: {convention!r}")
         self._attach_runtime(runtime)
         self._config = G1Config(convention)
-        self._weights = runtime._materialize(load_model_data(model_path, convention=convention))
+        self._assets = runtime._materialize(load_model_data(model_path, convention=convention))
 
     @property
     def convention(self) -> core.Convention:
@@ -70,13 +71,13 @@ class G1(RigidBodyModel):
         joint_indices: Sequence[int] | None = None,
     ) -> Float[Array, "*batch J 4 4"]:
         """Compute posed joint transforms."""
-        weights = self._weights
+        assets = self._assets
         return core.forward_skeleton(
-            local_offsets=weights.local_offsets,
-            rest_local_rotations=weights.rest_local_rotations,
-            actuated_joint_indices=weights.actuated_joint_indices,
-            actuated_joint_axes=weights.actuated_joint_axes,
-            parents=weights.parents,
+            local_offsets=assets.local_offsets,
+            rest_local_rotations=assets.rest_local_rotations,
+            actuated_joint_indices=assets.actuated_joint_indices,
+            actuated_joint_axes=assets.actuated_joint_axes,
+            parents=assets.parents,
             body_pose=body_pose,
             global_translation=global_translation,
             global_rotation=global_rotation,
@@ -116,7 +117,7 @@ class G1(RigidBodyModel):
             axis_angle,
             src="axis_angle",
             dst="hinge",
-            dst_kwargs={"axes": self._weights.actuated_joint_axes},
+            dst_kwargs={"axes": self._assets.actuated_joint_axes},
             xp=runtime.xp,
         )[..., 0]
         return params

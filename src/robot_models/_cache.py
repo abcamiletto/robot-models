@@ -14,9 +14,7 @@ __all__ = [
     "get_cache_dir",
 ]
 
-# Robot and body packages intentionally share the existing public asset store;
-# this is an asset-hosting choice, not a source or package dependency.
-HF_MODEL_REPO_ID = "abcamiletto/body-models"
+HF_MODEL_REPO_ID = "abcamiletto/robot-models"
 
 
 def get_cache_dir() -> Path:
@@ -53,10 +51,7 @@ def extract_archive(archive_path: Path, dest: Path) -> None:
             with tarfile.open(archive_path) as archive:
                 members = archive.getmembers()
                 _validate_paths(member.name for member in members)
-                try:
-                    archive.extractall(contents, members=members, filter="data")
-                except TypeError:
-                    archive.extractall(contents, members=members)
+                archive.extractall(contents, members=members, filter="data")
         else:
             raise ValueError(f"Unsupported archive: {archive_path}")
 

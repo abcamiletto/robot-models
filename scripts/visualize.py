@@ -10,29 +10,16 @@ import numpy as np
 import viser
 
 from robot_models import RigidBodyModel, create_model
-from robot_models.smpl_humanoid import SMPL_HUMANOID_VARIANTS
 
-SMPL_HUMANOID_LABELS = {
-    "humenv": "HumEnv",
-    "phc": "PHC",
-    "smplsim": "SMPLSim",
-}
-
-
-SMPL_HUMANOID = SMPL_HUMANOID_LABELS["humenv"]
 MODEL_SPECS: dict[str, tuple[str, dict[str, Any]]] = {
     "G1": ("g1", {}),
     "BrainCo Right": ("brainco", {"side": "right"}),
     "BrainCo Left": ("brainco", {"side": "left"}),
-    "MyoFullBody": ("myofullbody", {}),
-    **{SMPL_HUMANOID_LABELS[variant]: ("smpl-humanoid", {"variant": variant}) for variant in SMPL_HUMANOID_VARIANTS},
 }
-SMPL_HUMANOID_COLOR = (190, 190, 205)
 MODEL_COLORS: dict[str, tuple[int, int, int]] = {
     "G1": (152, 190, 255),
     "BrainCo Right": (238, 180, 120),
     "BrainCo Left": (238, 180, 120),
-    "MyoFullBody": (175, 210, 165),
 }
 GRID_COLS = 2
 GRID_SPACING_X = 1.6
@@ -74,16 +61,14 @@ def main() -> None:
         choices=sorted(MODEL_SPECS),
         help="Robot model to load.",
     )
-    parser.add_argument("--smpl-humanoid-model-path", help="MJCF XML path for SmplHumanoid.")
     args = parser.parse_args()
-    model_specs = specs(args.smpl_humanoid_model_path)
 
     server = viser.ViserServer(port=args.port)
     server.scene.set_up_direction("+y")
     server.scene.add_grid("/grid", position=(0.0, 0.0, 0.0), plane="xz")
     server.gui.configure_theme(control_layout="fixed", control_width="large")
 
-    models = load_models(model_specs, args.model)
+    models = load_models(args.model)
     states = init_states(server, models)
     tabs = server.gui.add_tab_group()
     selected_model = next(iter(states))
@@ -121,20 +106,11 @@ def main() -> None:
                 update_robot_mesh(server, state)
 
 
-def specs(smpl_humanoid_model_path: str | None) -> dict[str, tuple[str, dict[str, Any]]]:
-    model_specs = {name: (model_id, dict(kwargs)) for name, (model_id, kwargs) in MODEL_SPECS.items()}
-    if smpl_humanoid_model_path is not None:
-        model_specs[SMPL_HUMANOID] = ("smpl-humanoid", {"model_path": smpl_humanoid_model_path})
-    return model_specs
-
-
-def load_models(
-    model_specs: dict[str, tuple[str, dict[str, Any]]], names: list[str] | None
-) -> dict[str, RigidBodyModel]:
+def load_models(names: list[str] | None) -> dict[str, RigidBodyModel]:
     models = {}
-    for name in names or list(model_specs):
+    for name in names or list(MODEL_SPECS):
         print(f"Loading {name}", flush=True)
-        model_id, kwargs = model_specs[name]
+        model_id, kwargs = MODEL_SPECS[name]
         model = create_model(model_id, runtime="numpy", **kwargs)
         if not isinstance(model, RigidBodyModel):
             raise TypeError(f"{name} is not a rigid body model")
@@ -151,9 +127,7 @@ def init_states(server: viser.ViserServer, models: dict[str, RigidBodyModel]) ->
         row_count = min(GRID_COLS, n - row * GRID_COLS)
         params = mutable_params(model.get_rest_pose())
         mesh_path = f"/robots/{name}"
-        state = RobotState(
-            model=model, params=params, mesh_path=mesh_path, color=MODEL_COLORS.get(name, SMPL_HUMANOID_COLOR)
-        )
+        state = RobotState(model=model, params=params, mesh_path=mesh_path, color=MODEL_COLORS[name])
         update_robot_mesh(server, state)
         assert state.mesh_handle is not None
         bounds = np.asarray(state.mesh_handle.vertices)

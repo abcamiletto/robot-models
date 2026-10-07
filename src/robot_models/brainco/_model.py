@@ -15,7 +15,7 @@ from robot_models._constants import Joint
 from robot_models._runtime import ArrayRuntime
 from robot_models.brainco import _core as core
 from robot_models.brainco._constants import BRAINCO_HAND_PRESETS, LEFT_BRAINCO_JOINTS, RIGHT_BRAINCO_JOINTS
-from robot_models.brainco._io import BrainCoWeights, Side, load_model_data
+from robot_models.brainco._io import BrainCoAssets, Side, load_model_data
 
 Array = Any
 
@@ -28,7 +28,7 @@ class BrainCoConfig:
 class BrainCoHand(RigidBodyModel):
     """Rigid articulated BrainCo Revo 2 hand."""
 
-    _weights: BrainCoWeights
+    _assets: BrainCoAssets
     has_hands = True
 
     def __init__(
@@ -42,7 +42,7 @@ class BrainCoHand(RigidBodyModel):
             raise ValueError(f"Invalid side: {side!r}")
         self._attach_runtime(runtime)
         self._config = BrainCoConfig(side)
-        self._weights = runtime._materialize(load_model_data(model_path, side=side))
+        self._assets = runtime._materialize(load_model_data(model_path, side=side))
 
     @property
     def side(self) -> Side:
@@ -54,10 +54,10 @@ class BrainCoHand(RigidBodyModel):
 
     @property
     def _pose_control_joints(self) -> tuple[tuple[int, ...], ...]:
-        joints = [{joint} for joint in self._weights.actuated_joint_indices]
+        joints = [{joint} for joint in self._assets.actuated_joint_indices]
         for joint, driver in zip(
-            self._weights.coupled_joint_indices,
-            self._weights.coupled_driver_indices,
+            self._assets.coupled_joint_indices,
+            self._assets.coupled_driver_indices,
             strict=True,
         ):
             joints[driver].add(joint)
@@ -83,17 +83,17 @@ class BrainCoHand(RigidBodyModel):
         joint_indices: Sequence[int] | None = None,
     ) -> Float[Array, "*batch J 4 4"]:
         """Compute posed joint transforms."""
-        weights = self._weights
+        assets = self._assets
         return core.forward_skeleton(
-            local_offsets=weights.local_offsets,
-            rest_local_rotations=weights.rest_local_rotations,
-            actuated_joint_axes=weights.actuated_joint_axes,
-            actuated_joint_indices=weights.actuated_joint_indices,
-            coupled_joint_axes=weights.coupled_joint_axes,
-            coupled_joint_indices=weights.coupled_joint_indices,
-            coupled_driver_indices=weights.coupled_driver_indices,
-            coupled_polycoef=weights.coupled_polycoef,
-            parents=weights.parents,
+            local_offsets=assets.local_offsets,
+            rest_local_rotations=assets.rest_local_rotations,
+            actuated_joint_axes=assets.actuated_joint_axes,
+            actuated_joint_indices=assets.actuated_joint_indices,
+            coupled_joint_axes=assets.coupled_joint_axes,
+            coupled_joint_indices=assets.coupled_joint_indices,
+            coupled_driver_indices=assets.coupled_driver_indices,
+            coupled_polycoef=assets.coupled_polycoef,
+            parents=assets.parents,
             pose=hand_pose,
             global_translation=global_translation,
             global_rotation=global_rotation,

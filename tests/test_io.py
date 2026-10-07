@@ -1,7 +1,6 @@
 import pytest
 
 import robot_models.brainco._io as brainco_io
-from robot_models import _config as config
 
 
 @pytest.mark.fast
@@ -21,15 +20,6 @@ def test_brainco_get_model_path_uses_cache_without_downloading(tmp_path, monkeyp
     )
 
     assert brainco_io.get_model_path() == cache_dir
-
-
-@pytest.mark.fast
-def test_validate_model_path_myofullbody(tmp_path) -> None:
-    xml_path = tmp_path / "body" / "myofullbody.xml"
-    xml_path.parent.mkdir(parents=True)
-    xml_path.touch()
-
-    assert config.validate_model_path("myofullbody", tmp_path) == tmp_path
 
 
 @pytest.mark.fast

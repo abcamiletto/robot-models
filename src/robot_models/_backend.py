@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from inspect import Parameter, Signature, signature
+import inspect
+from inspect import Parameter, Signature
 from typing import Any
 
 from robot_models._runtime import ArrayRuntime, JaxRuntime, NumpyRuntime, RuntimeName, TorchRuntime
@@ -27,8 +28,6 @@ def model_for_backend(
         from torch import nn
 
         torch_base: Any = nn.Module
-
-    if backend == "torch":
 
         class BackendModel(backend_base, torch_base):
             def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -61,7 +60,7 @@ def model_for_backend(
 
 
 def _backend_signature(model_class: type[Any]) -> Signature:
-    model_signature = signature(model_class)
+    model_signature = inspect.signature(model_class)
     parameters = list(model_signature.parameters.values())
     runtime_index = next(index for index, parameter in enumerate(parameters) if parameter.name == "runtime")
     parameters.pop(runtime_index)

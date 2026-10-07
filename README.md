@@ -36,8 +36,6 @@ The equivalent NumPy and JAX classes live in `robot_models.g1.numpy` and
 
 - BrainCo Revo 2 robotic hand
 - Unitree G1 humanoid robot
-- MyoFullBody musculoskeletal rigid-body model
-- SMPL-compatible humanoids from HumEnv, PHC, and SMPLSim
 
 ## Development
 
@@ -50,5 +48,6 @@ uv run pytest -m fast
 
 ## License
 
-See the documentation and upstream model projects for model-specific license
-terms.
+The code is licensed under the Apache License 2.0 (see `LICENSE`). Model assets
+are licensed separately by their upstream projects — see the documentation and
+upstream model pages for model-specific terms.

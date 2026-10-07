@@ -50,7 +50,7 @@ def list_models(*, pattern: str | None = None) -> list[str]:
     List public model factory names.
 
     Args:
-        pattern: Optional case-insensitive shell-style pattern such as ``"smpl*"``.
+        pattern: Optional case-insensitive shell-style pattern such as ``"brainco*"``.
 
     Returns:
         Sorted matching model names.

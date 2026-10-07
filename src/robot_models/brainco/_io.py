@@ -13,7 +13,7 @@ from jaxtyping import Float, Int
 from robot_models import _config as config
 from robot_models._cache import download_hf_archive, get_cache_dir
 from robot_models._common import coordinates, mjcf, stl
-from robot_models._common.rigid import RigidWeights
+from robot_models._common.rigid import RigidAssets
 
 PathLike = Path | str
 Side = Literal["left", "right"]
@@ -46,7 +46,7 @@ ACTIVE_JOINT_SUFFIXES = {
 
 
 @dataclass(frozen=True)
-class BrainCoWeights(RigidWeights):
+class BrainCoAssets(RigidAssets):
     side: Side
     actuated_joint_indices: list[int]
     actuated_joint_axes: Float[Array, "Q 3"]
@@ -93,11 +93,11 @@ def validate_path(path: PathLike) -> Path:
     return path
 
 
-def load_model_data(model_path: PathLike | None = None, *, side: Side = "right", dtype=np.float32) -> BrainCoWeights:
+def load_model_data(model_path: PathLike | None = None, *, side: Side = "right", dtype=np.float32) -> BrainCoAssets:
     if side not in VALID_SIDES:
         raise ValueError(f"Invalid BrainCo side: {side}")
     model_dir = get_model_path(model_path)
-    root = mjcf.parse_xml(model_dir / f"{side}.xml")
+    root = ET.parse(model_dir / f"{side}.xml").getroot()
     names = [f"{side}_{suffix}" for suffix in JOINT_SUFFIXES]
     class_axes, class_limits = mjcf.joint_defaults(root)
     local_offsets, rest_local_rotations, mesh_transforms = _parse_rest_and_mesh_transforms(root, side, names)
@@ -109,7 +109,7 @@ def load_model_data(model_path: PathLike | None = None, *, side: Side = "right",
         class_axes,
     )
     vertices, faces, link_data = _load_link_meshes(model_dir / "meshes" / side, mesh_transforms, names, dtype=dtype)
-    return BrainCoWeights(
+    return BrainCoAssets(
         side=side,
         joint_names=names,
         parents=PARENTS.copy(),

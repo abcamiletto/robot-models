@@ -14,7 +14,7 @@ from robot_models import _state as state
 from robot_models._common import eye_as, zeros_as
 from robot_models._common import rigid as rigid_ops
 from robot_models._constants import Joint
-from robot_models._rotations import RotationType, rotation_ndim, rotation_shape
+from robot_models._rotations import RotationType, rotation_dims, rotation_ndim
 from robot_models._runtime import ArrayRuntime
 
 Array = Any
@@ -28,9 +28,9 @@ MUJOCO_TO_MODEL = (
 
 @dataclass(frozen=True)
 class ParameterSpec:
-    """Shape, role, and numeric default of one model parameter."""
+    """Array dims, role, and numeric default of one model parameter."""
 
-    shape: tuple[int, ...]
+    dims: tuple[int, ...]
     role: ParameterRole
     default: float = field(default=0.0, kw_only=True)
     rotation_type: RotationType | None = field(default=None, kw_only=True)
@@ -44,9 +44,9 @@ class ParameterSpec:
         role: ParameterRole = "pose",
     ) -> ParameterSpec:
         """Describe one rotation or a vector of rotations."""
-        leading_shape = () if count is None else (count,)
+        leading_dims = () if count is None else (count,)
         return cls(
-            shape=(*leading_shape, *rotation_shape(rotation_type)),
+            dims=(*leading_dims, *rotation_dims(rotation_type)),
             role=role,
             rotation_type=rotation_type,
         )
@@ -56,10 +56,12 @@ class RigidBodyModel(ABC):
     """Base class for rigid articulated models."""
 
     _COMMON_JOINTS: ClassVar[Mapping[Joint, str]] = {}
-    _state_fields: ClassVar[tuple[str, ...]] = ("_weights",)
+    # Left and right joint-name prefixes; None for single-sided models.
+    _SIDE_PREFIXES: ClassVar[tuple[str, str] | None] = None
+    _state_fields: ClassVar[tuple[str, ...]] = ("_assets",)
     _config: Any
     _runtime: ArrayRuntime
-    _weights: rigid_ops.RigidWeights
+    _assets: rigid_ops.RigidAssets
     has_hands: ClassVar[bool] = False
 
     @property
@@ -88,6 +90,31 @@ class RigidBodyModel(ABC):
     def common_joints(self) -> Mapping[Joint, str]:
         """Common anatomical joints mapped to this model's native joint names."""
         return self._COMMON_JOINTS
+
+    @property
+    def symmetric_joints(self) -> tuple[tuple[int, int], ...]:
+        """
+        Left/right joint pairs as ``(left_index, right_index)``, in joint order.
+
+        Indices address the ``J`` axis of :meth:`forward_skeleton` outputs and
+        cover the whole native skeleton, including joints outside the
+        :class:`Joint` vocabulary. Unpaired joints lie on the midline. Pairs
+        describe index correspondence only, not how to mirror a pose.
+
+        Raises:
+            ValueError: If a sided joint name has no counterpart.
+        """
+        if self._SIDE_PREFIXES is None:
+            return ()
+        left, right = self._SIDE_PREFIXES
+        names = self.joint_names
+        left_names = [name for name in names if name.startswith(left)]
+        right_names = {name for name in names if name.startswith(right)}
+        mirrored_names = {right + name.removeprefix(left) for name in left_names}
+        if mirrored_names != right_names:
+            unpaired = sorted(mirrored_names ^ right_names)
+            raise ValueError(f"{type(self).__name__} has unpaired sided joints: {unpaired}")
+        return tuple((names.index(name), names.index(right + name.removeprefix(left))) for name in left_names)
 
     @property
     def pose_joint_indices(self) -> Mapping[str, tuple[int, ...]]:
@@ -154,7 +181,7 @@ class RigidBodyModel(ABC):
         reference = self._parameter_reference
         if spec.rotation_type is not None:
             encoded_dims = rotation_ndim(spec.rotation_type)
-            rotation_batch = spec.shape[:-encoded_dims]
+            rotation_batch = spec.dims[:-encoded_dims]
             like = runtime.zeros(batch_dims, like=reference, dtype=dtype)
             return SO3.identity_as(
                 like,
@@ -163,57 +190,57 @@ class RigidBodyModel(ABC):
                 xp=runtime.xp,
             )
 
-        value = runtime.zeros((*batch_dims, *spec.shape), like=reference, dtype=dtype)
+        value = runtime.zeros((*batch_dims, *spec.dims), like=reference, dtype=dtype)
         return value if spec.default == 0.0 else value + spec.default
 
     @property
     def faces(self) -> Int[Array, "F 3"]:
-        return self._weights.faces
+        return self._assets.faces
 
     @property
     def joint_names(self) -> list[str]:
-        return list(self._weights.joint_names)
+        return list(self._assets.joint_names)
 
     @property
     def parents(self) -> list[int]:
-        return list(self._weights.parents)
+        return list(self._assets.parents)
 
     @property
     def actuated_joint_names(self) -> list[str]:
-        return list(self._weights.actuated_joint_names)
+        return list(self._assets.actuated_joint_names)
 
     @property
     def actuated_joint_limits(self) -> Float[Array, "Q 2"]:
-        return self._weights.actuated_joint_limits
+        return self._assets.actuated_joint_limits
 
     @property
     def link_names(self) -> list[str]:
-        return list(self._weights.link_names)
+        return list(self._assets.link_names)
 
     @property
     def link_joint_indices(self) -> list[int]:
-        return list(self._weights.link_joint_indices)
+        return list(self._assets.link_joint_indices)
 
     @cached_property
     def link_meshes(self) -> Sequence[Trimesh]:
         """Link-local meshes aligned with :attr:`link_names` and ``forward_links()``."""
         return rigid_ops.link_meshes(
-            self._weights.vertices,
-            self._weights.faces,
-            self._weights.link_vertex_starts,
-            self._weights.link_vertex_counts,
-            self._weights.link_face_starts,
-            self._weights.link_face_counts,
+            self._assets.vertices,
+            self._assets.faces,
+            self._assets.link_vertex_starts,
+            self._assets.link_vertex_counts,
+            self._assets.link_face_starts,
+            self._assets.link_face_counts,
             to_numpy=self._runtime.to_numpy,
         )
 
     @property
     def num_vertices(self) -> int:
-        return self._weights.vertices.shape[0]
+        return self._assets.vertices.shape[0]
 
     @property
     def _parameter_reference(self) -> Float[Array, "V 3"]:
-        return self._weights.vertices
+        return self._assets.vertices
 
     @property
     def num_dofs(self) -> int:
@@ -328,21 +355,21 @@ class RigidBodyModel(ABC):
     ) -> Float[Array, "*batch L 4 4"]:
         return rigid_ops.forward_link_transforms(
             skeleton,
-            self._weights.link_joint_indices,
-            self._weights.link_geom_positions,
-            self._weights.link_geom_rotations,
+            self._assets.link_joint_indices,
+            self._assets.link_geom_positions,
+            self._assets.link_geom_rotations,
             xp=self._runtime.xp,
         )
 
     def _meshes_from_links(self, links: Float[Array, "*batch L 4 4"]) -> list[Trimesh]:
         return rigid_ops.forward_meshes_from_links(
             links,
-            self._weights.vertices,
-            self._weights.faces,
-            self._weights.link_vertex_starts,
-            self._weights.link_vertex_counts,
-            self._weights.link_face_starts,
-            self._weights.link_face_counts,
+            self._assets.vertices,
+            self._assets.faces,
+            self._assets.link_vertex_starts,
+            self._assets.link_vertex_counts,
+            self._assets.link_face_starts,
+            self._assets.link_face_counts,
             to_numpy=self._runtime.to_numpy,
             xp=self._runtime.xp,
         )

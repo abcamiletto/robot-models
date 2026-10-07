@@ -82,6 +82,29 @@ def test_link_meshes_reconstruct_forward_mesh(name, model_class, kwargs) -> None
 
 
 @pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.MODELS)
+def test_skeleton_joint_indices_match_full_skeleton_selection(name, model_class, kwargs) -> None:
+    rng = np.random.default_rng(7)
+    model = model_class(**kwargs)
+    params = model.get_rest_pose(batch_dims=(2,))
+    for key, value in params.items():
+        params[key] = rng.normal(scale=0.2, size=value.shape).astype(value.dtype)
+
+    full = np.asarray(model.forward_skeleton(**params))
+    num_joints = full.shape[-3]
+    joint_indices = [num_joints - 1, 0, num_joints - 1, num_joints // 2]
+    selected = np.asarray(model.forward_skeleton(**params, joint_indices=joint_indices))
+
+    assert selected.shape == (2, len(joint_indices), 4, 4)
+    np.testing.assert_allclose(selected, full[..., joint_indices, :, :], atol=1e-6, rtol=1e-6)
+
+    empty = np.asarray(model.forward_skeleton(**params, joint_indices=[]))
+    assert empty.shape == (2, 0, 4, 4)
+
+    with pytest.raises(IndexError):
+        model.forward_skeleton(**params, joint_indices=[num_joints])
+
+
+@pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.MODELS)
 def test_arbitrary_leading_dimensions(name, model_class, kwargs) -> None:
     model = model_class(**kwargs)
     joint_indices = list(range(min(8, model.num_joints)))

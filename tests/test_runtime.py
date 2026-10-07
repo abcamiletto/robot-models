@@ -63,12 +63,12 @@ def test_torch_model_manages_module_state() -> None:
     from robot_models.g1.torch import G1
 
     model = G1().double()
-    assert "_weights.vertices" in model.state_dict()
-    assert model._weights.vertices.dtype == torch.float64
+    assert "_assets.vertices" in model.state_dict()
+    assert model._assets.vertices.dtype == torch.float64
 
     restored = pickle.loads(pickle.dumps(model))
     assert isinstance(restored, G1)
-    assert "_weights.vertices" in restored.state_dict()
+    assert "_assets.vertices" in restored.state_dict()
 
 
 @pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.MODELS)

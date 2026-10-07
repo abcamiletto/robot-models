@@ -35,7 +35,5 @@ nav:
   - Models:
       - BrainCo: models/brainco.md
       - G1: models/g1.md
-      - MyoFullBody: models/myofullbody.md
-      - SmplHumanoid: models/smpl-humanoid.md
 
 strict: true

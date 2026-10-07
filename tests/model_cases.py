@@ -4,14 +4,10 @@ from importlib import import_module
 
 from robot_models.brainco.numpy import BrainCoHand
 from robot_models.g1.numpy import G1
-from robot_models.myofullbody.numpy import MyoFullBody
-from robot_models.smpl_humanoid.numpy import SmplHumanoid
 
 MODELS = [
     ("brainco", BrainCoHand, {}),
     ("g1", G1, {}),
-    ("myofullbody", MyoFullBody, {}),
-    ("smpl_humanoid", SmplHumanoid, {}),
 ]
 
 

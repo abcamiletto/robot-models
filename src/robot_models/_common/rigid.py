@@ -10,7 +10,7 @@ from nanomanifold import SO3
 from trimesh import Trimesh
 from trimesh.util import concatenate
 
-from robot_models._common.kinematics import affine_transforms
+from robot_models._common.kinematics import affine_transforms, select_joint_chains
 from robot_models._common.ops import at_set, eye_as, zeros_as
 
 Array = Any
@@ -18,7 +18,7 @@ _ToNumpy = Callable[[Any], np.ndarray]
 
 
 @dataclass(frozen=True)
-class RigidWeights:
+class RigidAssets:
     """Model state shared by every rigid articulated model."""
 
     joint_names: list[str]
@@ -81,43 +81,41 @@ def forward_skeleton_from_local_transforms(
     joint_indices: Sequence[int] | None = None,
     xp: Any,
 ) -> Float[Array, "... J 4 4"]:
-    """Compute rigid hierarchy transforms from local joint transforms."""
+    """Compute rigid hierarchy transforms from local joint transforms.
+
+    With ``joint_indices``, only the selected joints and their ancestors are evaluated.
+    """
     batch_shape = tuple(local_rotations.shape[:-3])
     dtype = local_rotations.dtype
-    num_joints = len(parents)
+    outputs = range(len(parents)) if joint_indices is None else tuple(int(joint) for joint in joint_indices)
+    chains = select_joint_chains(parents, outputs)
+    if not outputs:
+        return zeros_as(local_rotations, shape=(*batch_shape, 0, 4, 4), xp=xp)
     if global_translation is None:
         global_translation = zeros_as(local_rotations, shape=(*batch_shape, 3), xp=xp)
 
-    local_rot = local_rotations
     local_t = xp.asarray(local_offsets, dtype=dtype)
 
-    rot_world: list[Float[Array, "*batch 3 3"] | None] = [None] * num_joints
-    pos_world: list[Float[Array, "*batch 3"] | None] = [None] * num_joints
-    rot_world[0] = local_rot[..., 0, :, :]
-    pos_world[0] = zeros_as(local_rot, shape=(*batch_shape, 3), xp=xp)
-    for joint in range(1, num_joints):
+    rot_world: dict[int, Float[Array, "*batch 3 3"]] = {}
+    pos_world: dict[int, Float[Array, "*batch 3"]] = {}
+    for joint in chains:
         parent = parents[joint]
+        if parent < 0:
+            rot_world[joint] = local_rotations[..., joint, :, :]
+            pos_world[joint] = zeros_as(local_rotations, shape=(*batch_shape, 3), xp=xp)
+            continue
         parent_rot = rot_world[parent]
-        parent_pos = pos_world[parent]
-        rot_world[joint] = parent_rot @ local_rot[..., joint, :, :]
+        rot_world[joint] = parent_rot @ local_rotations[..., joint, :, :]
         local_pos = xp.squeeze(parent_rot @ local_t[joint][..., None], axis=-1)
-        pos_world[joint] = parent_pos + local_pos
+        pos_world[joint] = pos_world[parent] + local_pos
 
-    rot = xp.stack(rot_world, axis=-3)
-    trans = xp.stack(pos_world, axis=-2)
+    rot = xp.stack([rot_world[joint] for joint in outputs], axis=-3)
+    trans = xp.stack([pos_world[joint] for joint in outputs], axis=-2)
     if global_rotation is not None:
         global_rot = SO3.convert(global_rotation, src="axis_angle", dst="rotmat", xp=xp)
         rot = global_rot[..., None, :, :] @ rot
         trans = xp.squeeze(global_rot[..., None, :, :] @ trans[..., None], axis=-1)
     trans = trans + global_translation[..., None, :]
-
-    if joint_indices is not None:
-        if any(joint < 0 or joint >= num_joints for joint in joint_indices):
-            raise IndexError(f"joint_indices must be in [0, {num_joints})")
-        indices = xp.asarray(tuple(joint_indices), dtype=xp.int32)
-        rot = rot[..., indices, :, :]
-        trans = trans[..., indices, :]
-
     return affine_transforms(rot, trans, xp=xp)
 
 

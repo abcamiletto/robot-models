@@ -10,34 +10,6 @@ from jaxtyping import Float
 from nanomanifold import SO3
 
 
-def parse_xml(path: Path, *, inline_includes: bool = False) -> ET.Element:
-    root = ET.parse(path).getroot()
-    if inline_includes:
-        _inline_includes(root, path.parent, set())
-    return root
-
-
-def _inline_includes(element: ET.Element, base_dir: Path, visited: set[Path]) -> None:
-    children = list(element)
-    new_children: list[ET.Element] = []
-    for child in children:
-        if child.tag == "include":
-            file_attr = child.get("file")
-            if not file_attr:
-                raise ValueError("<include> is missing required file attribute")
-            include_path = (base_dir / file_attr).resolve()
-            if include_path in visited:
-                raise RuntimeError(f"Cyclic <include> at {include_path}")
-            sub_root = ET.parse(include_path).getroot()
-            _inline_includes(sub_root, include_path.parent, visited | {include_path})
-            new_children.extend(list(sub_root))
-            continue
-
-        _inline_includes(child, base_dir, visited)
-        new_children.append(child)
-    element[:] = new_children
-
-
 def parse_vec(
     value: str | None,
     *,
@@ -80,18 +52,14 @@ def mesh_base_dir(root: ET.Element, xml_path: Path) -> Path:
 
 
 def mesh_files_by_name(root: ET.Element) -> dict[str, str]:
-    return {name: file for name, (file, _scale) in mesh_assets(root).items()}
-
-
-def mesh_assets(root: ET.Element) -> dict[str, tuple[str, Float[np.ndarray, "3"]]]:
-    out: dict[str, tuple[str, Float[np.ndarray, "3"]]] = {}
+    files = {}
     for mesh in root.findall(".//asset/mesh"):
         name = mesh.get("name")
         file = mesh.get("file")
         if not name or not file:
             raise ValueError("<asset><mesh> entries must define both name and file")
-        out[name] = (file, parse_vec(mesh.get("scale"), default=np.ones(3, dtype=np.float32), size=3))
-    return out
+        files[name] = file
+    return files
 
 
 def joint_defaults(

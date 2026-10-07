@@ -13,7 +13,7 @@ from jaxtyping import Float, Int
 from robot_models import _config as config
 from robot_models._cache import download_hf_archive, get_cache_dir
 from robot_models._common import coordinates, mjcf, stl
-from robot_models._common.rigid import RigidWeights
+from robot_models._common.rigid import RigidAssets
 
 PathLike = Path | str
 Convention = Literal["soma", "mujoco"]
@@ -131,7 +131,7 @@ G1_MESH_JOINT_MAP = {
 
 
 @dataclass(frozen=True)
-class G1Weights(RigidWeights):
+class G1Assets(RigidAssets):
     actuated_joint_indices: list[int]
     actuated_joint_axes: Float[Array, "Q 3"]
 
@@ -177,12 +177,12 @@ def load_model_data(
     *,
     convention: Convention = "soma",
     dtype=np.float32,
-) -> G1Weights:
+) -> G1Assets:
     if convention not in VALID_CONVENTIONS:
         raise ValueError(f"Invalid convention: {convention}")
     coord = _MUJOCO_TO_MODEL if convention == "soma" else np.eye(3, dtype=np.float32)
     xml_path = get_model_path(model_path)
-    root = mjcf.parse_xml(xml_path)
+    root = ET.parse(xml_path).getroot()
 
     class_axes, class_limits = mjcf.joint_defaults(root)
     local_offsets, rest_local_rotations = _parse_joint_rest(root, coord)
@@ -195,7 +195,7 @@ def load_model_data(
         coord,
     )
     vertices, faces, link_data = _load_link_meshes(mesh_transforms, coord, dtype=dtype)
-    return G1Weights(
+    return G1Assets(
         joint_names=JOINT_NAMES.copy(),
         parents=PARENTS.copy(),
         local_offsets=local_offsets.astype(dtype),

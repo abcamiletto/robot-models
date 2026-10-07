@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from importlib import import_module
 from pathlib import Path
 from typing import Annotated
@@ -68,19 +67,9 @@ def _download(name: str, output_dir: Path | None = None) -> None:
     kwargs = {}
     if output_dir is not None:
         kwargs["output_dir"] = output_dir
-    result = downloader(**kwargs)
-    if spec.output_key is not None:
-        _save_paths({spec.output_key: result})
-    elif isinstance(result, Mapping):
-        _save_paths(result)
-    else:
-        raise TypeError(f"{spec.module}.{spec.function} must return a mapping")
-
-
-def _save_paths(paths: Mapping[str, str | Path]) -> None:
-    for key, path in sorted(paths.items()):
-        config.set_model_path(key, path)
-        typer.echo(f"Set {key} = {path}")
+    path = downloader(**kwargs)
+    config.set_model_path(name, path)
+    typer.echo(f"Set {name} = {path}")
 
 
 def _require_choice(value: str, choices: tuple[str, ...], label: str) -> None:

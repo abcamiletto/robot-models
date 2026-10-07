@@ -10,6 +10,7 @@ ASSET_DIR = Path(__file__).parent / "assets" / "models_hub"
 TEST_MODEL_PATHS = {
     "brainco": ASSET_DIR / "brainco",
     "g1": ASSET_DIR / "g1",
+    "talos": ASSET_DIR / "talos",
 }
 
 

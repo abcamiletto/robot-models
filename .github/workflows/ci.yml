@@ -67,4 +67,5 @@ jobs:
             tests/test_backend_consistency.py \
             tests/test_compile.py \
             tests/test_gradients.py \
-            tests/test_g1.py
+            tests/test_g1.py \
+            tests/test_talos.py

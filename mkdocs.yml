@@ -35,5 +35,6 @@ nav:
   - Models:
       - BrainCo: models/brainco.md
       - G1: models/g1.md
+      - GR1: models/gr1.md
 
 strict: true

@@ -4,10 +4,12 @@ from importlib import import_module
 
 from robot_models.brainco.numpy import BrainCoHand
 from robot_models.g1.numpy import G1
+from robot_models.gr1.numpy import GR1
 
 MODELS = [
     ("brainco", BrainCoHand, {}),
     ("g1", G1, {}),
+    ("gr1", GR1, {}),
 ]
 
 

@@ -28,6 +28,7 @@ _ROOT_TRANSFORM = {
 EXPECTED_PARAMETER_SPECS = {
     "brainco": {"hand_pose": ((6,), "pose", None), **_ROOT_TRANSFORM},
     "g1": {"body_pose": ((29,), "pose", None), **_ROOT_TRANSFORM},
+    "gr1": {"body_pose": ((32,), "pose", None), **_ROOT_TRANSFORM},
 }
 
 

@@ -39,6 +39,7 @@ The equivalent NumPy and JAX classes live in `robot_models.g1.numpy` and
 - Inspire RH56 robotic hand
 - LEAP Hand v1 robotic hand
 - Fourier GR1 humanoid robot
+- PSYONIC Ability Hand robotic hand
 - Unitree G1 humanoid robot
 - Unitree H1 humanoid robot
 - Booster Robotics T1 humanoid robot

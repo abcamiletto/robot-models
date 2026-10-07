@@ -38,6 +38,7 @@ def _model(module: str, class_name: str, **defaults: Any) -> ModelSpec:
 
 MODEL_SPECS: Mapping[str, ModelSpec] = MappingProxyType(
     {
+        "allegro": _model("robot_models.allegro", "AllegroHand"),
         "brainco": _model("robot_models.brainco", "BrainCoHand"),
         "g1": _model("robot_models.g1", "G1"),
         "h1": _model("robot_models.h1", "H1"),
@@ -49,6 +50,7 @@ MODEL_SPECS: Mapping[str, ModelSpec] = MappingProxyType(
 
 ASSET_SPECS: Mapping[str, AssetSpec] = MappingProxyType(
     {
+        "allegro": AssetSpec("robot_models.allegro._io"),
         "brainco": AssetSpec("robot_models.brainco._io"),
         "g1": AssetSpec("robot_models.g1._io"),
         "h1": AssetSpec("robot_models.h1._io"),
@@ -60,6 +62,7 @@ ASSET_SPECS: Mapping[str, AssetSpec] = MappingProxyType(
 
 DOWNLOAD_SPECS: Mapping[str, DownloadSpec] = MappingProxyType(
     {
+        "allegro": DownloadSpec("robot_models.allegro._io", "download_model"),
         "brainco": DownloadSpec("robot_models.brainco._io", "download_model"),
         "g1": DownloadSpec("robot_models.g1._io", "download_model"),
         "h1": DownloadSpec("robot_models.h1._io", "download_model"),

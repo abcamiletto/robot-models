@@ -71,3 +71,5 @@ jobs:
             tests/test_h1.py
             tests/test_t1.py
             tests/test_shadow.py
+            tests/test_allegro.py \
+            tests/test_g1.py

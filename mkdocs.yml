@@ -35,5 +35,6 @@ nav:
   - Models:
       - BrainCo: models/brainco.md
       - G1: models/g1.md
+      - LEAP Hand: models/leap.md
 
 strict: true

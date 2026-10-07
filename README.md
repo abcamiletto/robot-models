@@ -35,6 +35,7 @@ The equivalent NumPy and JAX classes live in `robot_models.g1.numpy` and
 ## Models
 
 - BrainCo Revo 2 robotic hand
+- LEAP Hand v1 robotic hand
 - Unitree G1 humanoid robot
 
 ## Development

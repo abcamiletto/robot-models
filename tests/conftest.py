@@ -11,6 +11,7 @@ TEST_MODEL_PATHS = {
     "brainco": ASSET_DIR / "brainco",
     "g1": ASSET_DIR / "g1",
     "h1": ASSET_DIR / "h1",
+    "t1": ASSET_DIR / "t1",
 }
 
 

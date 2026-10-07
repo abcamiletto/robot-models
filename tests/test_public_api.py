@@ -29,6 +29,7 @@ EXPECTED_PARAMETER_SPECS = {
     "brainco": {"hand_pose": ((6,), "pose", None), **_ROOT_TRANSFORM},
     "g1": {"body_pose": ((29,), "pose", None), **_ROOT_TRANSFORM},
     "h1": {"body_pose": ((19,), "pose", None), **_ROOT_TRANSFORM},
+    "t1": {"body_pose": ((23,), "pose", None), **_ROOT_TRANSFORM},
 }
 
 

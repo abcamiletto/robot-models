@@ -41,6 +41,7 @@ MODEL_SPECS: Mapping[str, ModelSpec] = MappingProxyType(
         "brainco": _model("robot_models.brainco", "BrainCoHand"),
         "g1": _model("robot_models.g1", "G1"),
         "h1": _model("robot_models.h1", "H1"),
+        "t1": _model("robot_models.t1", "T1"),
     }
 )
 
@@ -50,6 +51,7 @@ ASSET_SPECS: Mapping[str, AssetSpec] = MappingProxyType(
         "brainco": AssetSpec("robot_models.brainco._io"),
         "g1": AssetSpec("robot_models.g1._io"),
         "h1": AssetSpec("robot_models.h1._io"),
+        "t1": AssetSpec("robot_models.t1._io"),
     }
 )
 
@@ -59,6 +61,7 @@ DOWNLOAD_SPECS: Mapping[str, DownloadSpec] = MappingProxyType(
         "brainco": DownloadSpec("robot_models.brainco._io", "download_model"),
         "g1": DownloadSpec("robot_models.g1._io", "download_model"),
         "h1": DownloadSpec("robot_models.h1._io", "download_model"),
+        "t1": DownloadSpec("robot_models.t1._io", "download_model"),
     }
 )
 

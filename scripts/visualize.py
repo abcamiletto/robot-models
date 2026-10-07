@@ -13,11 +13,13 @@ from robot_models import RigidBodyModel, create_model
 
 MODEL_SPECS: dict[str, tuple[str, dict[str, Any]]] = {
     "G1": ("g1", {}),
+    "T1": ("t1", {}),
     "BrainCo Right": ("brainco", {"side": "right"}),
     "BrainCo Left": ("brainco", {"side": "left"}),
 }
 MODEL_COLORS: dict[str, tuple[int, int, int]] = {
     "G1": (152, 190, 255),
+    "T1": (150, 214, 170),
     "BrainCo Right": (238, 180, 120),
     "BrainCo Left": (238, 180, 120),
 }

@@ -69,3 +69,4 @@ jobs:
             tests/test_gradients.py \
             tests/test_g1.py \
             tests/test_h1.py
+            tests/test_t1.py

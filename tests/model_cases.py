@@ -5,11 +5,13 @@ from importlib import import_module
 from robot_models.brainco.numpy import BrainCoHand
 from robot_models.g1.numpy import G1
 from robot_models.h1.numpy import H1
+from robot_models.t1.numpy import T1
 
 MODELS = [
     ("brainco", BrainCoHand, {}),
     ("g1", G1, {}),
     ("h1", H1, {}),
+    ("t1", T1, {}),
 ]
 
 

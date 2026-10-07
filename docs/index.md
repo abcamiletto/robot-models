@@ -33,6 +33,7 @@ robot-models set g1 /path/to/g1
 | [T1](models/t1.md) | Booster Robotics T1 humanoid | auto-download |
 | [Shadow](models/shadow.md) | Shadow Dexterous Hand E3M5 | auto-download |
 | [Inspire](models/inspire.md) | Inspire RH56 robotic hand | auto-download |
+| [LEAP Hand](models/leap.md) | LEAP Hand v1 robotic hand | auto-download |
 
 ## Usage
 

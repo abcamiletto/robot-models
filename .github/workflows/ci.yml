@@ -74,3 +74,4 @@ jobs:
             tests/test_allegro.py \
             tests/test_g1.py
             tests/test_inspire.py
+            tests/test_leap.py

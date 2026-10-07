@@ -33,6 +33,7 @@ EXPECTED_PARAMETER_SPECS = {
     "t1": {"body_pose": ((23,), "pose", None), **_ROOT_TRANSFORM},
     "shadow": {"hand_pose": ((24,), "pose", None), **_ROOT_TRANSFORM},
     "inspire": {"hand_pose": ((6,), "pose", None), **_ROOT_TRANSFORM},
+    "leap": {"hand_pose": ((16,), "pose", None), **_ROOT_TRANSFORM},
 }
 
 

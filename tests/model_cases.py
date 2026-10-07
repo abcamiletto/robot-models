@@ -8,6 +8,7 @@ from robot_models.g1.numpy import G1
 from robot_models.h1.numpy import H1
 from robot_models.t1.numpy import T1
 from robot_models.shadow.numpy import ShadowHand
+from robot_models.inspire.numpy import InspireHand
 
 MODELS = [
     ("allegro", AllegroHand, {}),
@@ -16,6 +17,7 @@ MODELS = [
     ("h1", H1, {}),
     ("t1", T1, {}),
     ("shadow", ShadowHand, {}),
+    ("inspire", InspireHand, {}),
 ]
 
 

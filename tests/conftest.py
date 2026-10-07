@@ -14,6 +14,7 @@ TEST_MODEL_PATHS = {
     "h1": ASSET_DIR / "h1",
     "t1": ASSET_DIR / "t1",
     "shadow": ASSET_DIR / "shadow",
+    "inspire": ASSET_DIR / "inspire",
 }
 
 

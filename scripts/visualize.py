@@ -16,12 +16,16 @@ MODEL_SPECS: dict[str, tuple[str, dict[str, Any]]] = {
     "T1": ("t1", {}),
     "BrainCo Right": ("brainco", {"side": "right"}),
     "BrainCo Left": ("brainco", {"side": "left"}),
+    "Inspire Right": ("inspire", {"side": "right"}),
+    "Inspire Left": ("inspire", {"side": "left"}),
 }
 MODEL_COLORS: dict[str, tuple[int, int, int]] = {
     "G1": (152, 190, 255),
     "T1": (150, 214, 170),
     "BrainCo Right": (238, 180, 120),
     "BrainCo Left": (238, 180, 120),
+    "Inspire Right": (190, 190, 200),
+    "Inspire Left": (190, 190, 200),
 }
 GRID_COLS = 2
 GRID_SPACING_X = 1.6

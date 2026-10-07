@@ -39,5 +39,6 @@ nav:
       - H1: models/h1.md
       - T1: models/t1.md
       - Shadow: models/shadow.md
+      - Inspire: models/inspire.md
 
 strict: true

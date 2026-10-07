@@ -33,6 +33,7 @@ nav:
   - API Reference: api.md
   - Architecture: architecture.md
   - Models:
+      - Ability Hand: models/ability.md
       - BrainCo: models/brainco.md
       - G1: models/g1.md
 

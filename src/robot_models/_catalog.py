@@ -46,6 +46,7 @@ MODEL_SPECS: Mapping[str, ModelSpec] = MappingProxyType(
         "shadow": _model("robot_models.shadow", "ShadowHand"),
         "inspire": _model("robot_models.inspire", "InspireHand"),
         "leap": _model("robot_models.leap", "LeapHand"),
+        "gr1": _model("robot_models.gr1", "GR1"),
     }
 )
 
@@ -60,6 +61,7 @@ ASSET_SPECS: Mapping[str, AssetSpec] = MappingProxyType(
         "shadow": AssetSpec("robot_models.shadow._io"),
         "inspire": AssetSpec("robot_models.inspire._io"),
         "leap": AssetSpec("robot_models.leap._io"),
+        "gr1": AssetSpec("robot_models.gr1._io"),
     }
 )
 
@@ -74,6 +76,7 @@ DOWNLOAD_SPECS: Mapping[str, DownloadSpec] = MappingProxyType(
         "shadow": DownloadSpec("robot_models.shadow._io", "download_model"),
         "inspire": DownloadSpec("robot_models.inspire._io", "download_model"),
         "leap": DownloadSpec("robot_models.leap._io", "download_model"),
+        "gr1": DownloadSpec("robot_models.gr1._io", "download_model"),
     }
 )
 

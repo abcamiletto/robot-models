@@ -75,3 +75,4 @@ jobs:
             tests/test_g1.py
             tests/test_inspire.py
             tests/test_leap.py
+            tests/test_gr1.py

@@ -34,6 +34,7 @@ robot-models set g1 /path/to/g1
 | [Shadow](models/shadow.md) | Shadow Dexterous Hand E3M5 | auto-download |
 | [Inspire](models/inspire.md) | Inspire RH56 robotic hand | auto-download |
 | [LEAP Hand](models/leap.md) | LEAP Hand v1 robotic hand | auto-download |
+| [GR1](models/gr1.md) | Fourier GR1 humanoid | auto-download |
 
 ## Usage
 

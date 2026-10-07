@@ -41,5 +41,6 @@ nav:
       - Shadow: models/shadow.md
       - Inspire: models/inspire.md
       - LEAP Hand: models/leap.md
+      - GR1: models/gr1.md
 
 strict: true

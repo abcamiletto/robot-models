@@ -26,16 +26,16 @@ robot-models set g1 /path/to/g1
 
 | Model | Scope | Setup |
 | --- | --- | --- |
-| [Allegro](models/allegro.md) | Wonik Robotics Allegro robotic hand | auto-download |
 | [Ability Hand](models/ability.md) | PSYONIC Ability Hand robotic hand | auto-download |
+| [Allegro](models/allegro.md) | Wonik Robotics Allegro robotic hand | auto-download |
 | [BrainCo](models/brainco.md) | BrainCo Revo 2 robotic hand | auto-download |
 | [G1](models/g1.md) | Unitree G1 humanoid | auto-download |
+| [GR1](models/gr1.md) | Fourier GR1 humanoid | auto-download |
 | [H1](models/h1.md) | Unitree H1 humanoid | auto-download |
-| [T1](models/t1.md) | Booster Robotics T1 humanoid | auto-download |
-| [Shadow](models/shadow.md) | Shadow Dexterous Hand E3M5 | auto-download |
 | [Inspire](models/inspire.md) | Inspire RH56 robotic hand | auto-download |
 | [LEAP Hand](models/leap.md) | LEAP Hand v1 robotic hand | auto-download |
-| [GR1](models/gr1.md) | Fourier GR1 humanoid | auto-download |
+| [Shadow](models/shadow.md) | Shadow Dexterous Hand E3M5 | auto-download |
+| [T1](models/t1.md) | Booster Robotics T1 humanoid | auto-download |
 | [TALOS](models/talos.md) | PAL Robotics TALOS humanoid | auto-download |
 
 ## Usage

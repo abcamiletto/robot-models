@@ -13,19 +13,41 @@ from robot_models import RigidBodyModel, create_model
 
 MODEL_SPECS: dict[str, tuple[str, dict[str, Any]]] = {
     "G1": ("g1", {}),
+    "GR1": ("gr1", {}),
+    "H1": ("h1", {}),
     "T1": ("t1", {}),
+    "TALOS": ("talos", {}),
+    "Ability Right": ("ability", {"side": "right"}),
+    "Ability Left": ("ability", {"side": "left"}),
+    "Allegro Right": ("allegro", {"side": "right"}),
+    "Allegro Left": ("allegro", {"side": "left"}),
     "BrainCo Right": ("brainco", {"side": "right"}),
     "BrainCo Left": ("brainco", {"side": "left"}),
     "Inspire Right": ("inspire", {"side": "right"}),
     "Inspire Left": ("inspire", {"side": "left"}),
+    "LEAP Right": ("leap", {"side": "right"}),
+    "LEAP Left": ("leap", {"side": "left"}),
+    "Shadow Right": ("shadow", {"side": "right"}),
+    "Shadow Left": ("shadow", {"side": "left"}),
 }
 MODEL_COLORS: dict[str, tuple[int, int, int]] = {
     "G1": (152, 190, 255),
+    "GR1": (200, 200, 210),
+    "H1": (120, 150, 220),
     "T1": (150, 214, 170),
+    "TALOS": (180, 160, 220),
+    "Ability Right": (230, 150, 150),
+    "Ability Left": (230, 150, 150),
+    "Allegro Right": (120, 120, 130),
+    "Allegro Left": (120, 120, 130),
     "BrainCo Right": (238, 180, 120),
     "BrainCo Left": (238, 180, 120),
     "Inspire Right": (190, 190, 200),
     "Inspire Left": (190, 190, 200),
+    "LEAP Right": (240, 220, 120),
+    "LEAP Left": (240, 220, 120),
+    "Shadow Right": (170, 200, 230),
+    "Shadow Left": (170, 200, 230),
 }
 GRID_COLS = 2
 GRID_SPACING_X = 1.6

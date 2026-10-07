@@ -34,16 +34,16 @@ The equivalent NumPy and JAX classes live in `robot_models.g1.numpy` and
 
 ## Models
 
+- Booster Robotics T1 humanoid robot
 - BrainCo Revo 2 robotic hand
-- Shadow Dexterous Hand E3M5
+- Fourier GR1 humanoid robot
 - Inspire RH56 robotic hand
 - LEAP Hand v1 robotic hand
-- Fourier GR1 humanoid robot
-- PSYONIC Ability Hand robotic hand
 - PAL Robotics TALOS humanoid robot
+- PSYONIC Ability Hand robotic hand
+- Shadow Dexterous Hand E3M5 robotic hand
 - Unitree G1 humanoid robot
 - Unitree H1 humanoid robot
-- Booster Robotics T1 humanoid robot
 - Wonik Robotics Allegro robotic hand
 
 ## Development

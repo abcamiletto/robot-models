@@ -8,16 +8,16 @@ from robot_models import _config as config
 
 ASSET_DIR = Path(__file__).parent / "assets" / "models_hub"
 TEST_MODEL_PATHS = {
-    "allegro": ASSET_DIR / "allegro",
     "ability": ASSET_DIR / "ability",
+    "allegro": ASSET_DIR / "allegro",
     "brainco": ASSET_DIR / "brainco",
     "g1": ASSET_DIR / "g1",
+    "gr1": ASSET_DIR / "gr1",
     "h1": ASSET_DIR / "h1",
-    "t1": ASSET_DIR / "t1",
-    "shadow": ASSET_DIR / "shadow",
     "inspire": ASSET_DIR / "inspire",
     "leap": ASSET_DIR / "leap",
-    "gr1": ASSET_DIR / "gr1",
+    "shadow": ASSET_DIR / "shadow",
+    "t1": ASSET_DIR / "t1",
     "talos": ASSET_DIR / "talos",
 }
 

@@ -33,16 +33,16 @@ nav:
   - API Reference: api.md
   - Architecture: architecture.md
   - Models:
-      - Allegro: models/allegro.md
       - Ability Hand: models/ability.md
+      - Allegro: models/allegro.md
       - BrainCo: models/brainco.md
       - G1: models/g1.md
+      - GR1: models/gr1.md
       - H1: models/h1.md
-      - T1: models/t1.md
-      - Shadow: models/shadow.md
       - Inspire: models/inspire.md
       - LEAP Hand: models/leap.md
-      - GR1: models/gr1.md
+      - Shadow: models/shadow.md
+      - T1: models/t1.md
       - TALOS: models/talos.md
 
 strict: true

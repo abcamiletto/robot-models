@@ -11,8 +11,8 @@ Each model family is self-contained in `robot_models/<name>/`:
 
 `RigidBodyModel` owns metadata, pose packing, MuJoCo `qpos` conversion, link
 attachment, and mesh projection. Model-local cores retain their distinct
-kinematics: BrainCo coupled joints and G1/T1 hinge axes.
-kinematics: Ability Hand and BrainCo coupled joints and G1 hinge axes.
+kinematics: coupled joints for Ability, BrainCo, and Inspire hands, and plain
+hinge axes for the other robots.
 
 `ArrayRuntime` owns array construction and model-state materialization. Model
 math receives an explicit array namespace, while Torch and JAX wrappers provide

@@ -6,6 +6,7 @@ import pytest
 @pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.MODELS)
 def test_torch_compile_and_jax_jit(name, model_class, kwargs) -> None:
     torch = pytest.importorskip("torch")
+    torch._dynamo.reset()
     torch_class = model_cases.backend_model_class(name, "torch")
     torch_model = torch_class(**kwargs)
     torch_params = torch_model.get_rest_pose(batch_dims=(2,), dtype=torch.float32)

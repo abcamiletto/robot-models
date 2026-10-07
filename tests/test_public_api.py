@@ -26,16 +26,16 @@ _ROOT_TRANSFORM = {
 }
 
 EXPECTED_PARAMETER_SPECS = {
-    "allegro": {"hand_pose": ((16,), "pose", None), **_ROOT_TRANSFORM},
     "ability": {"hand_pose": ((6,), "pose", None), **_ROOT_TRANSFORM},
+    "allegro": {"hand_pose": ((16,), "pose", None), **_ROOT_TRANSFORM},
     "brainco": {"hand_pose": ((6,), "pose", None), **_ROOT_TRANSFORM},
     "g1": {"body_pose": ((29,), "pose", None), **_ROOT_TRANSFORM},
+    "gr1": {"body_pose": ((32,), "pose", None), **_ROOT_TRANSFORM},
     "h1": {"body_pose": ((19,), "pose", None), **_ROOT_TRANSFORM},
-    "t1": {"body_pose": ((23,), "pose", None), **_ROOT_TRANSFORM},
-    "shadow": {"hand_pose": ((24,), "pose", None), **_ROOT_TRANSFORM},
     "inspire": {"hand_pose": ((6,), "pose", None), **_ROOT_TRANSFORM},
     "leap": {"hand_pose": ((16,), "pose", None), **_ROOT_TRANSFORM},
-    "gr1": {"body_pose": ((32,), "pose", None), **_ROOT_TRANSFORM},
+    "shadow": {"hand_pose": ((24,), "pose", None), **_ROOT_TRANSFORM},
+    "t1": {"body_pose": ((23,), "pose", None), **_ROOT_TRANSFORM},
     "talos": {"body_pose": ((44,), "pose", None), **_ROOT_TRANSFORM},
 }
 

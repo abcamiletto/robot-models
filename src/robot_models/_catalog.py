@@ -23,6 +23,7 @@ MODEL_SPECS: Mapping[str, ModelSpec] = MappingProxyType(
         "h1": ModelSpec("robot_models.h1", "H1"),
         "inspire": ModelSpec("robot_models.inspire", "InspireHand"),
         "leap": ModelSpec("robot_models.leap", "LeapHand"),
+        "sharpa": ModelSpec("robot_models.sharpa", "SharpaHand"),
         "shadow": ModelSpec("robot_models.shadow", "ShadowHand"),
         "t1": ModelSpec("robot_models.t1", "T1"),
         "talos": ModelSpec("robot_models.talos", "Talos"),

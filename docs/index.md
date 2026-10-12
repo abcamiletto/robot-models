@@ -34,6 +34,7 @@ robot-models set g1 /path/to/g1
 | [H1](models/h1.md) | Unitree H1 humanoid | auto-download |
 | [Inspire](models/inspire.md) | Inspire RH56 robotic hand | auto-download |
 | [LEAP Hand](models/leap.md) | LEAP Hand v1 robotic hand | auto-download |
+| [Sharpa Wave](models/sharpa.md) | Sharpa Wave robotic hand | auto-download |
 | [Shadow](models/shadow.md) | Shadow Dexterous Hand E3M5 | auto-download |
 | [T1](models/t1.md) | Booster Robotics T1 humanoid | auto-download |
 | [TALOS](models/talos.md) | PAL Robotics TALOS humanoid | auto-download |

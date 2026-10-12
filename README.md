@@ -41,6 +41,7 @@ The equivalent NumPy and JAX classes live in `robot_models.g1.numpy` and
 - LEAP Hand v1 robotic hand
 - PAL Robotics TALOS humanoid robot
 - PSYONIC Ability Hand robotic hand
+- Sharpa Wave robotic hand
 - Shadow Dexterous Hand E3M5 robotic hand
 - Unitree G1 humanoid robot
 - Unitree H1 humanoid robot

@@ -17,7 +17,7 @@ A manual `model_path` is a directory with `left.xml`, `right.xml` and their mesh
 ## Usage
 
 ```python
-from robot_models.brainco.numpy import BrainCoHand
+from robot_models.hands.brainco.numpy import BrainCoHand
 
 hand = BrainCoHand(side="right")
 params = hand.get_rest_pose(hands="rest")
@@ -29,4 +29,4 @@ Each distal hinge follows its proximal hinge, as the BrainCo actuators drive the
 
 ## API
 
-::: robot_models.brainco.numpy.BrainCoHand
+::: robot_models.hands.brainco.numpy.BrainCoHand

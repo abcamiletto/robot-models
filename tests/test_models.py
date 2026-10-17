@@ -84,6 +84,9 @@ def test_collision_meshes_match_mujoco_geoms(case) -> None:
     geoms = [
         i for i in range(mj_model.ngeom) if mj_model.geom_contype[i] or mj_model.geom_conaffinity[i] or i in paired
     ]
+    assert geoms, "Every model must supply collision geometry"
+    if model._NAME == "shadow":
+        assert len(geoms) == 38
     assert len(model.collision_meshes) == len(geoms) == len(model.collision_names)
     transforms = model.forward_links(geometry="collision", **{model._POSE: pose})
     directions = np.vstack((np.eye(3), -np.eye(3), np.random.default_rng(4).normal(size=(24, 3))))

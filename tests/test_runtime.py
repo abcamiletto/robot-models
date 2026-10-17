@@ -48,9 +48,9 @@ def test_factory_returns_backend_specific_model() -> None:
     torch = pytest.importorskip("torch")
     pytest.importorskip("jax")
     from robot_models import create_model
-    from robot_models.g1.jax import G1 as JaxG1
-    from robot_models.g1.numpy import G1 as NumpyG1
-    from robot_models.g1.torch import G1 as TorchG1
+    from robot_models.humanoids.g1.jax import G1 as JaxG1
+    from robot_models.humanoids.g1.numpy import G1 as NumpyG1
+    from robot_models.humanoids.g1.torch import G1 as TorchG1
 
     models = [create_model("g1"), create_model("g1", runtime="torch"), create_model("g1", runtime="jax")]
     assert [type(model) for model in models] == [NumpyG1, TorchG1, JaxG1]
@@ -60,7 +60,7 @@ def test_factory_returns_backend_specific_model() -> None:
 
 def test_torch_model_manages_module_state() -> None:
     torch = pytest.importorskip("torch")
-    from robot_models.g1.torch import G1
+    from robot_models.humanoids.g1.torch import G1
 
     model = G1().double()
     assert "_assets.vertices" in model.state_dict()

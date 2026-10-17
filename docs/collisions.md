@@ -1,15 +1,17 @@
 # Visual and collision meshes
 
-Every canonical hand supplies both visual and collision geometry. The same hand,
-joints and FK drive both representations:
+Every hand in `robot_models.hands` and humanoid in `robot_models.humanoids`
+supplies both visual and collision geometry. The same model, joints and FK drive
+both representations:
 
 ```python
 from robot_models import create_model
 
-hand = create_model("shadow", side="right")
-params = hand.get_rest_pose(hands="rest")
-visual = hand.forward_meshes(**params)
-collision = hand.forward_meshes(geometry="collision", **params)
+for name in ("shadow", "g1"):
+    model = create_model(name)
+    params = model.get_rest_pose()
+    visual = model.forward_meshes(**params)
+    collision = model.forward_meshes(geometry="collision", **params)
 ```
 
 `link_meshes` contains the existing visual meshes. `collision_meshes` contains
@@ -45,6 +47,17 @@ omit a collider for a visual joint, such as Sharpa's two thumb linkage pieces;
 we retain their authored coverage. See [hand sources](hand-sources.md) for exact
 upstream revisions, qualifications and license terms.
 
+The same API covers all five humanoids, using the collisions already present
+in their canonical bundles:
+
+| Humanoid | Description | Collision pieces |
+| --- | --- | ---: |
+| G1 | LeRobot / Unitree | 39 |
+| GR1 | Fourier | 15 |
+| H1 | Menagerie / Unitree | 32 |
+| T1 | Menagerie / Booster | 12 |
+| TALOS | PAL Robotics | 7 |
+
 [Menagerie's Shadow](https://github.com/google-deepmind/mujoco_menagerie/blob/f054586a8e90465d49ee5be15335c4a0c7f57caf/shadow_hand/right_hand.xml),
 [Allegro](https://github.com/google-deepmind/mujoco_menagerie/blob/f054586a8e90465d49ee5be15335c4a0c7f57caf/wonik_allegro/right_hand.xml)
 and [LEAP](https://github.com/google-deepmind/mujoco_menagerie/blob/f054586a8e90465d49ee5be15335c4a0c7f57caf/leap_hand/right_hand.xml)
@@ -77,6 +90,12 @@ application-appropriate dynamics/actuation for simulation; URDF contact
 coefficients are retained in source files, rather than translated into solver
 parameters.
 
+URDF conversions exclude adjacent links from self-collision, including when
+the root is fixed by `add_hand`. Robotiq also excludes its palm from the first
+proximal link on each finger, whose collision meshes overlap throughout their
+joint ranges. These conversion rules are recorded in `source.json`; object
+contacts and other self-collision pairs remain enabled.
+
 Shadow restores Menagerie's forearm collision mesh on both sides, which the
 previous package omitted. All existing visual mesh bytes, skeleton frames,
 joint conventions and other geoms are retained.
@@ -90,6 +109,9 @@ refresh an older first-party bundle with:
 ```bash
 robot-models download shadow --output-dir /path/to/shadow
 ```
+
+Outdated configured/explicit directories produce a warning and are left intact.
+An outdated managed cache needs a network connection for its first refresh.
 
 ## Validation and rebuilding
 

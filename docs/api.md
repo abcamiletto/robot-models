@@ -2,6 +2,10 @@
 
 ## Model creation
 
+Model classes are grouped under `robot_models.hands.<model>.<runtime>` and
+`robot_models.humanoids.<model>.<runtime>`. The factory below accepts the same
+model identifiers for either family.
+
 ::: robot_models.create_model
     options:
       show_source: false
@@ -17,6 +21,10 @@
       show_source: false
 
 ## Model contract
+
+Both families expose local `collision_meshes` and posed
+`forward_meshes(geometry="collision", **params)`. See
+[visual and collision geometry](collisions.md) for examples and source details.
 
 `forward_skeleton(..., joint_indices=...)` returns only the requested joints and
 evaluates only their kinematic chains, so a few end effectors cost less than the

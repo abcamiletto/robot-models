@@ -98,14 +98,15 @@ and JAX.
 ## Published bundles
 
 Barrett, Robotiq and Shadow collision updates are mirrored at
-[revision `2ae41639`](https://huggingface.co/abcamiletto/robot-models/commit/2ae41639743b4508c58a60250a95dc0b601a88d3), with complete upstream
-terms and original source files. All 25 other hub files remain unchanged,
-including EZGripper and the other model bundles. Preparation is byte-for-byte
+[revision `3d1aa6d0`](https://huggingface.co/abcamiletto/robot-models/commit/3d1aa6d070de82469cc3e87e20d34dbba05a9e89), with complete upstream
+terms and original source files. The Barrett/Robotiq self-collision fix changes
+only their archives and notices plus the hub card; all 27 other hub files remain
+unchanged, including Shadow, EZGripper and the humanoid bundles. Preparation is byte-for-byte
 reproducible; archive SHA-256 digests are:
 
 | Bundle | SHA-256 |
 | --- | --- |
-| `barrett/assets.zip` | `ba4a04cdc5f0045975c6ca61b1e55995bd22bd464d96fdc3721308c5b9fcc051` |
-| `robotiq-3finger/assets.zip` | `932b6b9d05b4534ffe0a73a11ec6795ca99fc466596aa6436f54e2981cb6d658` |
+| `barrett/assets.zip` | `82b99a6e590ba07d7239c3a64d423757ac34c32123cd7d06c3ce829f05e58b98` |
+| `robotiq-3finger/assets.zip` | `21bd9a9f861a96cc0d95d8090a31746c6fa5f0f7aba44a697f7b1436f1f3f43a` |
 | `shadow/assets.zip` | `9ded526a4db0bd679174a87f43e71bacb4eb911196701d33949378689ef9330d` |
 | `ezgripper/assets.zip` (unchanged) | `1d3869c8c6f3ed475368abfabe14765a1abf15003e1cdae1bebf363926387ecb` |

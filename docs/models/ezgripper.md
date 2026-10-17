@@ -5,7 +5,7 @@ The single supplied assembly uses the API side tag `right`; no mirrored assembly
 is synthesized. Coordinate counts describe kinematics, rather than motor counts.
 
 ```python
-from robot_models.ezgripper.numpy import EZGripper
+from robot_models.hands.ezgripper.numpy import EZGripper
 
 hand = EZGripper()
 params = hand.get_rest_pose(hands="rest")
@@ -28,4 +28,4 @@ equilibrium or optimizer initialization.
 robot-models download ezgripper
 ```
 
-::: robot_models.ezgripper.numpy.EZGripper
+::: robot_models.hands.ezgripper.numpy.EZGripper

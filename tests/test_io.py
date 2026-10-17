@@ -17,7 +17,7 @@ def test_model_dir_uses_cache_without_downloading(tmp_path, monkeypatch) -> None
 
 
 @pytest.mark.fast
-@pytest.mark.parametrize("version", [1, 2])
+@pytest.mark.parametrize("version", [1, 2, 3])
 def test_updated_collision_assets_refresh_only_outdated_cache(tmp_path, monkeypatch, version):
     cached = tmp_path / "barrett"
     cached.mkdir()
@@ -32,7 +32,17 @@ def test_updated_collision_assets_refresh_only_outdated_cache(tmp_path, monkeypa
 
     monkeypatch.setattr(assets, "download", download)
     assert assets.model_dir("barrett") == cached
-    assert downloads == (["barrett"] if version == 1 else [])
+    assert downloads == (["barrett"] if version < 3 else [])
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize("configured", [False, True])
+def test_explicit_outdated_assets_warn_without_changing_files(tmp_path, monkeypatch, configured):
+    monkeypatch.setattr(assets.config, "get_model_path", lambda name: tmp_path if configured else None)
+    (tmp_path / "source.json").write_text('{"asset_version": 1}')
+    with pytest.warns(UserWarning, match="collision geometry may be incomplete"):
+        assert assets.model_dir("barrett", None if configured else tmp_path) == tmp_path
+    assert (tmp_path / "source.json").read_text() == '{"asset_version": 1}'
 
 
 @pytest.mark.fast

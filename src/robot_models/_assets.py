@@ -3,6 +3,7 @@
 import json
 import tarfile
 import tempfile
+import warnings
 import zipfile
 from collections.abc import Iterable
 from pathlib import Path
@@ -19,15 +20,19 @@ HF_MODEL_REPO_ID = "abcamiletto/robot-models"
 def model_dir(name: str, model_path: Path | str | None = None) -> Path:
     """Resolve a model's asset directory from an explicit path, the config, the cache, or a download."""
     model_path = model_path if model_path is not None else config.get_model_path(name)
+    required_version = MODEL_SPECS[name].asset_version
     if model_path is not None:
-        return config.validate_model_path(model_path)
+        directory = config.validate_model_path(model_path)
+        if _asset_version(directory) < required_version:
+            warnings.warn(
+                f"{name} assets at {directory} predate asset version {required_version}; "
+                f"collision geometry may be incomplete. Refresh with robot-models download {name} --output-dir {directory}",
+                stacklevel=2,
+            )
+        return directory
     cached = get_cache_dir() / name
-    if cached.is_dir():
-        required_version = MODEL_SPECS[name].asset_version
-        if required_version == 1:
-            return cached
-        if _asset_version(cached) >= required_version:
-            return cached
+    if cached.is_dir() and _asset_version(cached) >= required_version:
+        return cached
     return download(name)
 
 

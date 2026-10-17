@@ -37,20 +37,22 @@ nav:
   - Teaser rendering: teasers.md
   - Hand sources and validation: hand-sources.md
   - Models:
-      - Ability Hand: models/ability.md
-      - Allegro: models/allegro.md
-      - Barrett BH280: models/barrett.md
-      - BrainCo: models/brainco.md
-      - EZGripper: models/ezgripper.md
-      - G1: models/g1.md
-      - GR1: models/gr1.md
-      - H1: models/h1.md
-      - Inspire: models/inspire.md
-      - LEAP Hand: models/leap.md
-      - Robotiq 3-Finger: models/robotiq.md
-      - Sharpa Wave: models/sharpa.md
-      - Shadow: models/shadow.md
-      - T1: models/t1.md
-      - TALOS: models/talos.md
+      - Humanoids:
+          - G1: models/g1.md
+          - GR1: models/gr1.md
+          - H1: models/h1.md
+          - T1: models/t1.md
+          - TALOS: models/talos.md
+      - Hands:
+          - Ability Hand: models/ability.md
+          - Allegro: models/allegro.md
+          - Barrett BH280: models/barrett.md
+          - BrainCo: models/brainco.md
+          - EZGripper: models/ezgripper.md
+          - Inspire: models/inspire.md
+          - LEAP Hand: models/leap.md
+          - Robotiq 3-Finger: models/robotiq.md
+          - Sharpa Wave: models/sharpa.md
+          - Shadow: models/shadow.md
 
 strict: true

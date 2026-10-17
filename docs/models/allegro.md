@@ -17,7 +17,7 @@ A manual `model_path` is a directory with `left.xml`, `right.xml` and their mesh
 ## Usage
 
 ```python
-from robot_models.allegro.numpy import AllegroHand
+from robot_models.hands.allegro.numpy import AllegroHand
 
 hand = AllegroHand(side="right")
 params = hand.get_rest_pose(hands="rest")
@@ -29,4 +29,4 @@ The hand has four fingers and no coupled joints. The common wrist joint is the p
 
 ## API
 
-::: robot_models.allegro.numpy.AllegroHand
+::: robot_models.hands.allegro.numpy.AllegroHand

@@ -19,6 +19,8 @@ plugins:
         python:
           options:
             force_inspection: true
+            show_root_heading: true
+            filters: ["!^_", "!^has_hands$"]
             show_source: true
             inherited_members: true
             members_order: source

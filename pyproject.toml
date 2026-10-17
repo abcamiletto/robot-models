@@ -35,16 +35,12 @@ requires = ["uv_build>=0.11.11,<0.12.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
-baseline-audit = [
-    "absl-py>=2.0",
-    "lxml>=4.9",
-    "pyyaml>=6.0",
+asset-preparation = [
+    "mujoco>=3.3.7",
+    "pycollada>=0.9",
     "rtree>=1.2",
     "scipy>=1.10",
-    "six>=1.16",
-    "torch>=2.5.0",
-    "transformations>=2022.9.26",
-    "transforms3d>=0.4.2",
+    "xacro>=2.1",
 ]
 dev = [
     "pytest>=9.0.2",
@@ -76,7 +72,7 @@ exclude = [
     "tests/",
     "scripts/visualize.py",
     "scripts/render_teaser.py",  # Blender runs in the script's isolated Python 3.13 environment.
-    "scripts/check_baseline_fidelity.py",  # Dynamically imports incompatible external vendored kinematics packages.
+    "scripts/check_hand_fidelity.py",  # Independent reference uses untyped native MuJoCo bindings.
 ]
 
 [tool.ruff]

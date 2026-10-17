@@ -26,11 +26,21 @@ from mathutils import Vector
 
 import robot_models
 from robot_models import Joint
-from robot_models.shadow.numpy import ShadowHand
 
 LINEUPS = {
     "humanoids": ("g1", "gr1", "h1", "t1", "talos"),
-    "hands": ("ability", "allegro", "brainco", "inspire", "leap", "sharpa", "shadow"),
+    "hands": (
+        "ability",
+        "allegro",
+        "barrett",
+        "brainco",
+        "ezgripper",
+        "inspire",
+        "leap",
+        "robotiq-3finger",
+        "sharpa",
+        "shadow",
+    ),
 }
 PASTELS = (
     (0.62, 0.78, 0.98, 1),
@@ -43,9 +53,9 @@ PASTELS = (
 )
 # Source grippers have no anatomical common-joint map. Axes are in the Y-up model frame.
 GRIPPER_AXES = {
-    "barrett-gendexgrasp": ((0, 0, 1), (0, 1, 0)),
-    "robotiq-3finger-gendexgrasp": ((0, 0, 1), (0, 1, 0)),
-    "ezgripper-gendexgrasp": ((1, 0, 0), (0, 0, 1)),
+    "barrett": ((0, 0, 1), (0, 1, 0)),
+    "robotiq-3finger": ((0, 0, -1), (0, 1, 0)),
+    "ezgripper": ((1, 0, 0), (0, 0, 1)),
 }
 
 
@@ -53,7 +63,6 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--group", choices=("all", *LINEUPS), default="all")
     parser.add_argument("--models", nargs="+", choices=robot_models.list_models())
-    parser.add_argument("--shadow-source", choices=ShadowHand.available_sources, default="menagerie")
     parser.add_argument("--output-dir", type=Path, default=Path("results/teasers"))
     parser.add_argument("--width", type=int, default=2400)
     parser.add_argument("--height", type=int, default=700)
@@ -75,7 +84,7 @@ def main() -> None:
 
 def render_lineup(group, names, args) -> None:
     print(f"Loading {group}: {', '.join(names)}", flush=True)
-    meshes = [(name, display_mesh(name, group, args.shadow_source)) for name in names]
+    meshes = [(name, display_mesh(name, group)) for name in names]
     bpy.ops.wm.read_factory_settings(use_empty=True)
     height = 1.75 if group == "humanoids" else 1.0
     objects = add_lineup(meshes, height)
@@ -91,15 +100,14 @@ def render_lineup(group, names, args) -> None:
     print(f"Rendered {scene.render.filepath}", flush=True)
 
 
-def display_mesh(name, group, shadow_source):
-    options = {"source": shadow_source} if name == "shadow" else {}
-    model = robot_models.create_model(name, runtime="numpy", **options)
+def display_mesh(name, group):
+    model = robot_models.create_model(name, runtime="numpy")
     if model.has_hands != (group == "hands"):
         raise ValueError(f"{name} does not belong in the {group} lineup")
     params = model.get_rest_pose(hands="flat") if model.has_hands else model.get_tpose()
     if not model.has_hands:
         return model.forward_meshes(**params)[0]
-    # Show the hand rather than the long forearm of forearm-rooted Shadow variants.
+    # Show the hand rather than the long forearm of the Shadow model.
     links = model.forward_links(**params)
     parts = []
     for local, frame, joint in zip(model.link_meshes, links, model.link_joint_indices, strict=True):
@@ -230,7 +238,7 @@ def add_labels(names, objects, camera, height):
     inverse = camera.matrix_world.inverted()
     for name, obj in zip(names, objects, strict=True):
         curve = bpy.data.curves.new(f"{name}_label", "FONT")
-        curve.body = name.replace("-gendexgrasp", "\nGenDexGrasp").replace("-dexgraspnet", "\nDexGraspNet").upper()
+        curve.body = "ROBOTIQ 3F" if name == "robotiq-3finger" else name.upper()
         curve.align_x = "CENTER"
         curve.align_y = "BOTTOM_BASELINE"
         curve.size = height * 0.065

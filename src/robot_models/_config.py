@@ -7,7 +7,7 @@ from typing import Any
 
 from platformdirs import user_config_dir
 
-from robot_models._catalog import asset_spec
+from robot_models._catalog import MODEL_SPECS
 
 CONFIG_DIR = Path(user_config_dir("robot-models"))
 CONFIG_FILE = CONFIG_DIR / "config.toml"
@@ -22,27 +22,26 @@ def get_config() -> Config:
     return tomllib.loads(CONFIG_FILE.read_text())
 
 
-def get_model_path(model: str, *, source: str | None = None) -> Path | None:
+def get_model_path(model: str) -> Path | None:
     """Return the configured asset directory for a model, if present."""
-    key = asset_spec(model, source).name
-    path = get_config().get("paths", {}).get(key)
+    path = get_config().get("paths", {}).get(model)
     return Path(path) if path else None
 
 
-def set_model_path(model: str, path: str | Path, *, source: str | None = None) -> None:
+def set_model_path(model: str, path: str | Path) -> None:
     """Validate and store a model asset directory."""
-    key = asset_spec(model, source).name
+    if model not in MODEL_SPECS:
+        raise ValueError(f"Unknown model: {model!r}")
     config = get_config()
-    config.setdefault("paths", {})[key] = str(validate_model_path(path))
+    config.setdefault("paths", {})[model] = str(validate_model_path(path))
     _write_config(config)
 
 
-def unset_model_path(model: str, *, source: str | None = None) -> None:
+def unset_model_path(model: str) -> None:
     """Remove a model asset path if it is configured."""
-    key = asset_spec(model, source).name
     config = get_config()
-    if "paths" in config and key in config["paths"]:
-        del config["paths"][key]
+    if "paths" in config and model in config["paths"]:
+        del config["paths"][model]
         if not config["paths"]:
             del config["paths"]
         _write_config(config)

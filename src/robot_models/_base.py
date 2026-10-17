@@ -16,6 +16,7 @@ from nanomanifold import SO3
 from trimesh import Trimesh
 
 from robot_models import _assets as assets
+from robot_models import _catalog as catalog
 from robot_models import _state as state
 from robot_models._common import eye_as, mjcf, zeros_as
 from robot_models._common import rigid as rigid_ops
@@ -390,7 +391,7 @@ class Hand(RigidBodyModel):
         side: Side = "right",
         runtime: ArrayRuntime,
     ) -> None:
-        if side not in ("left", "right"):
+        if side not in self.supported_sides:
             raise ValueError(f"Invalid side: {side!r}")
         self._config = side
         self._load(f"{side}.xml", model_path, runtime)
@@ -430,7 +431,7 @@ class Hand(RigidBodyModel):
 
 @cache
 def _presets(name: str) -> dict[str, Float[np.ndarray, "Q"]]:
-    with (files(f"robot_models.{name}") / "assets" / "poses.npz").open("rb") as file:
+    with (files(catalog.MODEL_SPECS[name].module) / "assets" / "poses.npz").open("rb") as file:
         return dict(np.load(file))
 
 

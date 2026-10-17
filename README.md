@@ -42,18 +42,14 @@ The equivalent NumPy and JAX classes live in `robot_models.g1.numpy` and
 - PAL Robotics TALOS humanoid robot
 - PSYONIC Ability Hand robotic hand
 - Sharpa Wave robotic hand
-- Shadow Dexterous Hand: Menagerie E3M5, GenDexGrasp and DexGraspNet sources
+- Shadow Dexterous Hand E3M5
 - Unitree G1 humanoid robot
 - Unitree H1 humanoid robot
 - Wonik Robotics Allegro robotic hand
-- Original GenDexGrasp Barrett, Robotiq-3F and EZGripper hands
+- Barrett BH280, Robotiq 3-Finger and SAKE EZGripper
 
-Select Shadow descriptions with `create_model("shadow", source="dexgraspnet")`
-or `ShadowHand(source="gendexgrasp")`; the existing default is `"menagerie"`.
-Both native baseline sources require locally prepared assets while complete
-redistribution permissions remain unresolved. Original license declarations,
-attribution and annotations are retained; see
-[compatibility, preparation, and asset licensing](docs/models/baselines.md).
+Each hand has one canonical model from its manufacturer, MuJoCo Menagerie or
+an established ROS description. See the [hand source and validation record](docs/hand-sources.md).
 
 ## Teasers
 
@@ -61,7 +57,7 @@ Render separate humanoid and hand lineups, in the style of Body Models:
 
 ![Humanoid lineup: Unitree G1, Fourier GR1, Unitree H1, Booster T1 and PAL TALOS.](docs/assets/teasers/humanoids.png)
 
-![Hand lineup: Ability, Allegro, BrainCo, Inspire, LEAP, Sharpa and Shadow.](docs/assets/teasers/hands.png)
+![Hand lineup: Ability, Allegro, Barrett, BrainCo, EZGripper, Inspire, LEAP, Robotiq 3F, Sharpa and Shadow.](docs/assets/teasers/hands.png)
 
 Both images have transparent backgrounds. Models are scaled to equal heights for
 display; the lineups do not compare physical size. Regenerate the README images:

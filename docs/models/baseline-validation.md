@@ -76,7 +76,7 @@ narrows the Apache scope to the code identified in the unchanged inherited notic
 and records license-file hashes. Source files and runtime geometry are identical
 to the first publication; every pre-existing model folder is unchanged.
 
-Archive SHA-256:
+Withdrawn upload's archive SHA-256 (not the hash of newly prepared local bundles):
 `b0afd0e9fd9a5144f2151942c99fb89135e9334c6371e6452e29e2dd3265c159`.
 
 Anonymous download, archive digest, all 26 original-file hashes, both license-file hashes, license contents

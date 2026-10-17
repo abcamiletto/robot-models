@@ -21,8 +21,8 @@ implementation with the same numerical results. Checks here run on CPU.
 | `barrett-gendexgrasp` | 14 | 1.79e-7 | 3.71e-9 | 2.96e-8 |
 | `robotiq-3finger-gendexgrasp` | 17 | 1.79e-7 | 0 | 1.89e-8 |
 | `ezgripper-gendexgrasp` | 10 | 2.38e-7 | 6.59e-9 | 5.84e-9 |
-| `shadow-gendexgrasp` | 30 | 2.98e-7 | 8.19e-9 | 4.63e-8 |
-| `shadow-dexgraspnet` | 28 | 1.79e-7 | 7.68e-9 (boxes) | 1.67e-8 |
+| `shadow`, `source="gendexgrasp"` | 30 | 2.98e-7 | 8.19e-9 | 4.63e-8 |
+| `shadow`, `source="dexgraspnet"` | 28 | 1.79e-7 | 7.68e-9 (boxes) | 1.67e-8 |
 
 The pose set contains zero, clipped zero, both joint-limit endpoints, two interior
 poses, and one independent perturbation per coordinate. Joint names, ordering and

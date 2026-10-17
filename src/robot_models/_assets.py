@@ -10,31 +10,33 @@ from huggingface_hub import hf_hub_download
 from platformdirs import user_cache_dir
 
 from robot_models import _config as config
-from robot_models._catalog import MODEL_SPECS
+from robot_models._catalog import asset_spec
 
 HF_MODEL_REPO_ID = "abcamiletto/robot-models"
 
 
-def model_dir(name: str, model_path: Path | str | None = None) -> Path:
+def model_dir(name: str, model_path: Path | str | None = None, *, source: str | None = None) -> Path:
     """Resolve a model's asset directory from an explicit path, the config, the cache, or a download."""
-    model_path = model_path if model_path is not None else config.get_model_path(name)
+    spec = asset_spec(name, source)
+    model_path = model_path if model_path is not None else config.get_model_path(name, source=source)
     if model_path is not None:
         return config.validate_model_path(model_path)
-    cached = get_cache_dir() / name
-    return cached if cached.is_dir() else download(name)
+    cached = get_cache_dir() / spec.name
+    return cached if cached.is_dir() else download(name, source=source)
 
 
-def download(name: str, output_dir: Path | None = None) -> Path:
+def download(name: str, output_dir: Path | None = None, *, source: str | None = None) -> Path:
     """Download and extract one model's ``assets.zip`` from Hugging Face."""
-    if name in MODEL_SPECS and not MODEL_SPECS[name].downloadable:
+    spec = asset_spec(name, source)
+    if not spec.downloadable:
         raise FileNotFoundError(
-            f"{name} assets are not published. Prepare a local bundle from a robot-models repository checkout with "
+            f"{spec.name} assets are not published. Prepare a local bundle from a robot-models repository checkout with "
             "scripts/prepare_baseline_assets.py and pass model_path or configure it with robot-models set. "
             "See docs/models/baselines.md for source licensing and preparation."
         )
-    output_dir = output_dir if output_dir is not None else get_cache_dir() / name
-    print(f"Downloading {name} model to {output_dir}...")
-    archive = hf_hub_download(HF_MODEL_REPO_ID, f"{name}/assets.zip", cache_dir=get_cache_dir() / "huggingface")
+    output_dir = output_dir if output_dir is not None else get_cache_dir() / spec.name
+    print(f"Downloading {spec.name} assets to {output_dir}...")
+    archive = hf_hub_download(HF_MODEL_REPO_ID, f"{spec.name}/assets.zip", cache_dir=get_cache_dir() / "huggingface")
     extract_archive(Path(archive), output_dir)
     return output_dir
 

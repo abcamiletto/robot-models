@@ -14,6 +14,14 @@ class ModelSpec:
     downloadable: bool = True
 
 
+@dataclass(frozen=True)
+class AssetSpec:
+    """One source's hub folder, cache/config key and publication status."""
+
+    name: str
+    downloadable: bool = True
+
+
 MODEL_SPECS: Mapping[str, ModelSpec] = MappingProxyType(
     {
         "ability": ModelSpec("robot_models.ability", "AbilityHand"),
@@ -30,8 +38,6 @@ MODEL_SPECS: Mapping[str, ModelSpec] = MappingProxyType(
             "robot_models.baselines", "Robotiq3FingerGenDexGrasp", downloadable=False
         ),
         "shadow": ModelSpec("robot_models.shadow", "ShadowHand"),
-        "shadow-dexgraspnet": ModelSpec("robot_models.baselines", "ShadowDexGraspNet"),
-        "shadow-gendexgrasp": ModelSpec("robot_models.baselines", "ShadowGenDexGrasp", downloadable=False),
         "sharpa": ModelSpec("robot_models.sharpa", "SharpaHand"),
         "t1": ModelSpec("robot_models.t1", "T1"),
         "talos": ModelSpec("robot_models.talos", "Talos"),
@@ -39,4 +45,29 @@ MODEL_SPECS: Mapping[str, ModelSpec] = MappingProxyType(
 )
 
 
-__all__ = ["MODEL_SPECS", "ModelSpec"]
+MODEL_SOURCES: Mapping[str, Mapping[str, AssetSpec]] = MappingProxyType(
+    {
+        "shadow": MappingProxyType(
+            {
+                "menagerie": AssetSpec("shadow"),
+                "gendexgrasp": AssetSpec("shadow-gendexgrasp", downloadable=False),
+                "dexgraspnet": AssetSpec("shadow-dexgraspnet"),
+            }
+        )
+    }
+)
+
+
+def asset_spec(model: str, source: str | None = None) -> AssetSpec:
+    """Resolve a model/source selection without treating source folders as models."""
+    if model not in MODEL_SPECS:
+        raise ValueError(f"Unknown model: {model!r}")
+    if source is None:
+        return AssetSpec(model, MODEL_SPECS[model].downloadable)
+    sources = MODEL_SOURCES.get(model, {})
+    if source not in sources:
+        raise ValueError(f"Unknown source {source!r} for {model!r}. Available sources: {tuple(sources)}")
+    return sources[source]
+
+
+__all__ = ["MODEL_SOURCES", "MODEL_SPECS", "AssetSpec", "ModelSpec", "asset_spec"]

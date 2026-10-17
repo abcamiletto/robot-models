@@ -44,13 +44,15 @@ def check_gendex(args):
     reports = []
     for robot, identifier in NAMES.items():
         original, metadata = gendex_hand(args.upstream, args.original_assets, robot)
-        bundle = baselines.source_assets(identifier, model_path=args.bundles / identifier / "assets")
+        family = "shadow" if robot == "shadowhand" else identifier
+        options = {"source": "gendexgrasp"} if robot == "shadowhand" else {}
+        bundle = baselines.source_assets(family, model_path=args.bundles / identifier / "assets", **options)
         bundle.verify()
         # Compare actual external source assets, not only preparation-time hashes.
         assert bundle.description.read_bytes() == (args.original_assets / metadata["urdf_path"][robot]).read_bytes()
         original_contacts = args.original_assets / f"data/urdf/contact_{robot}.json"
         assert bundle.annotations["contacts"].read_bytes() == original_contacts.read_bytes()
-        model = robot_models.create_model(identifier, model_path=args.bundles / identifier / "assets")
+        model = robot_models.create_model(family, model_path=args.bundles / identifier / "assets", **options)
         names = original.robot.get_joint_parameter_names()
         urdf = ET.parse(bundle.description).getroot()
         joint_by_name = {joint.attrib["name"]: joint for joint in urdf.findall("joint")}
@@ -72,7 +74,7 @@ def check_dex(args):
     check_revision(args.upstream, DEX_REVISION)
     original = dex_hand(args.upstream)
     identifier = "shadow-dexgraspnet"
-    bundle = baselines.source_assets(identifier, model_path=args.bundles / identifier / "assets")
+    bundle = baselines.source_assets("shadow", source="dexgraspnet", model_path=args.bundles / identifier / "assets")
     bundle.verify()
     native = args.upstream / "grasp_generation/mjcf"
     assert bundle.description.read_bytes() == (native / "shadow_hand_wrist_free.xml").read_bytes()
@@ -82,7 +84,7 @@ def check_dex(args):
         annotations[key] = json.loads((native / filename).read_text())
     assert original.n_contact_candidates == 140
     assert original.n_keypoints == 19
-    model = robot_models.create_model(identifier, model_path=args.bundles / identifier / "assets")
+    model = robot_models.create_model("shadow", source="dexgraspnet", model_path=args.bundles / identifier / "assets")
     limits = np.stack([original.joints_lower.numpy(), original.joints_upper.numpy()], axis=1)
     # Validate boxes against original mesh construction. Capsules use exact analytic surfaces below:
     # modern Trimesh changed the historical display capsule origin in original HandModel.
@@ -289,11 +291,15 @@ def compare_model(model, chain, names, limits, source_meshes, annotations, link_
         "annotation_max_m": annotation_error,
         "source_mesh_links_checked": len(source_meshes),
     }
+    if model._NAME == "shadow":
+        report["source"] = model.source
     return report, arrays
 
 
 def write_comparison(output, fixture_dir, report, arrays):
     identifier = report["model"]
+    if "source" in report:
+        identifier += "-" + report["source"]
     (output / f"{identifier}.json").write_text(json.dumps(report, indent=2) + "\n")
     if fixture_dir is not None:
         fixture_dir.mkdir(parents=True, exist_ok=True)

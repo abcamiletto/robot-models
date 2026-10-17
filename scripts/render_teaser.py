@@ -3,7 +3,7 @@
 # requires-python = "==3.13.*"
 # dependencies = ["robot-models", "bpy==5.2.2"]
 # [tool.uv.sources]
-# robot-models = { path = ".." }
+# robot-models = { path = "..", editable = true }
 # ///
 """Render transparent humanoid and hand lineups, following Body Models' Blender teaser.
 
@@ -26,6 +26,7 @@ from mathutils import Vector
 
 import robot_models
 from robot_models import Joint
+from robot_models.shadow.numpy import ShadowHand
 
 LINEUPS = {
     "humanoids": ("g1", "gr1", "h1", "t1", "talos"),
@@ -40,11 +41,6 @@ PASTELS = (
     (0.99, 0.88, 0.59, 1),
     (0.69, 0.86, 0.93, 1),
 )
-# Baseline Shadow variants retain source link names for display landmarks.
-SHADOW_LANDMARKS = {
-    "shadow-gendexgrasp": ("ffproximal", "ffmiddle", "lfproximal"),
-    "shadow-dexgraspnet": ("robot0:ffproximal_child", "robot0:ffmiddle_child", "robot0:lfproximal_child"),
-}
 # Source grippers have no anatomical common-joint map. Axes are in the Y-up model frame.
 GRIPPER_AXES = {
     "barrett-gendexgrasp": ((0, 0, 1), (0, 1, 0)),
@@ -57,6 +53,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--group", choices=("all", *LINEUPS), default="all")
     parser.add_argument("--models", nargs="+", choices=robot_models.list_models())
+    parser.add_argument("--shadow-source", choices=ShadowHand.available_sources, default="menagerie")
     parser.add_argument("--output-dir", type=Path, default=Path("results/teasers"))
     parser.add_argument("--width", type=int, default=2400)
     parser.add_argument("--height", type=int, default=700)
@@ -78,7 +75,7 @@ def main() -> None:
 
 def render_lineup(group, names, args) -> None:
     print(f"Loading {group}: {', '.join(names)}", flush=True)
-    meshes = [(name, display_mesh(name, group)) for name in names]
+    meshes = [(name, display_mesh(name, group, args.shadow_source)) for name in names]
     bpy.ops.wm.read_factory_settings(use_empty=True)
     height = 1.75 if group == "humanoids" else 1.0
     objects = add_lineup(meshes, height)
@@ -94,8 +91,9 @@ def render_lineup(group, names, args) -> None:
     print(f"Rendered {scene.render.filepath}", flush=True)
 
 
-def display_mesh(name, group):
-    model = robot_models.create_model(name, runtime="numpy")
+def display_mesh(name, group, shadow_source):
+    options = {"source": shadow_source} if name == "shadow" else {}
+    model = robot_models.create_model(name, runtime="numpy", **options)
     if model.has_hands != (group == "hands"):
         raise ValueError(f"{name} does not belong in the {group} lineup")
     params = model.get_rest_pose(hands="flat") if model.has_hands else model.get_tpose()
@@ -119,14 +117,11 @@ def palm_basis(name, model, params):
     if name in GRIPPER_AXES:
         across, up = np.asarray(GRIPPER_AXES[name], dtype=float)
     else:
-        if name in SHADOW_LANDMARKS:
-            base, tip, outer = SHADOW_LANDMARKS[name]
-        else:
-            side = model.side
-            joints = model.common_joints
-            base = joints[Joint(f"{side}_index_mcp")]
-            tip = joints.get(Joint(f"{side}_index_pip")) or joints[Joint(f"{side}_index_dip")]
-            outer = joints.get(Joint(f"{side}_pinky_mcp")) or joints[Joint(f"{side}_ring_mcp")]
+        side = model.side
+        joints = model.common_joints
+        base = joints[Joint(f"{side}_index_mcp")]
+        tip = joints.get(Joint(f"{side}_index_pip")) or joints[Joint(f"{side}_index_dip")]
+        outer = joints.get(Joint(f"{side}_pinky_mcp")) or joints[Joint(f"{side}_ring_mcp")]
         frames = model.forward_skeleton(**params)
         positions = {joint: frame[:3, 3] for joint, frame in zip(model.joint_names, frames, strict=True)}
         across = positions[base] - positions[outer]

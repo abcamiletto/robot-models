@@ -1,23 +1,25 @@
 # Original grasp baseline hands
 
-These explicit variants preserve the hands used by the pinned original implementations.
+These sources preserve the hands used by the pinned original implementations.
 Existing `shadow`, `allegro`, other public models, and their defaults are unchanged.
-All variants support NumPy, PyTorch and JAX through `create_model` or
-`robot_models.baselines.numpy`, `.torch`, and `.jax`.
+All support NumPy, PyTorch and JAX through `create_model`. Shadow uses
+`robot_models.shadow.{numpy,torch,jax}.ShadowHand` with an explicit `source`;
+the three gripper classes live in `robot_models.baselines.{numpy,torch,jax}`.
 
 | Factory identifier | Backend class | Coordinates | Skeleton bodies | Source side / root |
 | --- | --- | ---: | ---: | --- |
 | `barrett-gendexgrasp` | `BarrettGenDexGrasp` | 8 | 10 | right / `bh_base_link` |
 | `robotiq-3finger-gendexgrasp` | `Robotiq3FingerGenDexGrasp` | 11 | 16 | right / `palm_base` |
 | `ezgripper-gendexgrasp` | `EZGripperGenDexGrasp` | 4 | 7 | left assembly / `world` |
-| `shadow-gendexgrasp` | `ShadowGenDexGrasp` | 24 | 30 | right / `forearm` |
-| `shadow-dexgraspnet` | `ShadowDexGraspNet` | 22 | 45 | right / `robot0:palm` |
+| `shadow`, `source="gendexgrasp"` | `ShadowHand` | 24 | 30 | right / `forearm` |
+| `shadow`, `source="dexgraspnet"` | `ShadowHand` | 22 | 45 | right / `robot0:palm` |
 
 Only the source side is accepted; these classes do not synthesize mirrored models.
 EZGripper defaults to `side="left"`; the others default to `side="right"`.
 `get_rest_pose()` returns source zero angles. `hands="flat"` and `hands="rest"`
 return zero clipped to source limits; these are not optimizer initialization presets.
-Grippers expose only the common wrist mapping, without assigning anatomical fingers.
+The three grippers expose only the common wrist mapping. Shadow maps all common
+anatomical finger joints to source-native bodies; see [one-family source selection](shadow.md).
 
 ## Asset availability
 
@@ -26,7 +28,7 @@ The `shadow-dexgraspnet` source bundle is published in
 It downloads automatically on first use, or explicitly with:
 
 ```bash
-robot-models download shadow-dexgraspnet
+robot-models download shadow --source dexgraspnet
 ```
 
 It contains the original MJCF, meshes, contact and penetration annotations, an
@@ -67,7 +69,8 @@ The preparation script checks pinned checkouts for tracked changes and verifies
 the archive digest, then extracts the original GenDexGrasp files directly from
 that verified archive. It writes
 `<identifier>/assets.zip`, `<identifier>/LICENSE.md` and an extracted `assets/`
-directory, following the existing hub layout. Only committed DexGraspNet MJCF files
+directory, following the existing hub layout. Shadow bundle identifiers are asset
+folder names, not additional public robot families. Only committed DexGraspNet MJCF files
 are copied, so untracked or ignored files cannot enter the source bundle. It never
 uploads assets. Archive entry order, timestamps and permissions are fixed for reproducible packaging in
 the locked environment. Use a new output directory for each preparation.
@@ -86,11 +89,11 @@ from robot_models import create_model
 from robot_models.baselines import source_assets
 
 path = Path("results/prepared-baseline-hands/shadow-dexgraspnet/assets")
-hand = create_model("shadow-dexgraspnet", runtime="torch", model_path=path)
+hand = create_model("shadow", source="dexgraspnet", runtime="torch", model_path=path)
 params = hand.get_rest_pose()
 links = hand.forward_links(**params)
 
-native = source_assets("shadow-dexgraspnet", model_path=path)
+native = source_assets("shadow", source="dexgraspnet", model_path=path)
 native.verify()  # SHA-256 check of every recorded original file
 mjcf_path = native.description
 mesh_path = native.mesh_dir

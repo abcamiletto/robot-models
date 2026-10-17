@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 
+import model_cases
 import numpy as np
 import pytest
 import trimesh
@@ -17,7 +18,7 @@ import trimesh
 from robot_models import _assets as assets
 from robot_models import _config as config
 from robot_models import create_model
-from robot_models._catalog import MODEL_SPECS
+from robot_models._catalog import asset_spec
 from robot_models._common.mjcf import MUJOCO_TO_MODEL as C
 from robot_models.baselines import source_assets
 from robot_models.baselines._source import BASELINE_NAMES
@@ -59,7 +60,7 @@ def test_source_conversion_preserves_rest_axes_and_independent_mimics(tmp_path):
     mapping = prepare.convert_urdf("shadowhand", description, mesh_dir, output)
     assert description.read_text() == xml
     assert mapping["source_mimic"] == {"distal": {"joint": "wrist", "multiplier": ".5"}}
-    model = create_model("shadow-gendexgrasp", model_path=output)
+    model = create_model("shadow", source="gendexgrasp", model_path=output)
     assert model.actuated_joint_names == ["wrist", "distal"]
     poses = np.array([[0.0, 0.0], [0.21, -0.13]], dtype=np.float32)
     actual = model.forward_skeleton(poses)
@@ -99,7 +100,7 @@ def test_dexgraspnet_conversion_retains_annotation_frames_and_bevelled_boxes(tmp
     output = tmp_path / "runtime"
     output.mkdir()
     prepare.convert_mjcf(description, output)
-    model = create_model("shadow-dexgraspnet", model_path=output)
+    model = create_model("shadow", source="dexgraspnet", model_path=output)
     assert model.joint_names == ["robot0:palm", "robot0:finger", "robot0:finger_child"]
     assert model.link_names == ["robot0:palm", "robot0:finger_child"]
     skeleton = model.forward_skeleton(np.array([0.3], dtype=np.float32))
@@ -141,10 +142,13 @@ def test_source_bundle_paths_hashes_and_native_annotations(tmp_path):
 
 
 @pytest.mark.fast
-@pytest.mark.parametrize("name", [name for name in RUNTIME_NAMES if not MODEL_SPECS[name].downloadable])
+@pytest.mark.parametrize(
+    "name", ("barrett-gendexgrasp", "robotiq-3finger-gendexgrasp", "ezgripper-gendexgrasp", "shadow-gendexgrasp")
+)
 def test_unpublished_variants_give_local_preparation_instructions(name, tmp_path):
+    family, options = model_cases.model_selection(name)
     with pytest.raises(FileNotFoundError, match="Prepare a local bundle"):
-        assets.download(name, tmp_path)
+        assets.download(family, tmp_path, **options)
 
 
 @pytest.mark.parametrize("name", RUNTIME_NAMES)
@@ -154,9 +158,12 @@ def test_matches_frozen_upstream_reference(name, runtime):
     fixture = directory / f"{name}.npz"
     if not fixture.exists():
         pytest.skip("Generate independent reference fixtures with scripts/check_baseline_fidelity.py")
-    if config.get_model_path(name) is None and not (assets.get_cache_dir() / name).is_dir():
+    family, options = model_cases.model_selection(name)
+    source = options.get("source")
+    spec = asset_spec(family, source)
+    if config.get_model_path(family, source=source) is None and not (assets.get_cache_dir() / spec.name).is_dir():
         pytest.skip(f"Prepare local {name} source assets; see docs/models/baselines.md")
-    model = create_model(name, runtime=runtime)
+    model = create_model(family, runtime=runtime, **options)
     with np.load(fixture) as reference:
         assert model.joint_names == reference["joint_names"].tolist()
         assert model.actuated_joint_names == reference["pose_names"].tolist()

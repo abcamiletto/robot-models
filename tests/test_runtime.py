@@ -82,3 +82,10 @@ def test_jax_model_pytree_round_trip(name, model_class, kwargs) -> None:
     assert type(restored) is type(model)
     assert restored.runtime == model.runtime
     assert restored.joint_names == model.joint_names
+    if name == "shadow" or name in model_cases.SHADOW_SOURCES:
+        assert restored.source == model.source
+        assert restored.side == model.side
+        assert restored.common_joints == model.common_joints
+        np.testing.assert_array_equal(
+            restored.get_rest_pose(hands="flat")["hand_pose"], model.get_rest_pose(hands="flat")["hand_pose"]
+        )

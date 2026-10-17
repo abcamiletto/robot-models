@@ -62,17 +62,3 @@ class EZGripperGenDexGrasp(BaselineHand):
     _NAME = "ezgripper-gendexgrasp"
     supported_sides = ("left",)
     _HAND_JOINTS = MappingProxyType({"wrist": "left_ezgripper_palm_link"})
-
-
-class ShadowGenDexGrasp(BaselineHand):
-    """GenDexGrasp's 24-coordinate forearm-rooted Shadow URDF and mesh convention."""
-
-    _NAME = "shadow-gendexgrasp"
-    _HAND_JOINTS = MappingProxyType({"wrist": "palm"})
-
-
-class ShadowDexGraspNet(BaselineHand):
-    """DexGraspNet's 22-coordinate palm-rooted Shadow with original annotations."""
-
-    _NAME = "shadow-dexgraspnet"
-    _HAND_JOINTS = MappingProxyType({"wrist": "robot0:palm"})

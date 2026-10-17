@@ -8,11 +8,13 @@ from robot_models import _assets as assets
 from robot_models._base import Hand
 from robot_models._common.mjcf import MUJOCO_TO_MODEL
 
-CASES = [
-    (name, kwargs)
-    for name, model_class, _ in model_cases.MODELS
-    for kwargs in ([{"side": side} for side in model_class.supported_sides] if issubclass(model_class, Hand) else [{}])
-]
+CASES = []
+for name, model_class, kwargs in model_cases.MODELS:
+    if issubclass(model_class, Hand):
+        sides = ("right",) if kwargs.get("source") else model_class.supported_sides
+        CASES.extend((name, kwargs | {"side": side}) for side in sides)
+    else:
+        CASES.append((name, kwargs))
 
 
 @pytest.fixture(params=CASES, ids=lambda case: "-".join([case[0], *case[1].values()]))
@@ -21,7 +23,8 @@ def case(request):
     mujoco = pytest.importorskip("mujoco")
     name, kwargs = request.param
     model = model_cases.backend_model_class(name, "numpy")(**kwargs)
-    xml_path = assets.model_dir(name) / f"{kwargs.get('side', name)}.xml"
+    family, options = model_cases.model_selection(name)
+    xml_path = assets.model_dir(family, source=options.get("source")) / f"{kwargs.get('side', family)}.xml"
     mj_model = mujoco.MjModel.from_xml_path(str(xml_path))
     data = mujoco.MjData(mj_model)
 

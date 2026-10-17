@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from robot_models import _assets as assets
+from robot_models._catalog import asset_spec
 
 BASELINE_NAMES = (
     "barrett-gendexgrasp",
@@ -44,13 +45,17 @@ class SourceAssets:
                 raise ValueError(f"Source asset hash mismatch: {path}")
 
 
-def source_assets(name: str, *, model_path: Path | str | None = None) -> SourceAssets:
+def source_assets(name: str, *, source: str | None = None, model_path: Path | str | None = None) -> SourceAssets:
     """Resolve an exact source bundle using the usual path/config/cache conventions."""
-    if name not in BASELINE_NAMES:
-        raise ValueError(f"Unknown baseline source variant: {name!r}")
-    if name == "allegro-gendexgrasp" and model_path is None:
-        raise ValueError("The Allegro source-only bundle requires an explicit model_path")
-    directory = assets.model_dir(name, model_path)
+    if name == "allegro-gendexgrasp":
+        if model_path is None or source is not None:
+            raise ValueError("The Allegro source-only bundle requires model_path and no source option")
+        directory = Path(model_path).resolve()
+    else:
+        spec = asset_spec(name, source)
+        if spec.name not in BASELINE_NAMES:
+            raise ValueError(f"{name!r} / {source!r} has no original baseline source bundle")
+        directory = assets.model_dir(name, model_path, source=source)
     manifest = json.loads((directory / "source.json").read_text())
 
     def path(relative: str) -> Path:

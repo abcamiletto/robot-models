@@ -42,14 +42,15 @@ The equivalent NumPy and JAX classes live in `robot_models.g1.numpy` and
 - PAL Robotics TALOS humanoid robot
 - PSYONIC Ability Hand robotic hand
 - Sharpa Wave robotic hand
-- Shadow Dexterous Hand E3M5 robotic hand
+- Shadow Dexterous Hand: Menagerie E3M5, GenDexGrasp and DexGraspNet sources
 - Unitree G1 humanoid robot
 - Unitree H1 humanoid robot
 - Wonik Robotics Allegro robotic hand
-- Explicit original GenDexGrasp Barrett, Robotiq-3F, EZGripper and Shadow variants
-- Original palm-rooted DexGraspNet Shadow variant
+- Original GenDexGrasp Barrett, Robotiq-3F and EZGripper hands
 
-The DexGraspNet Shadow source bundle downloads automatically, with its original
+Select Shadow descriptions with `create_model("shadow", source="dexgraspnet")`
+or `ShadowHand(source="gendexgrasp")`; the existing default is `"menagerie"`.
+The DexGraspNet source bundle downloads automatically, with its original
 CC BY-NC 4.0 and inherited asset notices. GenDexGrasp bundles require local
 preparation while redistribution permissions remain unresolved; see
 [compatibility, preparation, and asset licensing](docs/models/baselines.md).

@@ -70,7 +70,8 @@ def test_link_meshes_match_mujoco_visual_geoms(case) -> None:
 def test_coupled_hinges_satisfy_mujoco_equalities(case) -> None:
     mujoco, _, mj_model, data, _ = case
     for eq in range(mj_model.neq):
-        assert mj_model.eq_type[eq] == mujoco.mjtEq.mjEQ_JOINT
+        if mj_model.eq_type[eq] != mujoco.mjtEq.mjEQ_JOINT:
+            continue  # Tendon equalities describe simulation rather than hinge pose coordinates.
         coupled = data.qpos[mj_model.jnt_qposadr[mj_model.eq_obj1id[eq]]]
         driver = data.qpos[mj_model.jnt_qposadr[mj_model.eq_obj2id[eq]]]
         expected = np.polynomial.polynomial.polyval(driver, mj_model.eq_data[eq, :5])

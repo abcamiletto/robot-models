@@ -10,7 +10,6 @@ from huggingface_hub import hf_hub_download
 from platformdirs import user_cache_dir
 
 from robot_models import _config as config
-from robot_models._catalog import MODEL_SPECS
 
 HF_MODEL_REPO_ID = "abcamiletto/robot-models"
 
@@ -26,12 +25,6 @@ def model_dir(name: str, model_path: Path | str | None = None) -> Path:
 
 def download(name: str, output_dir: Path | None = None) -> Path:
     """Download and extract one model's ``assets.zip`` from Hugging Face."""
-    if name in MODEL_SPECS and not MODEL_SPECS[name].downloadable:
-        raise FileNotFoundError(
-            f"{name} assets are not published. Prepare a local bundle from a robot-models repository checkout with "
-            "scripts/prepare_baseline_assets.py and pass model_path or configure it with robot-models set. "
-            "See docs/models/baselines.md for source licensing and preparation."
-        )
     output_dir = output_dir if output_dir is not None else get_cache_dir() / name
     print(f"Downloading {name} model to {output_dir}...")
     archive = hf_hub_download(HF_MODEL_REPO_ID, f"{name}/assets.zip", cache_dir=get_cache_dir() / "huggingface")

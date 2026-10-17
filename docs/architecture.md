@@ -1,7 +1,6 @@
 # Architecture
 
-Models use MuJoCo MJCF files read by one loader. Public assets are hosted on Hugging Face;
-[original grasp baseline variants](models/baselines.md) can be prepared locally with their untouched source files:
+Models use MuJoCo MJCF files read by one loader. Public assets are hosted on Hugging Face. Each hand has one canonical upstream description:
 
 | Module | Responsibility |
 | --- | --- |
@@ -34,6 +33,5 @@ created only after array-valued link transforms have been evaluated.
    `assets/poses.npz` (`t_pose`/`a_pose`, or `{side}_flat`/`{side}_rest`).
 3. Register it in `_catalog.py` and add a docs page.
 
-Baseline preparation follows the same archive layout. Its `source.json` manifest and
-`source/` tree expose native descriptions/annotations independently of the derived
-runtime MJCF, so baseline collision and sampling algorithms can consume original assets.
+Canonical hand preparation retains original source files and license notices in
+the asset bundle. See [hand sources and validation](hand-sources.md).

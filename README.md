@@ -32,6 +32,27 @@ meshes = model.forward_meshes(**params)
 The equivalent NumPy and JAX classes live in `robot_models.g1.numpy` and
 `robot_models.g1.jax`. Torch models are `torch.nn.Module` instances.
 
+## Add a hand to MuJoCo
+
+```bash
+uv add "robot-models[mujoco]"
+```
+
+```python
+import mujoco
+from robot_models import add_hand
+
+scene = mujoco.MjSpec()
+mount = add_hand(scene, "shadow", side="right")
+mount.pos = [0, 0, 0.4]
+model = scene.compile()
+```
+
+The same function works for all ten canonical hands. It mounts the hand at its
+root in native MuJoCo coordinates and retains the bundle's physical definitions.
+Barrett and Robotiq bundles provide kinematics and visuals; simulation requires
+appropriate collision and actuation definitions. See [mounting and namespaces](docs/mujoco.md).
+
 ## Models
 
 - Booster Robotics T1 humanoid robot
@@ -42,15 +63,14 @@ The equivalent NumPy and JAX classes live in `robot_models.g1.numpy` and
 - PAL Robotics TALOS humanoid robot
 - PSYONIC Ability Hand robotic hand
 - Sharpa Wave robotic hand
-- Shadow Dexterous Hand E3M5 robotic hand
+- Shadow Dexterous Hand E3M5
 - Unitree G1 humanoid robot
 - Unitree H1 humanoid robot
 - Wonik Robotics Allegro robotic hand
-- Explicit original GenDexGrasp Barrett, Robotiq-3F, EZGripper and Shadow variants
-- Original palm-rooted DexGraspNet Shadow variant
+- Barrett BH280, Robotiq 3-Finger and SAKE EZGripper
 
-Baseline variants use locally prepared source bundles; see
-[compatibility, preparation, and asset licensing](docs/models/baselines.md).
+Each hand has one canonical model from its manufacturer, MuJoCo Menagerie or
+an established ROS description. See the [hand source and validation record](docs/hand-sources.md).
 
 ## Teasers
 
@@ -58,7 +78,7 @@ Render separate humanoid and hand lineups, in the style of Body Models:
 
 ![Humanoid lineup: Unitree G1, Fourier GR1, Unitree H1, Booster T1 and PAL TALOS.](docs/assets/teasers/humanoids.png)
 
-![Hand lineup: Ability, Allegro, BrainCo, Inspire, LEAP, Sharpa and Shadow.](docs/assets/teasers/hands.png)
+![Hand lineup: Ability, Allegro, Barrett, BrainCo, EZGripper, Inspire, LEAP, Robotiq 3F, Sharpa and Shadow.](docs/assets/teasers/hands.png)
 
 Both images have transparent backgrounds. Models are scaled to equal heights for
 display; the lineups do not compare physical size. Regenerate the README images:

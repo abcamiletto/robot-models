@@ -3,7 +3,7 @@
 # requires-python = "==3.13.*"
 # dependencies = ["robot-models", "bpy==5.2.2"]
 # [tool.uv.sources]
-# robot-models = { path = ".." }
+# robot-models = { path = "..", editable = true }
 # ///
 """Render transparent humanoid and hand lineups, following Body Models' Blender teaser.
 
@@ -29,7 +29,18 @@ from robot_models import Joint
 
 LINEUPS = {
     "humanoids": ("g1", "gr1", "h1", "t1", "talos"),
-    "hands": ("ability", "allegro", "brainco", "inspire", "leap", "sharpa", "shadow"),
+    "hands": (
+        "ability",
+        "allegro",
+        "barrett",
+        "brainco",
+        "ezgripper",
+        "inspire",
+        "leap",
+        "robotiq-3finger",
+        "sharpa",
+        "shadow",
+    ),
 }
 PASTELS = (
     (0.62, 0.78, 0.98, 1),
@@ -40,16 +51,11 @@ PASTELS = (
     (0.99, 0.88, 0.59, 1),
     (0.69, 0.86, 0.93, 1),
 )
-# Baseline Shadow variants retain source link names for display landmarks.
-SHADOW_LANDMARKS = {
-    "shadow-gendexgrasp": ("ffproximal", "ffmiddle", "lfproximal"),
-    "shadow-dexgraspnet": ("robot0:ffproximal_child", "robot0:ffmiddle_child", "robot0:lfproximal_child"),
-}
 # Source grippers have no anatomical common-joint map. Axes are in the Y-up model frame.
 GRIPPER_AXES = {
-    "barrett-gendexgrasp": ((0, 0, 1), (0, 1, 0)),
-    "robotiq-3finger-gendexgrasp": ((0, 0, 1), (0, 1, 0)),
-    "ezgripper-gendexgrasp": ((1, 0, 0), (0, 0, 1)),
+    "barrett": ((0, 0, 1), (0, 1, 0)),
+    "robotiq-3finger": ((0, 0, -1), (0, 1, 0)),
+    "ezgripper": ((1, 0, 0), (0, 0, 1)),
 }
 
 
@@ -101,7 +107,7 @@ def display_mesh(name, group):
     params = model.get_rest_pose(hands="flat") if model.has_hands else model.get_tpose()
     if not model.has_hands:
         return model.forward_meshes(**params)[0]
-    # Show the hand rather than the long forearm of forearm-rooted Shadow variants.
+    # Show the hand rather than the long forearm of the Shadow model.
     links = model.forward_links(**params)
     parts = []
     for local, frame, joint in zip(model.link_meshes, links, model.link_joint_indices, strict=True):
@@ -119,14 +125,11 @@ def palm_basis(name, model, params):
     if name in GRIPPER_AXES:
         across, up = np.asarray(GRIPPER_AXES[name], dtype=float)
     else:
-        if name in SHADOW_LANDMARKS:
-            base, tip, outer = SHADOW_LANDMARKS[name]
-        else:
-            side = model.side
-            joints = model.common_joints
-            base = joints[Joint(f"{side}_index_mcp")]
-            tip = joints.get(Joint(f"{side}_index_pip")) or joints[Joint(f"{side}_index_dip")]
-            outer = joints.get(Joint(f"{side}_pinky_mcp")) or joints[Joint(f"{side}_ring_mcp")]
+        side = model.side
+        joints = model.common_joints
+        base = joints[Joint(f"{side}_index_mcp")]
+        tip = joints.get(Joint(f"{side}_index_pip")) or joints[Joint(f"{side}_index_dip")]
+        outer = joints.get(Joint(f"{side}_pinky_mcp")) or joints[Joint(f"{side}_ring_mcp")]
         frames = model.forward_skeleton(**params)
         positions = {joint: frame[:3, 3] for joint, frame in zip(model.joint_names, frames, strict=True)}
         across = positions[base] - positions[outer]
@@ -235,7 +238,7 @@ def add_labels(names, objects, camera, height):
     inverse = camera.matrix_world.inverted()
     for name, obj in zip(names, objects, strict=True):
         curve = bpy.data.curves.new(f"{name}_label", "FONT")
-        curve.body = name.replace("-gendexgrasp", "\nGenDexGrasp").replace("-dexgraspnet", "\nDexGraspNet").upper()
+        curve.body = "ROBOTIQ 3F" if name == "robotiq-3finger" else name.upper()
         curve.align_x = "CENTER"
         curve.align_y = "BOTTOM_BASELINE"
         curve.size = height * 0.065

@@ -6,6 +6,7 @@ from robot_models._base import (
     RigidBodyModel,
 )
 from robot_models._constants import Joint
+from robot_models._mujoco import add_hand
 from robot_models._registry import create_model, list_models
 from robot_models._rotations import RotationType
 from robot_models._runtime import (
@@ -21,6 +22,7 @@ __all__ = [
     "RigidBodyModel",
     "RotationType",
     "RuntimeName",
+    "add_hand",
     "create_model",
     "list_models",
 ]

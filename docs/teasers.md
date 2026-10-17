@@ -17,7 +17,8 @@ uv run --script scripts/render_teaser.py
 
 The script declares its own Python 3.13 and Blender dependencies using PEP 723.
 `uv` provisions that isolated environment; Blender is not added to the library's
-runtime or development dependencies. Published assets download on first use,
+runtime or development dependencies. The local library is installed editable so
+renders use the current checkout. Published assets download on first use,
 following normal `robot-models` configuration and cache conventions.
 
 The default output is `results/teasers/humanoids.png` and `results/teasers/hands.png`:
@@ -59,21 +60,15 @@ sample count are configurable. Camera framing includes all meshes and labels.
 including the model meshes, materials, lights, camera and render configuration.
 Generated PNGs and scenes stay in the ignored `results/` directory by default.
 
-## Original baseline hands
+## Additional hands
 
-`--models` accepts all registered models of the selected group, including the
-[original grasp baseline variants](models/baselines.md). Prepare and configure
-their local assets first; the renderer does not substitute or silently omit models:
+The three new canonical hands use the same renderer and model API:
 
 ```bash
-robot-models set barrett-gendexgrasp /path/to/barrett-gendexgrasp/assets
-robot-models set robotiq-3finger-gendexgrasp /path/to/robotiq-3finger-gendexgrasp/assets
-robot-models set ezgripper-gendexgrasp /path/to/ezgripper-gendexgrasp/assets
 uv run --script scripts/render_teaser.py --group hands \
-  --models barrett-gendexgrasp robotiq-3finger-gendexgrasp ezgripper-gendexgrasp
+  --models barrett robotiq-3finger ezgripper
 ```
 
-Both `shadow-gendexgrasp` and `shadow-dexgraspnet` are also selectable. Source
-variants retain their native side; EZGripper uses its original left assembly.
-These render the variants' display geometry, not their collision or contact
-algorithms. Asset terms still apply to any images or scenes you redistribute.
+Assets come from the [canonical upstream descriptions](hand-sources.md). The
+renderer does not substitute or silently omit models. Images have transparent
+backgrounds; upstream asset terms apply to redistributed images and scenes.

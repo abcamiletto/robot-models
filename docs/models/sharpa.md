@@ -37,7 +37,7 @@ A manual `model_path` points to the extracted directory containing `left.xml`,
 ## Usage
 
 ```python
-from robot_models.sharpa.numpy import SharpaHand
+from robot_models.hands.sharpa.numpy import SharpaHand
 
 hand = SharpaHand(side="right")  # also supports side="left"
 params = hand.get_rest_pose(hands="rest")
@@ -45,8 +45,6 @@ skeleton = hand.forward_skeleton(**params)
 meshes = hand.forward_meshes(**params)
 ```
 
-Equivalent classes are available in `robot_models.sharpa.torch` and
-`robot_models.sharpa.jax`.
 
 ## Notes
 
@@ -61,4 +59,4 @@ two-axis CMC and MCP joints remain available in the full skeleton.
 
 ## API
 
-::: robot_models.sharpa.numpy.SharpaHand
+::: robot_models.hands.sharpa.numpy.SharpaHand

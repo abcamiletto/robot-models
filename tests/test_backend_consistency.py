@@ -20,24 +20,27 @@ def assert_pose_helpers_round_trip(model, pose) -> None:
 def test_meshes_match_across_backends(name, model_class, kwargs) -> None:
     numpy_model = model_class(**kwargs)
     numpy_params = numpy_model.get_rest_pose(batch_dims=(2,), dtype=np.float32)
-    expected = mesh_vertices(numpy_model.forward_meshes(**numpy_params))
+    pose = numpy_params[numpy_model._POSE]
+    lo, hi = np.asarray(numpy_model.actuated_joint_limits).T
+    numpy_params[numpy_model._POSE] = np.clip(pose + np.array([[0.07], [0.13]], dtype=np.float32), lo, hi)
 
     torch = pytest.importorskip("torch")
     torch_model = model_cases.backend_model_class(name, "torch")(**kwargs)
-    torch_params = torch_model.get_rest_pose(batch_dims=(2,), dtype=torch.float32)
-    with torch.no_grad():
-        torch_meshes = torch_model.forward_meshes(**torch_params)
+    torch_params = {key: torch.as_tensor(value) for key, value in numpy_params.items()}
 
     pytest.importorskip("jax")
     import jax.numpy as jnp
 
     jax_model = model_cases.backend_model_class(name, "jax")(**kwargs)
-    jax_params = jax_model.get_rest_pose(batch_dims=(2,), dtype=jnp.float32)
-    jax_meshes = jax_model.forward_meshes(**jax_params)
-
-    assert all(isinstance(mesh, Trimesh) for mesh in (*torch_meshes, *jax_meshes))
-    np.testing.assert_allclose(mesh_vertices(torch_meshes), expected, rtol=1e-4, atol=1e-4)
-    np.testing.assert_allclose(mesh_vertices(jax_meshes), expected, rtol=1e-4, atol=1e-4)
+    jax_params = {key: jnp.asarray(value) for key, value in numpy_params.items()}
+    for geometry in ("visual", "collision"):
+        expected = mesh_vertices(numpy_model.forward_meshes(geometry=geometry, **numpy_params))
+        with torch.no_grad():
+            torch_meshes = torch_model.forward_meshes(geometry=geometry, **torch_params)
+        jax_meshes = jax_model.forward_meshes(geometry=geometry, **jax_params)
+        assert all(isinstance(mesh, Trimesh) for mesh in (*torch_meshes, *jax_meshes))
+        np.testing.assert_allclose(mesh_vertices(torch_meshes), expected, rtol=1e-4, atol=1e-4)
+        np.testing.assert_allclose(mesh_vertices(jax_meshes), expected, rtol=1e-4, atol=1e-4)
 
 
 @pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.MODELS)
@@ -66,19 +69,22 @@ def test_rigid_body_contract(name, model_class, kwargs) -> None:
 def test_link_meshes_reconstruct_forward_mesh(name, model_class, kwargs) -> None:
     model = model_class(**kwargs)
     params = model.get_rest_pose()
-    transforms = np.asarray(model.forward_links(**params))
+    for geometry, meshes in (("visual", model.link_meshes), ("collision", model.collision_meshes)):
+        transforms = np.asarray(model.forward_links(geometry=geometry, **params))
+        vertices = []
+        faces = []
+        vertex_offset = 0
+        for mesh, transform in zip(meshes, transforms, strict=True):
+            vertices.append(np.asarray(mesh.vertices) @ transform[:3, :3].T + transform[:3, 3])
+            faces.append(np.asarray(mesh.faces) + vertex_offset)
+            vertex_offset += len(mesh.vertices)
 
-    vertices = []
-    faces = []
-    vertex_offset = 0
-    for mesh, transform in zip(model.link_meshes, transforms, strict=True):
-        vertices.append(np.asarray(mesh.vertices) @ transform[:3, :3].T + transform[:3, 3])
-        faces.append(np.asarray(mesh.faces) + vertex_offset)
-        vertex_offset += len(mesh.vertices)
-
-    expected = model.forward_meshes(**params)[0]
-    np.testing.assert_allclose(np.concatenate(vertices), expected.vertices, rtol=1e-6, atol=1e-6)
-    np.testing.assert_array_equal(np.concatenate(faces), expected.faces)
+        expected = model.forward_meshes(geometry=geometry, **params)[0]
+        np.testing.assert_allclose(np.concatenate(vertices), expected.vertices, rtol=1e-6, atol=1e-6)
+        np.testing.assert_array_equal(np.concatenate(faces), expected.faces)
+        expected.faces[0, 0] = expected.faces[0, 1]
+        untouched = model.forward_meshes(geometry=geometry, **params)[0]
+        np.testing.assert_array_equal(untouched.faces, np.concatenate(faces))
 
 
 @pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.MODELS)
@@ -115,3 +121,6 @@ def test_arbitrary_leading_dimensions(name, model_class, kwargs) -> None:
 
         assert links.shape == (*batch_shape, len(model.link_names), 4, 4)
         assert skeleton.shape == (*batch_shape, len(joint_indices), 4, 4)
+        for geometry in ("visual", "collision"):
+            meshes = model.forward_meshes(geometry=geometry, **params)
+            assert len(meshes) == int(np.prod(batch_shape))

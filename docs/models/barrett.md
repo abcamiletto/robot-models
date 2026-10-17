@@ -5,7 +5,7 @@ The single supplied assembly uses the API side tag `right`; no mirrored assembly
 is synthesized. Coordinate counts describe kinematics, rather than motor counts.
 
 ```python
-from robot_models.barrett.numpy import BarrettHand
+from robot_models.hands.barrett.numpy import BarrettHand
 
 hand = BarrettHand()
 params = hand.get_rest_pose(hands="rest")
@@ -24,4 +24,6 @@ equilibrium or optimizer initialization.
 robot-models download barrett
 ```
 
-::: robot_models.barrett.numpy.BarrettHand
+## API
+
+::: robot_models.hands.barrett.numpy.BarrettHand

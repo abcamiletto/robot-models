@@ -22,10 +22,11 @@ a Barrett Technology release. The Robotiq ROS repository is now archived. SAKE
 links the EZGripper simulator on its own support page. Its original model is by
 Vikash Kumar; the pinned revision is maintained by SAKE Robotics. These qualifications are part of the provenance.
 
-The existing seven hand bundles and their default behavior are preserved. Their
-hub `LICENSE.md` files describe conversions and license scope. The three new
-canonical bundles retain complete upstream license texts, original descriptions
-and meshes, provenance and file hashes.
+Existing visual meshes, joint conventions and default API behavior are preserved.
+Their hub `LICENSE.md` files describe conversions and license scope. Updated
+Barrett, Robotiq and Shadow bundles retain complete upstream license texts,
+original descriptions and meshes, provenance and file hashes. Shadow restores
+the source forearm collider; see [collision geometry](collisions.md).
 
 ```python
 from robot_models import create_model
@@ -64,7 +65,9 @@ original files remain unchanged. Robotiq's old checked-in generated URDF points
 to missing visual STLs, so the current upstream xacro with its original DAE
 visuals is used. No substitute mesh is introduced. All visual elements are
 retained, including fixed Barrett tactile frames. Runtime meshes are converted
-to STL; source collision definitions and dynamics remain available unchanged.
+to STL; original URDF collision elements are also retained in the runtime,
+including dedicated collision STLs and analytic boxes. Source dynamics remain
+available unchanged.
 Their runtime inertias are placeholders inferred from visual mesh volume at
 density 1000 kg/m³, rather than the source URDF inertials.
 
@@ -76,7 +79,7 @@ meshes are copied unchanged. The original MJCF remains under `source/`.
 The independent oracle imports the expanded upstream URDF into MuJoCo, without
 using robot-models' FK or runtime XML. Only geometry is removed from that FK
 reference, with inertia compilation bounds/balancing; these do not affect the
-kinematics. Surfaces are compared separately with the original visual meshes.
+kinematics. Surfaces are compared separately with the original visual and collision meshes.
 EZGripper is compared directly with its untouched upstream MJCF. Original joint
 ordering, axes, limits, mimic relationships, rest and articulated transforms and
 representative surface points are checked with an explicit basis/root mapping.
@@ -94,14 +97,16 @@ and JAX.
 
 ## Published bundles
 
-The three canonical bundles are mirrored in our Hugging Face repository at
-[revision `c942fb61`](https://huggingface.co/abcamiletto/robot-models/commit/c942fb615f14735d5158583ac3c6c538dbf67440),
-with per-folder `LICENSE.md` files and complete upstream terms inside each ZIP.
-All 25 pre-existing asset/license files are unchanged. Preparation was repeated
-with byte-identical ZIP output; archive SHA-256 digests are:
+Barrett, Robotiq and Shadow collision updates are mirrored at
+[revision `3d1aa6d0`](https://huggingface.co/abcamiletto/robot-models/commit/3d1aa6d070de82469cc3e87e20d34dbba05a9e89), with complete upstream
+terms and original source files. The Barrett/Robotiq self-collision fix changes
+only their archives and notices plus the hub card; all 27 other hub files remain
+unchanged, including Shadow, EZGripper and the humanoid bundles. Preparation is byte-for-byte
+reproducible; archive SHA-256 digests are:
 
 | Bundle | SHA-256 |
 | --- | --- |
-| `barrett/assets.zip` | `4cf4bfa9e877a49eb3142ab31d1a94fca8de20dc14556116f41bb3156f414a50` |
-| `robotiq-3finger/assets.zip` | `fcb45aa20a4c00d254b938b9256ad5ab42c74c811fa7a11578176d04e3bb82fc` |
-| `ezgripper/assets.zip` | `1d3869c8c6f3ed475368abfabe14765a1abf15003e1cdae1bebf363926387ecb` |
+| `barrett/assets.zip` | `82b99a6e590ba07d7239c3a64d423757ac34c32123cd7d06c3ce829f05e58b98` |
+| `robotiq-3finger/assets.zip` | `21bd9a9f861a96cc0d95d8090a31746c6fa5f0f7aba44a697f7b1436f1f3f43a` |
+| `shadow/assets.zip` | `9ded526a4db0bd679174a87f43e71bacb4eb911196701d33949378689ef9330d` |
+| `ezgripper/assets.zip` (unchanged) | `1d3869c8c6f3ed475368abfabe14765a1abf15003e1cdae1bebf363926387ecb` |

@@ -17,7 +17,7 @@ A manual `model_path` is a directory with `gr1.xml` and its meshes.
 ## Usage
 
 ```python
-from robot_models.gr1.numpy import GR1
+from robot_models.humanoids.gr1.numpy import GR1
 
 model = GR1()
 params = model.get_tpose()
@@ -29,4 +29,4 @@ Data recorded with the robosuite GR1 variant (RoboCasa, DexMimicGen, GR00T) uses
 
 ## API
 
-::: robot_models.gr1.numpy.GR1
+::: robot_models.humanoids.gr1.numpy.GR1

@@ -1,37 +1,26 @@
-"""Authoritative catalog of public models."""
+"""Authoritative catalog of canonical robots."""
 
-from collections.abc import Mapping
-from dataclasses import dataclass
 from types import MappingProxyType
 
+from robot_models._spec import ModelSpec
+from robot_models.hands import _models as hands
+from robot_models.humanoids import _models as humanoids
 
-@dataclass(frozen=True)
-class ModelSpec:
-    """Package and class name of one public model; the name is also its asset folder."""
-
-    module: str
-    class_name: str
+MODEL_SPECS = MappingProxyType(dict(sorted((hands.MODELS | humanoids.MODELS).items())))
 
 
-MODEL_SPECS: Mapping[str, ModelSpec] = MappingProxyType(
-    {
-        "ability": ModelSpec("robot_models.ability", "AbilityHand"),
-        "allegro": ModelSpec("robot_models.allegro", "AllegroHand"),
-        "barrett": ModelSpec("robot_models.barrett", "BarrettHand"),
-        "brainco": ModelSpec("robot_models.brainco", "BrainCoHand"),
-        "ezgripper": ModelSpec("robot_models.ezgripper", "EZGripper"),
-        "g1": ModelSpec("robot_models.g1", "G1"),
-        "gr1": ModelSpec("robot_models.gr1", "GR1"),
-        "h1": ModelSpec("robot_models.h1", "H1"),
-        "inspire": ModelSpec("robot_models.inspire", "InspireHand"),
-        "leap": ModelSpec("robot_models.leap", "LeapHand"),
-        "robotiq-3finger": ModelSpec("robot_models.robotiq", "Robotiq3Finger"),
-        "sharpa": ModelSpec("robot_models.sharpa", "SharpaHand"),
-        "shadow": ModelSpec("robot_models.shadow", "ShadowHand"),
-        "t1": ModelSpec("robot_models.t1", "T1"),
-        "talos": ModelSpec("robot_models.talos", "Talos"),
-    }
-)
+def normalize_name(name: str) -> str:
+    return name.strip().lower().replace("_", "-")
 
 
-__all__ = ["MODEL_SPECS", "ModelSpec"]
+def model_spec(name: str) -> ModelSpec:
+    """Resolve a canonical name without importing a runtime or loading assets."""
+    try:
+        return MODEL_SPECS[normalize_name(name)]
+    except KeyError as exc:
+        raise ValueError(f"Unknown model {name!r}. Available models: {', '.join(MODEL_SPECS)}") from exc
+
+
+def model_module(name: str) -> str:
+    """Package for a canonical robot's backend bindings and presets."""
+    return f"robot_models.{model_spec(name).family}.{normalize_name(name).replace('-', '_')}"

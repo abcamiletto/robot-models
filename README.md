@@ -19,7 +19,7 @@ Public assets download automatically on first use and can be prefetched with
 ## Quick start
 
 ```python
-from robot_models.g1.torch import G1
+from robot_models.humanoids.g1.torch import G1
 
 model = G1()
 params = model.get_rest_pose(batch_dims=(1,))
@@ -29,8 +29,9 @@ skeleton = model.forward_skeleton(**params)
 meshes = model.forward_meshes(**params)
 ```
 
-The equivalent NumPy and JAX classes live in `robot_models.g1.numpy` and
-`robot_models.g1.jax`. Torch models are `torch.nn.Module` instances.
+Select the backend through the import, as in Body Models: the equivalent
+classes live in `robot_models.humanoids.g1.numpy` and
+`robot_models.humanoids.g1.jax`. Torch models are `torch.nn.Module` instances.
 
 ## Add a hand to MuJoCo
 
@@ -50,24 +51,40 @@ model = scene.compile()
 
 The same function works for all ten canonical hands. It mounts the hand at its
 root in native MuJoCo coordinates and retains the bundle's physical definitions.
-Barrett and Robotiq bundles provide kinematics and visuals; simulation requires
-appropriate collision and actuation definitions. See [mounting and namespaces](docs/mujoco.md).
+Barrett and Robotiq bundles provide kinematics, visuals and source collision
+geometry; simulation requires appropriate dynamics and actuation. See [mounting and namespaces](docs/mujoco.md).
+
+## Visual and collision geometry
+
+All ten hands and five humanoids expose both representations through the same interface:
+
+```python
+from robot_models import create_model
+
+for name in ("shadow", "g1"):
+    model = create_model(name)
+    params = model.get_rest_pose()
+    visual = model.forward_meshes(**params)
+    collision = model.forward_meshes(geometry="collision", **params)
+```
+
+Collision definitions follow Menagerie, manufacturer models and established ROS
+sources. See [source choices, native shapes and validation](docs/collisions.md).
 
 ## Models
 
-- Booster Robotics T1 humanoid robot
-- BrainCo Revo 2 robotic hand
-- Fourier GR1 humanoid robot
-- Inspire RH56 robotic hand
-- LEAP Hand v1 robotic hand
-- PAL Robotics TALOS humanoid robot
-- PSYONIC Ability Hand robotic hand
-- Sharpa Wave robotic hand
-- Shadow Dexterous Hand E3M5
-- Unitree G1 humanoid robot
-- Unitree H1 humanoid robot
-- Wonik Robotics Allegro robotic hand
-- Barrett BH280, Robotiq 3-Finger and SAKE EZGripper
+Model packages are grouped into two families:
+
+| Package | Model identifiers |
+| --- | --- |
+| `robot_models.humanoids` | `g1`, `gr1`, `h1`, `t1`, `talos` |
+| `robot_models.hands` | `ability`, `allegro`, `barrett`, `brainco`, `ezgripper`, `inspire`, `leap`, `robotiq-3finger`, `sharpa`, `shadow` |
+
+Use model-specific imports such as `from robot_models.hands.shadow.torch import ShadowHand`.
+Construct it with `ShadowHand(side="right")`; no runtime argument is needed.
+Discover definitions with `list_models(family="hands")` or
+`list_models(family="humanoids")`. Robot definitions are data; the named classes
+bind each definition to the same shared family implementation.
 
 Each hand has one canonical model from its manufacturer, MuJoCo Menagerie or
 an established ROS description. See the [hand source and validation record](docs/hand-sources.md).

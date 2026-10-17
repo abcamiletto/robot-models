@@ -1,6 +1,6 @@
 [project]
 name = "robot-models"
-version = "0.4.0"
+version = "0.5.0"
 description = "Rigid articulated robot models for NumPy, PyTorch, and JAX"
 readme = "README.md"
 authors = [
@@ -75,6 +75,7 @@ exclude = [
     "tests/",
     "scripts/visualize.py",
     "scripts/render_teaser.py",  # Blender runs in the script's isolated Python 3.13 environment.
+    "scripts/check_shadow_fidelity.py",  # Independent reference uses untyped native MuJoCo bindings.
     "scripts/check_hand_fidelity.py",  # Independent reference uses untyped native MuJoCo bindings.
 ]
 

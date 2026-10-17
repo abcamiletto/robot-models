@@ -17,7 +17,7 @@ A manual `model_path` is a directory with `left.xml`, `right.xml` and their mesh
 ## Usage
 
 ```python
-from robot_models.ability.numpy import AbilityHand
+from robot_models.hands.ability.numpy import AbilityHand
 
 hand = AbilityHand(side="right")
 params = hand.get_rest_pose(hands="rest")
@@ -29,4 +29,4 @@ Each finger's distal `pip` hinge follows its `mcp` hinge through `pip = 0.723497
 
 ## API
 
-::: robot_models.ability.numpy.AbilityHand
+::: robot_models.hands.ability.numpy.AbilityHand

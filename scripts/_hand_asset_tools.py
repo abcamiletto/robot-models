@@ -14,7 +14,7 @@ RUNTIME_METADATA = {
     "runtime_model": True,
     "source_to_model_basis": [[0, 1, 0], [0, 0, 1], [1, 0, 0]],
     "pose_mapping": "identity in joint_names order: same angles and signs",
-    "runtime_scope": "kinematics/display only; original dynamics and collision definitions remain under source/",
+    "runtime_scope": "kinematics and source collision geometry; original dynamics remain under source/",
 }
 
 
@@ -52,12 +52,21 @@ def runtime_xml() -> tuple[ET.Element, ET.Element, ET.Element]:
     return root, ET.SubElement(root, "asset"), ET.SubElement(root, "worldbody")
 
 
-def add_mesh(mesh: trimesh.Trimesh, name: str, body: ET.Element, assets: ET.Element, output: Path) -> None:
+def add_mesh(
+    mesh: trimesh.Trimesh, name: str, body: ET.Element, assets: ET.Element, output: Path, *, collision: bool = False
+) -> None:
     filename = f"{name.replace(':', '_')}.stl"
     (output / "meshes").mkdir(exist_ok=True)
     mesh.export(output / "meshes" / filename)
     ET.SubElement(assets, "mesh", name=name, file=filename)
-    ET.SubElement(body, "geom", type="mesh", mesh=name, contype="0", conaffinity="0", density="1000")
+    attrs = (
+        {"contype": "1", "conaffinity": "1", "density": "0", "group": "3"}
+        if collision
+        else {"contype": "0", "conaffinity": "0", "density": "1000"}
+    )
+    if collision:
+        attrs["name"] = name
+    ET.SubElement(body, "geom", {"type": "mesh", "mesh": name, **attrs})
 
 
 def write_xml(root: ET.Element, path: Path) -> None:

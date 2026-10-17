@@ -2,6 +2,20 @@
 
 ## Model creation
 
+Choose the backend through the import, as in Body Models:
+
+```python
+from robot_models.hands.shadow.torch import ShadowHand
+from robot_models.humanoids.g1.torch import G1
+
+hand = ShadowHand(side="right")
+humanoid = G1()
+```
+
+Constructors take no runtime argument. `list_models(family="hands")` and
+`list_models(family="humanoids")` discover canonical definitions. The optional
+generic factory below follows Body Models' catalog factory.
+
 ::: robot_models.create_model
     options:
       show_source: false
@@ -17,6 +31,10 @@
       show_source: false
 
 ## Model contract
+
+Both families expose local `collision_meshes` and posed
+`forward_meshes(geometry="collision", **params)`. See
+[visual and collision geometry](collisions.md) for examples and source details.
 
 `forward_skeleton(..., joint_indices=...)` returns only the requested joints and
 evaluates only their kinematic chains, so a few end effectors cost less than the

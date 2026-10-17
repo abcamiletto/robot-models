@@ -45,16 +45,19 @@ robot-models set g1 /path/to/g1
 
 ## Usage
 
-Each model has `numpy`, `torch`, and `jax` modules. All models derive from
+Choose NumPy, Torch or JAX through the model import, following Body Models. All models derive from
 `RigidBodyModel` and expose skeleton transforms, link transforms, link-local
 meshes, posed meshes, joint metadata, and MuJoCo `qpos` conversion.
+Model packages are grouped under `robot_models.humanoids` and `robot_models.hands`.
+Both families expose local `collision_meshes` and posed collision geometry:
 
 ```python
-from robot_models.g1.numpy import G1
+from robot_models.humanoids.g1.numpy import G1
 
 model = G1()
 params = model.get_rest_pose(batch_dims=(2,))
 links = model.forward_links(**params)
+collision = model.forward_meshes(geometry="collision", **params)
 ```
 
 Array shapes support arbitrary leading batch dimensions. Underscore-prefixed

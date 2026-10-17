@@ -6,12 +6,13 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import numpy as np
+import trimesh
 from jaxtyping import Float, Int
 from nanomanifold import SO3
 from numpy.polynomial import Polynomial
 
 from robot_models._common import stl
-from robot_models._common.rigid import RigidAssets
+from robot_models._common.rigid import MeshAssets, RigidAssets
 
 # Rows map MuJoCo's Z-up axes to the Y-up model frame.
 MUJOCO_TO_MODEL = np.array([[0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]])
@@ -25,7 +26,9 @@ def load(xml_path: Path) -> RigidAssets:
     """Load an MJCF robot with one skeleton joint per body, in Y-up model coordinates.
 
     The root body sits at the origin, as under a MuJoCo free joint at zero. Visual
-    meshes are mesh geoms with ``contype`` and ``conaffinity`` set to zero. A hinge
+    meshes are mesh geoms with ``contype`` and ``conaffinity`` set to zero.
+    Collision meshes come from contact-enabled geoms and explicit contact pairs.
+    Curved primitives are tessellated for this mesh interface. A hinge
     named as ``joint1`` of an ``<equality><joint>`` follows ``joint1 = polycoef(joint2)``;
     every other hinge is a pose coordinate, in MuJoCo ``qpos`` order.
     """
@@ -39,7 +42,9 @@ def load(xml_path: Path) -> RigidAssets:
 
     names, parents, offsets, rotations = [], [], [], []
     hinges: list[tuple[str, int, Float[np.ndarray, "3"], tuple[float, float]]] = []
-    links: list[tuple[str, int, Float[np.ndarray, "V 3"], Int[np.ndarray, "F 3"]]] = []
+    visuals: list[tuple[str, int, Float[np.ndarray, "V 3"], Int[np.ndarray, "F 3"]]] = []
+    collisions: list[tuple[str, int, Float[np.ndarray, "V 3"], Int[np.ndarray, "F 3"]]] = []
+    paired = {pair.attrib[key] for pair in root.findall("contact/pair") for key in ("geom1", "geom2")}
     for index, (body, parent, cls) in enumerate(_bodies(worldbody)):
         is_root = parent < 0
         names.append(body.get("name"))
@@ -50,12 +55,19 @@ def load(xml_path: Path) -> RigidAssets:
             attrs = _attrs(joint, cls, defaults)
             if attrs.get("type") != "free":
                 hinges.append((attrs["name"], index, *_hinge(attrs)))
-        for geom in body.findall("geom"):
+        for geom_index, geom in enumerate(body.findall("geom")):
             attrs = _attrs(geom, cls, defaults)
-            if "mesh" in attrs and attrs.get("contype") == "0" and attrs.get("conaffinity") == "0":
-                vertices, faces = meshes[attrs["mesh"]]
-                body_vertices = vertices @ _orientation(attrs).T + _vec(attrs.get("pos"), 3)
-                links.append((attrs["mesh"], index, body_vertices, faces))
+            contact = int(attrs.get("contype", "1")) or int(attrs.get("conaffinity", "1"))
+            visual = "mesh" in attrs and not contact
+            collision = contact or attrs.get("name") in paired
+            if not (visual or collision):
+                continue
+            vertices, faces = _geom_mesh(attrs, meshes)
+            if visual:
+                visuals.append((attrs["mesh"], index, vertices, faces))
+            if collision:
+                name = attrs.get("name", f"{body.get('name')}_collision_{geom_index}")
+                collisions.append((name, index, vertices, faces))
     if len({joint for _, joint, _, _ in hinges}) != len(hinges):
         raise ValueError(f"{xml_path} has a body with more than one hinge")
 
@@ -68,9 +80,6 @@ def load(xml_path: Path) -> RigidAssets:
     limits = {name: limit for name, _, _, limit in hinges}
 
     to_model = MUJOCO_TO_MODEL
-    vertex_counts = [len(vertices) for _, _, vertices, _ in links]
-    face_counts = [len(faces) for *_, faces in links]
-    vertex_starts = np.cumsum([0, *vertex_counts[:-1]]).tolist()
     return RigidAssets(
         joint_names=names,
         parents=parents,
@@ -82,15 +91,64 @@ def load(xml_path: Path) -> RigidAssets:
         hinge_polycoef=np.asarray(polycoef, dtype=np.float32),
         actuated_joint_names=actuated,
         actuated_joint_limits=np.asarray([limits[name] for name in actuated], dtype=np.float32),
-        vertices=np.concatenate([vertices @ to_model.T for _, _, vertices, _ in links]).astype(np.float32),
-        faces=np.concatenate([faces + start for (*_, faces), start in zip(links, vertex_starts)]).astype(np.int64),
-        link_names=[name for name, *_ in links],
-        link_joint_indices=[joint for _, joint, _, _ in links],
-        link_vertex_starts=vertex_starts,
-        link_vertex_counts=vertex_counts,
-        link_face_starts=np.cumsum([0, *face_counts[:-1]]).tolist(),
-        link_face_counts=face_counts,
+        visual=_mesh_assets(visuals),
+        collision=_mesh_assets(collisions),
     )
+
+
+def _mesh_assets(pieces: list[tuple[str, int, np.ndarray, np.ndarray]]) -> MeshAssets:
+    vertex_counts = [len(vertices) for _, _, vertices, _ in pieces]
+    face_counts = [len(faces) for *_, faces in pieces]
+    vertex_offsets = np.cumsum([0, *vertex_counts]).tolist()
+    face_offsets = np.cumsum([0, *face_counts]).tolist()
+    vertices = [vertices @ MUJOCO_TO_MODEL.T for _, _, vertices, _ in pieces]
+    faces = [faces + start for (*_, faces), start in zip(pieces, vertex_offsets[:-1], strict=True)]
+    return MeshAssets(
+        vertices=np.concatenate(vertices).astype(np.float32) if pieces else np.empty((0, 3), dtype=np.float32),
+        faces=np.concatenate(faces).astype(np.int64) if pieces else np.empty((0, 3), dtype=np.int64),
+        names=[name for name, *_ in pieces],
+        joint_indices=[joint for _, joint, _, _ in pieces],
+        vertex_offsets=vertex_offsets,
+        face_offsets=face_offsets,
+    )
+
+
+def _geom_mesh(attrs: dict[str, str], meshes: dict[str, Mesh]) -> Mesh:
+    """Triangulate a source geom, retaining its body-local pose and dimensions."""
+    kind = attrs.get("type", "mesh" if "mesh" in attrs else "sphere")
+    rotation = _orientation(attrs)
+    position = _vec(attrs.get("pos"), 3)
+    size = _vec(attrs.get("size", "0 0 0"))
+    if "fromto" in attrs:
+        start, end = _vec(attrs["fromto"], 6).reshape(2, 3)
+        direction = end - start
+        half_length = np.linalg.norm(direction) / 2
+        rotation = _zaxis_rotation(direction)
+        position = (start + end) / 2
+        size = (
+            np.array([size[0], half_length])
+            if kind in ("capsule", "cylinder")
+            else np.array([size[0], size[0], half_length])
+        )
+    if kind == "mesh":
+        vertices, faces = meshes[attrs["mesh"]]
+    else:
+        if kind == "box":
+            mesh = trimesh.creation.box(extents=2 * size)
+        elif kind == "sphere":
+            mesh = trimesh.creation.icosphere(subdivisions=2, radius=size[0])
+        elif kind == "ellipsoid":
+            mesh = trimesh.creation.icosphere(subdivisions=2)
+            mesh.vertices *= size
+        elif kind == "cylinder":
+            mesh = trimesh.creation.cylinder(radius=size[0], height=2 * size[1], sections=32)
+        elif kind == "capsule":
+            mesh = trimesh.creation.capsule(radius=size[0], height=2 * size[1])
+            mesh.vertices -= mesh.bounds.mean(axis=0)
+        else:
+            raise ValueError(f"Unsupported collision geometry {kind!r}")
+        vertices, faces = np.asarray(mesh.vertices), np.asarray(mesh.faces)
+    return vertices @ rotation.T + position, faces
 
 
 def _defaults(root: ET.Element) -> Defaults:
@@ -177,14 +235,31 @@ def _meshes(root: ET.Element, mesh_dir: Path, defaults: Defaults) -> dict[str, M
 
 
 def _orientation(attrs: dict[str, str]) -> Float[np.ndarray, "3 3"]:
-    """Parse an MJCF ``quat`` or ``euler`` (MuJoCo's default intrinsic XYZ) as a rotation matrix."""
-    if {"axisangle", "xyaxes", "zaxis"} & attrs.keys():
-        raise ValueError(f"Unsupported MJCF orientation in {attrs}")
+    """Parse MJCF orientation attributes with radian angles and default intrinsic XYZ Euler order."""
     if "quat" in attrs:
         return SO3.conversions.from_quat_to_rotmat(_vec(attrs["quat"], 4), convention="wxyz", xp=np)
     if "euler" in attrs:
         return SO3.conversions.from_euler_to_rotmat(_vec(attrs["euler"], 3), convention="XYZ", xp=np)
+    if "axisangle" in attrs:
+        axis_angle = _vec(attrs["axisangle"], 4)
+        rotvec = axis_angle[:3] * axis_angle[3] / np.linalg.norm(axis_angle[:3])
+        return SO3.convert(rotvec, src="axis_angle", dst="rotmat", xp=np)
+    if "zaxis" in attrs:
+        return _zaxis_rotation(_vec(attrs["zaxis"], 3))
+    if "xyaxes" in attrs:
+        x, y = _vec(attrs["xyaxes"], 6).reshape(2, 3)
+        x = x / np.linalg.norm(x)
+        y = y - np.dot(x, y) * x
+        y = y / np.linalg.norm(y)
+        return np.column_stack((x, y, np.cross(x, y)))
     return np.eye(3)
+
+
+def _zaxis_rotation(direction: np.ndarray) -> np.ndarray:
+    x, y, z = direction / np.linalg.norm(direction)
+    quat = np.array([1 + z, -y, x, 0]) if z > -1 + 1e-12 else np.array([0.0, 1.0, 0.0, 0.0])
+    quat /= np.linalg.norm(quat)
+    return SO3.conversions.from_quat_to_rotmat(quat, convention="wxyz", xp=np)
 
 
 def _vec(value: str | None, size: int | None = None) -> Float[np.ndarray, "N"]:

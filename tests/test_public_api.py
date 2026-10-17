@@ -58,9 +58,21 @@ def test_root_exports_match_snapshot() -> None:
 def test_backend_modules_export_model_class(backend) -> None:
     if backend != "numpy":
         pytest.importorskip(backend)
-    for spec in catalog.MODEL_SPECS.values():
-        module = import_module(f"{spec.module}.{backend}")
+    for name, spec in catalog.MODEL_SPECS.items():
+        module = import_module(f"{catalog.model_module(name)}.{backend}")
         assert spec.class_name in module.__all__
+
+
+@pytest.mark.fast
+def test_family_catalog_is_complete_and_disjoint():
+    hands = robot_models.list_models(family="hands")
+    humanoids = robot_models.list_models(family="humanoids")
+    assert len(hands) == 10 and len(humanoids) == 5
+    assert not set(hands) & set(humanoids)
+    assert sorted([*hands, *humanoids]) == sorted(EXPECTED_PARAMETER_SPECS)
+    assert robot_models.list_models(family="hands", pattern="shadow") == ["shadow"]
+    with pytest.raises(ValueError, match="family"):
+        robot_models.list_models(family="unknown")
 
 
 @pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.MODELS)

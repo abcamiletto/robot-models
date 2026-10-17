@@ -17,7 +17,7 @@ A manual `model_path` is a directory with `left.xml`, `right.xml` and their mesh
 ## Usage
 
 ```python
-from robot_models.inspire.numpy import InspireHand
+from robot_models.hands.inspire.numpy import InspireHand
 
 hand = InspireHand(side="right")
 params = hand.get_rest_pose(hands="rest")
@@ -29,4 +29,4 @@ Intermediate and distal hinges follow their drivers through the URDF mimic ratio
 
 ## API
 
-::: robot_models.inspire.numpy.InspireHand
+::: robot_models.hands.inspire.numpy.InspireHand

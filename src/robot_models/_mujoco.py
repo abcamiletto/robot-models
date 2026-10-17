@@ -5,8 +5,8 @@ from pathlib import Path
 from typing import Any, cast
 
 from robot_models import _assets as assets
-from robot_models import _registry as registry
-from robot_models._base import Hand, Side
+from robot_models import _catalog as catalog
+from robot_models._spec import Side
 
 
 def add_hand(
@@ -36,16 +36,17 @@ def add_hand(
     root convention. The scene's options are unchanged. Packaged actuators,
     equalities and collision definitions are retained; none are synthesized.
     Barrett/Robotiq assets have placeholder inertias for their visual geometry;
-    supply appropriate dynamics, collision and actuation for simulation.
+    source collisions are supplied; configure appropriate dynamics and actuation.
     Requires the optional ``robot-models[mujoco]`` dependency.
     """
-    cls = registry._model_class(name, "numpy")
-    if not issubclass(cls, Hand):
+    name = catalog.normalize_name(name)
+    definition = catalog.model_spec(name)
+    if definition.family != "hands":
         raise TypeError(f"{name!r} is not a hand")
-    if side not in cls.supported_sides:
-        raise ValueError(f"{name!r} supports side(s): {cls.supported_sides}")
+    if side not in definition.sides:
+        raise ValueError(f"{name!r} supports side(s): {definition.sides}")
     mujoco = cast(Any, import_module("mujoco"))  # Native bindings do not provide type stubs.
-    directory = assets.model_dir(cls._NAME, model_path)
+    directory = assets.model_dir(name, model_path)
     hand = mujoco.MjSpec.from_file(str(directory / f"{side}.xml"))
     if hand.compiler.settotalmass > 0:
         # Global mass normalization is not applied to an attached subtree.
@@ -65,5 +66,5 @@ def add_hand(
         if joint.type == mujoco.mjtJoint.mjJNT_FREE:
             hand.delete(joint)
     frame = spec.worldbody.add_frame() if frame is None else frame
-    prefix = f"{cls._NAME}_{side}_" if prefix is None else prefix
+    prefix = f"{name}_{side}_" if prefix is None else prefix
     return spec.attach(hand, frame=frame, prefix=prefix)

@@ -94,7 +94,7 @@ params = hand.get_rest_pose()
 links = hand.forward_links(**params)
 
 native = source_assets("shadow", source="dexgraspnet", model_path=path)
-native.verify()  # SHA-256 check of every recorded original file
+native.verify()  # SHA-256 check of original files and recorded license texts
 mjcf_path = native.description
 mesh_path = native.mesh_dir
 contacts_path = native.annotations["contacts"]
@@ -249,7 +249,9 @@ in the Python package or committed in this change.
   These observations are recorded without assigning replacement licenses.
 - [DexGraspNet's README](https://github.com/PKU-EPIC/DexGraspNet#license) declares
   CC BY-NC 4.0 for its work/dataset. The bundle retains that README, author
-  attribution, full CC terms and the inherited OpenAI/Shadow Apache notice.
+  attribution, full CC terms and the unchanged inherited OpenAI notice. Its
+  Apache-2.0 grant identifies Vikash Kumar code; it does not establish a blanket
+  Apache license for every referenced ShadowRobot model or mesh.
   Do not relabel the full bundle Apache-2.0: project annotations have separate terms.
 
 ### Redistribution review (2026-10-17)

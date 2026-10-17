@@ -10,6 +10,7 @@ from robot_models._base import Hand, RigidBodyModel, Side
 from robot_models._catalog import MODEL_SOURCES
 from robot_models._constants import Joint
 from robot_models._runtime import ArrayRuntime
+from robot_models.shadow import _source
 
 
 class ShadowHand(Hand):
@@ -53,17 +54,19 @@ class ShadowHand(Hand):
         if side not in supported:
             raise ValueError(f"Shadow source {source!r} supports side(s): {supported}")
         directory = assets.model_dir(self._NAME, model_path, source=source)
+        _source.validate_source(directory, source)
         super().__init__(model_path=directory, side=side, runtime=runtime)
         # Source and side are static model state, preserved by pickle and JAX pytrees.
         self._config = (side, source)
 
     @property
     def side(self) -> Side:
-        return self._config[0]
+        return self._config if isinstance(self._config, str) else self._config[0]
 
     @property
     def source(self) -> str:
-        return self._config[1]
+        # Older canonical pickles/JAX auxiliary state stored just the side.
+        return "menagerie" if isinstance(self._config, str) else self._config[1]
 
     @property
     def common_joints(self) -> Mapping[Joint, str]:

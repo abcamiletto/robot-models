@@ -136,7 +136,7 @@ def prepare_dexgraspnet(dex: Path, output: Path) -> None:
                 },
                 {
                     "spdx_id": "Apache-2.0",
-                    "scope": "Inherited OpenAI/Shadow asset notices",
+                    "scope": "Vikash Kumar code explicitly identified in the inherited OpenAI notice",
                     "text": "source/OPENAI_ASSETS_LICENSE.md",
                 },
             ],
@@ -157,7 +157,8 @@ def prepare_dexgraspnet(dex: Path, output: Path) -> None:
         "Display capsules use explicit symmetric centering, independent of Trimesh version. "
         "Native analytic collision and annotations remain in source/. "
         "Inherited material retains the following original terms; the project-specific CC license does not "
-        "replace those notices.\n\n" + notice.read_text(),
+        "replace those notices. The Apache grant below identifies Vikash Kumar code; it is not a blanket "
+        "Apache grant for every referenced ShadowRobot model or mesh.\n\n" + notice.read_text(),
     )
 
 
@@ -306,10 +307,12 @@ def write_bundle(output: Path, metadata: dict, license_text: str) -> None:
     source_hashes = {
         str(path.relative_to(output)): sha256(path) for path in sorted((output / "source").rglob("*")) if path.is_file()
     }
-    manifest = {"format_version": 1, **metadata, "source_sha256": source_hashes}
-    (output / "source.json").write_text(json.dumps(manifest, indent=2) + "\n")
     (output / "LICENSE.md").write_text(license_text)
     (output.parent / "LICENSE.md").write_text(license_text)
+    license_files = [output / "LICENSE.md", *sorted((output / "licenses").rglob("*"))]
+    license_hashes = {str(path.relative_to(output)): sha256(path) for path in license_files if path.is_file()}
+    manifest = {"format_version": 1, **metadata, "source_sha256": source_hashes, "license_sha256": license_hashes}
+    (output / "source.json").write_text(json.dumps(manifest, indent=2) + "\n")
     with zipfile.ZipFile(output.parent / "assets.zip", "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for file in sorted(output.rglob("*")):
             if file.is_file():

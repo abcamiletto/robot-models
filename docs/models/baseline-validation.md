@@ -70,14 +70,17 @@ integration tests; the independent audit CLI fails rather than skipping.
 ## Published DexGraspNet bundle
 
 Hugging Face snapshot
-[`ad225bba7b57f7f7237ceece2299d5b192d098ec`](https://huggingface.co/abcamiletto/robot-models/commit/ad225bba7b57f7f7237ceece2299d5b192d098ec)
-adds `shadow-dexgraspnet/assets.zip` and `LICENSE.md` and updates the per-folder
-license table. Every existing asset and license file is unchanged.
+[`3788bdcfc8082a3c9bc696da5bbff8f8fd90ebaf`](https://huggingface.co/abcamiletto/robot-models/commit/3788bdcfc8082a3c9bc696da5bbff8f8fd90ebaf)
+contains `shadow-dexgraspnet/assets.zip` and `LICENSE.md` with the per-folder
+license table. The review update changes only the bundle notice and manifest: it
+narrows the Apache scope to the code identified in the unchanged inherited notice
+and records license-file hashes. Source files and runtime geometry are identical
+to the first publication; every pre-existing model folder is unchanged.
 
 Archive SHA-256:
-`e7badb9e8e4842a4307e2f450f252c06fffcba03723723555cbb7604464acd8d`.
+`b0afd0e9fd9a5144f2151942c99fb89135e9334c6371e6452e29e2dd3265c159`.
 
-Anonymous download, archive digest, all 26 original-file hashes, license contents
+Anonymous download, archive digest, all 26 original-file hashes, both license-file hashes, license contents
 and runtime loading were verified after publication. The downloaded bundle was
 also checked against the pinned DexGraspNet implementation over the same 28 poses,
 including joint order/limits, mesh surfaces and all native annotations.

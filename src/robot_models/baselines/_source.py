@@ -8,6 +8,7 @@ from typing import Any
 
 from robot_models import _assets as assets
 from robot_models._catalog import asset_spec
+from robot_models.shadow import _source as shadow_source
 
 BASELINE_NAMES = (
     "barrett-gendexgrasp",
@@ -35,14 +36,19 @@ class SourceAssets:
     manifest: dict[str, Any]
 
     def verify(self) -> None:
-        """Check every bundled source file against the preparation-time SHA-256."""
-        for relative, expected in self.manifest["source_sha256"].items():
-            path = (self.root.parent / relative).resolve()
-            if not path.is_relative_to(self.root.resolve()):
-                raise ValueError(f"Source hash path escapes source directory: {relative!r}")
-            actual = hashlib.sha256(path.read_bytes()).hexdigest()
-            if actual != expected:
-                raise ValueError(f"Source asset hash mismatch: {path}")
+        """Check original sources and recorded license files against their SHA-256."""
+        groups = (
+            (self.manifest["source_sha256"], self.root),
+            (self.manifest.get("license_sha256", {}), self.root.parent),
+        )
+        for hashes, boundary in groups:
+            for relative, expected in hashes.items():
+                path = (self.root.parent / relative).resolve()
+                if not path.is_relative_to(boundary.resolve()):
+                    raise ValueError(f"Source hash path escapes its directory: {relative!r}")
+                actual = hashlib.sha256(path.read_bytes()).hexdigest()
+                if actual != expected:
+                    raise ValueError(f"Source asset hash mismatch: {path}")
 
 
 def source_assets(name: str, *, source: str | None = None, model_path: Path | str | None = None) -> SourceAssets:
@@ -56,6 +62,8 @@ def source_assets(name: str, *, source: str | None = None, model_path: Path | st
         if spec.name not in BASELINE_NAMES:
             raise ValueError(f"{name!r} / {source!r} has no original baseline source bundle")
         directory = assets.model_dir(name, model_path, source=source)
+        if name == "shadow" and source is not None:
+            shadow_source.validate_source(directory, source)
     manifest = json.loads((directory / "source.json").read_text())
 
     def path(relative: str) -> Path:

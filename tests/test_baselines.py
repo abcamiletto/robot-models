@@ -58,6 +58,7 @@ def test_source_conversion_preserves_rest_axes_and_independent_mimics(tmp_path):
     output = tmp_path / "runtime"
     output.mkdir()
     mapping = prepare.convert_urdf("shadowhand", description, mesh_dir, output)
+    (output / "source.json").write_text(json.dumps({"upstream": prepare.GENDEX_URL, "robot": "shadowhand"}))
     assert description.read_text() == xml
     assert mapping["source_mimic"] == {"distal": {"joint": "wrist", "multiplier": ".5"}}
     model = create_model("shadow", source="gendexgrasp", model_path=output)
@@ -100,6 +101,7 @@ def test_dexgraspnet_conversion_retains_annotation_frames_and_bevelled_boxes(tmp
     output = tmp_path / "runtime"
     output.mkdir()
     prepare.convert_mjcf(description, output)
+    (output / "source.json").write_text(json.dumps({"upstream": prepare.DEX_URL}))
     model = create_model("shadow", source="dexgraspnet", model_path=output)
     assert model.joint_names == ["robot0:palm", "robot0:finger", "robot0:finger_child"]
     assert model.link_names == ["robot0:palm", "robot0:finger_child"]
@@ -132,6 +134,11 @@ def test_source_bundle_paths_hashes_and_native_annotations(tmp_path):
     assert bundle.root == source
     assert json.loads(bundle.annotations["contacts"].read_text()) == {"tip": [1, 2, 3, 4]}
     bundle.verify()
+    notice = tmp_path / "LICENSE.md"
+    notice.write_text("changed")
+    with pytest.raises(ValueError, match="hash mismatch"):
+        bundle.verify()
+    notice.write_text("Fixture assets authored for this test.\n")
     (source / "hand.urdf").write_text("changed")
     with pytest.raises(ValueError, match="hash mismatch"):
         bundle.verify()

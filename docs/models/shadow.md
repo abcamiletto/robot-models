@@ -57,7 +57,9 @@ robot-models download shadow --source dexgraspnet
 ```
 
 A manual `model_path` is a directory with `left.xml`, `right.xml` and their meshes.
-Native baseline sources provide only `right.xml`. Configure each independently:
+Native baseline sources provide only `right.xml` and require a `source.json`
+identifying the selected upstream and hand. Mismatched explicit or configured
+bundles raise `ValueError` before presets are applied. Configure each independently:
 
 ```bash
 robot-models set shadow /path/to/menagerie/assets

@@ -15,13 +15,15 @@ import pytest
 import trimesh
 
 from robot_models import _assets as assets
+from robot_models import _config as config
 from robot_models import create_model
 from robot_models._common.mjcf import MUJOCO_TO_MODEL as C
 from robot_models.baselines import source_assets
 from robot_models.baselines._source import BASELINE_NAMES
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location(
-    "prepare_baseline_assets", Path(__file__).resolve().parents[1] / "scripts/prepare_baseline_assets.py"
+    "prepare_baseline_assets", REPO_ROOT / "scripts/prepare_baseline_assets.py"
 )
 prepare = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(prepare)
@@ -147,10 +149,12 @@ def test_unpublished_variants_give_local_preparation_instructions(name, tmp_path
 @pytest.mark.parametrize("name", RUNTIME_NAMES)
 @pytest.mark.parametrize("runtime", ["numpy", "torch", "jax"])
 def test_matches_frozen_upstream_reference(name, runtime):
-    directory = Path(os.environ.get("ROBOT_MODELS_BASELINE_FIXTURES", "results/fidelity-fixtures"))
+    directory = Path(os.environ.get("ROBOT_MODELS_BASELINE_FIXTURES", REPO_ROOT / "results/fidelity-fixtures"))
     fixture = directory / f"{name}.npz"
     if not fixture.exists():
         pytest.skip("Generate independent reference fixtures with scripts/check_baseline_fidelity.py")
+    if config.get_model_path(name) is None and not (assets.get_cache_dir() / name).is_dir():
+        pytest.skip(f"Prepare local {name} source assets; see docs/models/baselines.md")
     model = create_model(name, runtime=runtime)
     with np.load(fixture) as reference:
         assert model.joint_names == reference["joint_names"].tolist()

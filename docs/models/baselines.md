@@ -26,7 +26,8 @@ and path configuration, but have not been uploaded to the public asset hub.
 `robot-models download all` continues to fetch published models only. An explicit
 request to download an unpublished variant explains how to prepare it locally.
 
-Use these original sources:
+Preparation requires a robot-models repository checkout; the preparation scripts
+are not included in the installed wheel. Use these original sources:
 
 - [GenDexGrasp](https://github.com/tengyu-liu/GenDexGrasp), commit
   `29fe7efc558b8cc3ce2d8e67c9c22b014adc21c7`.
@@ -47,11 +48,13 @@ robot-models set barrett-gendexgrasp \
   results/prepared-baseline-hands/barrett-gendexgrasp/assets
 ```
 
-The preparation script checks clean pinned checkouts and the archive digest,
-then extracts the original GenDexGrasp files directly from that verified archive. It writes
+The preparation script checks pinned checkouts for tracked changes and verifies
+the archive digest, then extracts the original GenDexGrasp files directly from
+that verified archive. It writes
 `<identifier>/assets.zip`, `<identifier>/LICENSE.md` and an extracted `assets/`
-directory, following the existing hub layout. It never uploads assets. Archive
-entry order, timestamps and permissions are fixed for reproducible packaging in
+directory, following the existing hub layout. Only committed DexGraspNet MJCF files
+are copied, so untracked or ignored files cannot enter the source bundle. It never
+uploads assets. Archive entry order, timestamps and permissions are fixed for reproducible packaging in
 the locked environment. Use a new output directory for each preparation.
 
 Each runtime bundle contains `left.xml` or `right.xml`, display STLs, `source.json`,
@@ -203,7 +206,8 @@ independent sampling-noise control.
 Local numerical fixtures can be tested in NumPy, Torch and JAX with
 `uv run pytest tests/test_baselines.py`. Configure the five prepared asset paths
 first, or place the extracted directories under `tests/assets/models_hub/<identifier>`.
-`ROBOT_MODELS_BASELINE_FIXTURES` overrides the default `results/fidelity-fixtures`.
+`ROBOT_MODELS_BASELINE_FIXTURES` overrides the default `results/fidelity-fixtures`
+under the repository root.
 Source/geometry fixtures stay local while licensing is unresolved. Ordinary CI
 runs synthetic conversion/frame/mimic regressions; optional source fixture and
 cross-model tests explain when local assets are absent.
@@ -220,9 +224,9 @@ in the Python package or committed in this change.
 
 - The supplied GenDexGrasp `sr_grasp_description/package.xml` declares `Private`.
   Its complete source directory has no license text that resolves this declaration.
-- EZGripper's package metadata declares BSD, but the supplied directory lacks the
-  corresponding full license text. Barrett, Robotiq and Allegro directories also
-  lack license files. The Barrett URDF attributes its source to
+- EZGripper's `package.xml` and Allegro's `manifest.xml` declare BSD, but their
+  supplied directories lack the corresponding full license texts. Barrett and
+  Robotiq directories also lack license files. The Barrett URDF attributes its source to
   [RobotnikAutomation/barrett_hand_common](https://github.com/RobotnikAutomation/barrett_hand_common/tree/kinetic-devel/barrett_hand_description).
   These observations are recorded without assigning replacement licenses.
 - [DexGraspNet's README](https://github.com/PKU-EPIC/DexGraspNet#license) declares

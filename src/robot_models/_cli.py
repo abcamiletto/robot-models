@@ -57,7 +57,10 @@ def download(
     names = tuple(name for name, spec in MODEL_SPECS.items() if spec.downloadable) if model == "all" else (model,)
     for name in names:
         destination = output_dir / name if output_dir is not None and model == "all" else output_dir
-        path = assets.download(name, destination)
+        try:
+            path = assets.download(name, destination)
+        except FileNotFoundError as exc:
+            raise typer.BadParameter(str(exc)) from exc
         config.set_model_path(name, path)
         typer.echo(f"Set {name} = {path}")
 

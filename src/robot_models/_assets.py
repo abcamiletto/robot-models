@@ -28,7 +28,7 @@ def download(name: str, output_dir: Path | None = None) -> Path:
     """Download and extract one model's ``assets.zip`` from Hugging Face."""
     if name in MODEL_SPECS and not MODEL_SPECS[name].downloadable:
         raise FileNotFoundError(
-            f"{name} assets are not published. Prepare a local bundle with "
+            f"{name} assets are not published. Prepare a local bundle from a robot-models repository checkout with "
             "scripts/prepare_baseline_assets.py and pass model_path or configure it with robot-models set. "
             "See docs/models/baselines.md for source licensing and preparation."
         )

@@ -78,8 +78,8 @@ def prepare_gendex(archive_path: Path, output: Path) -> None:
                 "Original descriptions, meshes, package metadata and annotations are retained byte-for-byte. "
                 "Runtime MJCF and display STL files are derived by prepare_baseline_assets.py; see source.json.\n\n"
                 "Redistribution status: unresolved. The archive does not include full asset license texts. "
-                "EZGripper package.xml declares BSD; Shadow package.xml declares Private. "
-                "Barrett, Robotiq and Allegro have no license file in their supplied directories. "
+                "EZGripper package.xml and Allegro manifest.xml declare BSD; Shadow package.xml declares Private. "
+                "The BSD declarations lack accompanying full license texts; Barrett and Robotiq have no license files. "
                 "GenDexGrasp's public download is not treated as a blanket redistribution grant. "
                 "Keep local until the applicable asset permissions are established.\n"
             )
@@ -103,7 +103,14 @@ def prepare_dexgraspnet(dex: Path, output: Path) -> None:
     target = output / "shadow-dexgraspnet" / "assets"
     source = target / "source"
     source.mkdir(parents=True)
-    shutil.copytree(dex / "grasp_generation/mjcf", source / "mjcf")
+    tracked = subprocess.check_output(
+        ["git", "-C", str(dex), "ls-tree", "-rz", "--name-only", "HEAD", "--", "grasp_generation/mjcf"], text=True
+    )
+    for filename in tracked.rstrip("\0").split("\0"):
+        relative = Path(filename)
+        destination = source / relative.relative_to("grasp_generation")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(dex / relative, destination)
     notice = dex / "grasp_generation/open_ai_assets/LICENSE.md"
     shutil.copyfile(notice, source / "OPENAI_ASSETS_LICENSE.md")
     # Preserve the pinned project's own license statement in addition to the inherited asset notice.

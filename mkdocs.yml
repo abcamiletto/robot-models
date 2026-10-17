@@ -32,6 +32,7 @@ nav:
   - Home: index.md
   - API Reference: api.md
   - Architecture: architecture.md
+  - Teaser rendering: teasers.md
   - Models:
       - Ability Hand: models/ability.md
       - Allegro: models/allegro.md

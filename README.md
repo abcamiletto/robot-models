@@ -52,6 +52,18 @@ The equivalent NumPy and JAX classes live in `robot_models.g1.numpy` and
 Baseline variants use locally prepared source bundles; see
 [compatibility, preparation, and asset licensing](docs/models/baselines.md).
 
+## Teasers
+
+Render separate humanoid and hand lineups, in the style of Body Models:
+
+```bash
+uv run --script scripts/render_teaser.py --group all
+```
+
+This provisions an isolated Python 3.13/Blender environment and writes PNGs to
+`results/teasers/`. See [rendering options and model selection](docs/teasers.md)
+for GPU rendering, backgrounds, resolution and editable Blender scenes.
+
 ## Development
 
 ```bash

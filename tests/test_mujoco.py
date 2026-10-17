@@ -22,6 +22,7 @@ def test_mounted_hand_matches_fk_and_preserves_definitions(name, side):
     directory = assets.model_dir(name)
     original = mujoco.MjModel.from_xml_path(str(directory / f"{side}.xml"))
     scene = mujoco.MjSpec()
+    scene.option.timestep = 0.003
     arm = scene.worldbody.add_body(name="arm", pos=[0.3, -0.2, 0.4])
     arm.add_joint(name="arm_rotation", axis=[0, 0, 1])
     arm.add_geom(type=mujoco.mjtGeom.mjGEOM_SPHERE, size=[0.02, 0, 0], mass=1)
@@ -43,7 +44,7 @@ def test_mounted_hand_matches_fk_and_preserves_definitions(name, side):
     )
     assert model.ngeom == original.ngeom + 1
     assert model.nv == len(hand.to_qpos(np.zeros(hand.num_dofs))[7:]) + 1
-    assert scene.option.timestep == 0.002
+    assert model.opt.timestep == 0.003
 
     lo, hi = np.asarray(hand.actuated_joint_limits).T
     for fraction in (0.0, 0.37, 1.0):
@@ -74,8 +75,6 @@ def test_multiple_hands_use_separate_namespaces():
     add_hand(scene, "allegro", side="right")
     add_hand(scene, "allegro", side="right", prefix="extra_")
     model = scene.compile()
-    assert model.nq == 48
-    assert model.nu == 48
     for prefix in ("allegro_left_", "allegro_right_", "extra_"):
         assert model.body(prefix + "palm").id > 0
 

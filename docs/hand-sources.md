@@ -88,7 +88,9 @@ representative surface points are checked with an explicit basis/root mapping.
 | EZGripper / SAKE-linked MuJoCo | 12 | 1.05e-7 | 2.53e-9 |
 
 Frozen reference fixtures and their upstream licenses are in
-`tests/reference_hands/`; regressions run against NumPy, PyTorch and JAX.
+`tests/reference_hands/`; NumPy checks these independent source references.
+The shared backend consistency, compilation and gradient tests cover PyTorch
+and JAX.
 
 ## Published bundles
 

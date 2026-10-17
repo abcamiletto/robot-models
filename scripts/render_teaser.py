@@ -5,7 +5,7 @@
 # [tool.uv.sources]
 # robot-models = { path = ".." }
 # ///
-"""Render labeled humanoid and hand lineups, following Body Models' Blender teaser.
+"""Render transparent humanoid and hand lineups, following Body Models' Blender teaser.
 
 uv run --script scripts/render_teaser.py --group all --device gpu
 uv run --script scripts/render_teaser.py --group hands --models allegro shadow
@@ -63,7 +63,6 @@ def main() -> None:
     parser.add_argument("--samples", type=int, default=128)
     parser.add_argument("--device", choices=("cpu", "gpu"), default="cpu")
     parser.add_argument("--threads", type=int, default=8)
-    parser.add_argument("--background", choices=("transparent", "light", "dark"), default="transparent")
     parser.add_argument("--save-blend", action="store_true", help="Also save editable Blender scenes.")
     args = parser.parse_args()
     if args.models and args.group == "all":
@@ -85,7 +84,7 @@ def render_lineup(group, names, args) -> None:
     objects = add_lineup(meshes, height)
     configure_scene(args)
     camera = add_camera()
-    labels = add_labels(names, objects, camera, height, args.background)
+    labels = add_labels(names, objects, camera, height)
     fit_camera(camera, objects + labels, args.width / args.height)
     scene = bpy.context.scene
     scene.render.filepath = str(args.output_dir / f"{group}.png")
@@ -171,19 +170,6 @@ def add_lineup(meshes, target_height):
     return objects
 
 
-def material(name, color, *, emission=False):
-    mat = bpy.data.materials.new(name)
-    mat.use_nodes = True
-    bsdf = mat.node_tree.nodes["Principled BSDF"]
-    bsdf.inputs["Base Color"].default_value = color
-    bsdf.inputs["Roughness"].default_value = 0.48
-    bsdf.inputs["Metallic"].default_value = 0.08
-    if emission:
-        bsdf.inputs["Emission Color"].default_value = color
-        bsdf.inputs["Emission Strength"].default_value = 1
-    return mat
-
-
 def configure_scene(args):
     scene = bpy.context.scene
     scene.render.engine = "CYCLES"
@@ -207,15 +193,14 @@ def configure_scene(args):
     scene.render.resolution_percentage = 100
     scene.render.image_settings.file_format = "PNG"
     scene.render.image_settings.color_mode = "RGBA"
-    scene.render.film_transparent = args.background == "transparent"
+    scene.render.film_transparent = True
     scene.view_settings.view_transform = "Standard"
     scene.view_settings.look = "None"
     world = bpy.data.worlds.new("World")
     scene.world = world
     world.use_nodes = True
     background = world.node_tree.nodes["Background"]
-    color = (0.94, 0.95, 0.97, 1) if args.background == "light" else (0.035, 0.045, 0.065, 1)
-    background.inputs["Color"].default_value = color
+    background.inputs["Color"].default_value = (0.035, 0.045, 0.065, 1)
     background.inputs["Strength"].default_value = 0.35
     for name, rotation, energy, color in (
         ("Key", (45, 0, 25), 2.4, (1, 0.94, 0.88)),
@@ -242,9 +227,9 @@ def add_camera():
     return camera
 
 
-def add_labels(names, objects, camera, height, background):
-    color = (0.07, 0.09, 0.13, 1) if background == "light" else (0.94, 0.95, 0.98, 1)
-    ink = material("Labels", color, emission=True)
+def add_labels(names, objects, camera, height):
+    # Neutral ink remains readable on both light and dark pages after alpha compositing.
+    ink = material("Labels", (0.18, 0.18, 0.18, 1), emission=True)
     labels = []
     bpy.context.view_layer.update()
     inverse = camera.matrix_world.inverted()
@@ -277,6 +262,22 @@ def fit_camera(camera, objects, aspect):
     camera.data.ortho_scale = max(width, height * aspect) * 1.12
     direction = camera.rotation_euler.to_quaternion() @ Vector((0, 0, 1))
     camera.location = center + direction * 12
+
+
+def material(name, color, *, emission=False):
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    if emission:
+        shader = nodes.new("ShaderNodeEmission")
+        shader.inputs["Color"].default_value = color
+        mat.node_tree.links.new(shader.outputs[0], nodes["Material Output"].inputs["Surface"])
+    else:
+        shader = nodes["Principled BSDF"]
+        shader.inputs["Base Color"].default_value = color
+        shader.inputs["Roughness"].default_value = 0.48
+        shader.inputs["Metallic"].default_value = 0.08
+    return mat
 
 
 if __name__ == "__main__":

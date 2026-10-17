@@ -5,6 +5,10 @@
 load actual meshes through the NumPy API and render labeled pastel lineups with
 headless Blender/Cycles. It produces separate humanoid and hand PNGs.
 
+![Humanoid lineup](assets/teasers/humanoids.png)
+
+![Hand lineup](assets/teasers/hands.png)
+
 From a robot-models checkout:
 
 ```bash
@@ -37,16 +41,18 @@ uv run --script scripts/render_teaser.py --device gpu --samples 16 --width 1600 
 # High-quality transparent images and editable Blender scene files.
 uv run --script scripts/render_teaser.py --device gpu --samples 256 --save-blend
 
-# Render one lineup on a solid background, or choose a subset.
-uv run --script scripts/render_teaser.py --group humanoids --background light
-uv run --script scripts/render_teaser.py --group hands --models allegro shadow --background dark
+# Render one lineup, or choose a subset.
+uv run --script scripts/render_teaser.py --group humanoids
+uv run --script scripts/render_teaser.py --group hands --models allegro shadow
+
+# Regenerate the images committed in the README and documentation.
+uv run --script scripts/render_teaser.py --output-dir docs/assets/teasers
 ```
 
 CPU rendering is the default and uses eight threads; change this with `--threads`.
 `--device gpu` requires an OptiX-capable NVIDIA GPU and fails clearly if none is
-available. Backgrounds are `transparent` (default), `light`, or `dark`. Transparent
-exports use light labels for dark backgrounds; use `--background light` for dark
-labels and an opaque light background. The output directory, width, height and
+available. All exports are RGBA PNGs with transparent backgrounds. Neutral gray
+labels work on both light and dark pages. The output directory, width, height and
 sample count are configurable. Camera framing includes all meshes and labels.
 
 `--save-blend` writes `humanoids.blend` and/or `hands.blend` alongside the PNGs,

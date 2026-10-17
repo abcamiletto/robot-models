@@ -56,13 +56,20 @@ Baseline variants use locally prepared source bundles; see
 
 Render separate humanoid and hand lineups, in the style of Body Models:
 
+![Humanoid lineup: Unitree G1, Fourier GR1, Unitree H1, Booster T1 and PAL TALOS.](docs/assets/teasers/humanoids.png)
+
+![Hand lineup: Ability, Allegro, BrainCo, Inspire, LEAP, Sharpa and Shadow.](docs/assets/teasers/hands.png)
+
+Both images have transparent backgrounds. Models are scaled to equal heights for
+display; the lineups do not compare physical size. Regenerate the README images:
+
 ```bash
-uv run --script scripts/render_teaser.py --group all
+uv run --script scripts/render_teaser.py --output-dir docs/assets/teasers
 ```
 
-This provisions an isolated Python 3.13/Blender environment and writes PNGs to
-`results/teasers/`. See [rendering options and model selection](docs/teasers.md)
-for GPU rendering, backgrounds, resolution and editable Blender scenes.
+This provisions an isolated Python 3.13/Blender environment. See
+[rendering options and model selection](docs/teasers.md) for GPU rendering,
+resolution and editable Blender scenes.
 
 ## Development
 

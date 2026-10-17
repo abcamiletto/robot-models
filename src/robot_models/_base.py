@@ -27,6 +27,7 @@ from robot_models._runtime import ArrayRuntime
 Array = Any
 ParameterRole = Literal["pose", "transform"]
 Side = Literal["left", "right"]
+GeometryKind = Literal["visual", "collision"]
 
 
 @dataclass(frozen=True)
@@ -241,15 +242,28 @@ class RigidBodyModel(ABC):
     @cached_property
     def link_meshes(self) -> Sequence[Trimesh]:
         """Meshes in their joint's frame, aligned with :attr:`link_names` and ``forward_links()``."""
-        return rigid_ops.link_meshes(
-            self._assets.vertices,
-            self._assets.faces,
-            self._assets.link_vertex_starts,
-            self._assets.link_vertex_counts,
-            self._assets.link_face_starts,
-            self._assets.link_face_counts,
-            to_numpy=self._runtime.to_numpy,
-        )
+        return rigid_ops.link_meshes(self._assets, to_numpy=self._runtime.to_numpy)
+
+    @property
+    def collision_names(self) -> list[str]:
+        """Collision geometry names, aligned with :attr:`collision_meshes`."""
+        return list(self._assets.collisions.link_names)
+
+    @property
+    def collision_joint_indices(self) -> list[int]:
+        """Skeleton joint index for each collision geometry."""
+        return list(self._assets.collisions.link_joint_indices)
+
+    @cached_property
+    def collision_meshes(self) -> Sequence[Trimesh]:
+        """Source collision meshes in joint-local Y-up frames.
+
+        Curved primitives are triangulated for this mesh interface. The source
+        MJCF and :func:`add_hand` retain native analytic collision definitions.
+        Authored mesh triangles are returned as supplied; MuJoCo uses their
+        convex hulls for collision detection.
+        """
+        return rigid_ops.link_meshes(self._assets.collisions, to_numpy=self._runtime.to_numpy)
 
     @property
     def num_vertices(self) -> int:
@@ -300,23 +314,28 @@ class RigidBodyModel(ABC):
         angles = rigid_ops.hinge_angles(self._assets, pose, xp=xp)
         return xp.concat([root_t, root_quat, angles], axis=-1)
 
-    def forward_links(self, **parameters: Float[Array, "..."]) -> Float[Array, "*batch L 4 4"]:
-        """Compute the world transform of each link mesh's joint frame."""
-        return self.forward_skeleton(**parameters)[..., self._assets.link_joint_indices, :, :]
+    def forward_links(
+        self, *, geometry: GeometryKind = "visual", **parameters: Float[Array, "..."]
+    ) -> Float[Array, "*batch L 4 4"]:
+        """Compute joint-frame transforms aligned with visual or collision meshes."""
+        meshes = self._geometry_assets(geometry)
+        return self.forward_skeleton(**parameters)[..., meshes.link_joint_indices, :, :]
 
-    def forward_meshes(self, **parameters: Float[Array, "..."]) -> list[Trimesh]:
-        """Build one renderer-facing mesh per batch element."""
+    def forward_meshes(self, *, geometry: GeometryKind = "visual", **parameters: Float[Array, "..."]) -> list[Trimesh]:
+        """Build one posed visual or collision mesh per batch element (visual by default)."""
         return rigid_ops.forward_meshes_from_links(
-            self.forward_links(**parameters),
-            self._assets.vertices,
-            self._assets.faces,
-            self._assets.link_vertex_starts,
-            self._assets.link_vertex_counts,
-            self._assets.link_face_starts,
-            self._assets.link_face_counts,
+            self.forward_links(geometry=geometry, **parameters),
+            self._geometry_assets(geometry),
             to_numpy=self._runtime.to_numpy,
             xp=self._runtime.xp,
         )
+
+    def _geometry_assets(self, geometry: GeometryKind) -> rigid_ops.MeshAssets:
+        if geometry == "visual":
+            return self._assets
+        if geometry == "collision":
+            return self._assets.collisions
+        raise ValueError(f"Unknown geometry {geometry!r}; expected 'visual' or 'collision'")
 
     def _forward_skeleton(
         self,

@@ -18,7 +18,21 @@ _ToNumpy = Callable[[Any], np.ndarray]
 
 
 @dataclass(frozen=True)
-class RigidAssets:
+class MeshAssets:
+    """Packed meshes, each expressed in its skeleton joint's local frame."""
+
+    vertices: Float[Array, "V 3"]
+    faces: Int[Array, "F 3"]
+    link_names: list[str]
+    link_joint_indices: list[int]
+    link_vertex_starts: list[int]
+    link_vertex_counts: list[int]
+    link_face_starts: list[int]
+    link_face_counts: list[int]
+
+
+@dataclass(frozen=True)
+class RigidAssets(MeshAssets):
     """Skeleton, hinge, and link-mesh data of one rigid articulated model.
 
     Every hinge angle is a polynomial of one pose coordinate:
@@ -36,14 +50,7 @@ class RigidAssets:
     hinge_polycoef: Float[Array, "H 5"]
     actuated_joint_names: list[str]
     actuated_joint_limits: Float[Array, "Q 2"]
-    vertices: Float[Array, "V 3"]
-    faces: Int[Array, "F 3"]
-    link_names: list[str]
-    link_joint_indices: list[int]
-    link_vertex_starts: list[int]
-    link_vertex_counts: list[int]
-    link_face_starts: list[int]
-    link_face_counts: list[int]
+    collisions: MeshAssets
 
 
 def hinge_angles(assets: RigidAssets, pose: Float[Array, "... Q"], *, xp: Any) -> Float[Array, "... H"]:
@@ -136,12 +143,7 @@ def forward_skeleton_from_local_transforms(
 
 def forward_meshes_from_links(
     links: Float[Array, "... L 4 4"],
-    vertices: Float[Array, "V 3"],
-    faces: Int[Array, "F 3"],
-    link_vertex_starts: list[int],
-    link_vertex_counts: list[int],
-    link_face_starts: list[int],
-    link_face_counts: list[int],
+    assets: MeshAssets,
     *,
     to_numpy: _ToNumpy,
     xp: Any,
@@ -149,16 +151,16 @@ def forward_meshes_from_links(
     """Build one concatenated ``Trimesh`` per batch element."""
     link_rot = links[..., :3, :3]
     link_pos = links[..., :3, 3]
-    source_vertices = xp.asarray(vertices, dtype=links.dtype)
-    source_faces = xp.asarray(faces)
+    source_vertices = xp.asarray(assets.vertices, dtype=links.dtype)
+    source_faces = xp.asarray(assets.faces)
     batch_size = _batch_size(links)
     meshes_by_batch: list[list[Trimesh]] = [[] for _ in range(batch_size)]
 
-    for link_idx in range(len(link_vertex_starts)):
-        vertex_start = link_vertex_starts[link_idx]
-        vertex_count = link_vertex_counts[link_idx]
-        face_start = link_face_starts[link_idx]
-        face_count = link_face_counts[link_idx]
+    for link_idx in range(len(assets.link_vertex_starts)):
+        vertex_start = assets.link_vertex_starts[link_idx]
+        vertex_count = assets.link_vertex_counts[link_idx]
+        face_start = assets.link_face_starts[link_idx]
+        face_count = assets.link_face_counts[link_idx]
         local_vertices = source_vertices[vertex_start : vertex_start + vertex_count]
         transformed = xp.squeeze(link_rot[..., link_idx, None, :, :] @ local_vertices[..., None], axis=-1)
         mesh_vertices = transformed + link_pos[..., link_idx, None, :]
@@ -172,24 +174,19 @@ def forward_meshes_from_links(
 
 
 def link_meshes(
-    vertices: Float[Array, "V 3"],
-    faces: Int[Array, "F 3"],
-    link_vertex_starts: list[int],
-    link_vertex_counts: list[int],
-    link_face_starts: list[int],
-    link_face_counts: list[int],
+    assets: MeshAssets,
     *,
     to_numpy: _ToNumpy,
 ) -> list[Trimesh]:
     """Build one link-local mesh per packed geometry range."""
-    vertices = to_numpy(vertices)
-    faces = to_numpy(faces)
+    vertices = to_numpy(assets.vertices)
+    faces = to_numpy(assets.faces)
     meshes = []
     for vertex_start, vertex_count, face_start, face_count in zip(
-        link_vertex_starts,
-        link_vertex_counts,
-        link_face_starts,
-        link_face_counts,
+        assets.link_vertex_starts,
+        assets.link_vertex_counts,
+        assets.link_face_starts,
+        assets.link_face_counts,
         strict=True,
     ):
         link_vertices = vertices[vertex_start : vertex_start + vertex_count]

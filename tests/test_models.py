@@ -78,6 +78,58 @@ def test_coupled_hinges_satisfy_mujoco_equalities(case) -> None:
         np.testing.assert_allclose(coupled, expected, atol=1e-5)
 
 
+def test_collision_meshes_match_mujoco_geoms(case) -> None:
+    mujoco, model, mj_model, data, pose = case
+    paired = set(mj_model.pair_geom1) | set(mj_model.pair_geom2)
+    geoms = [
+        i for i in range(mj_model.ngeom) if mj_model.geom_contype[i] or mj_model.geom_conaffinity[i] or i in paired
+    ]
+    assert len(model.collision_meshes) == len(geoms) == len(model.collision_names)
+    transforms = model.forward_links(geometry="collision", **{model._POSE: pose})
+    directions = np.vstack((np.eye(3), -np.eye(3), np.random.default_rng(4).normal(size=(24, 3))))
+    directions /= np.linalg.norm(directions, axis=1, keepdims=True)
+    vertices = []
+    for geom, mesh, transform, joint in zip(
+        geoms, model.collision_meshes, transforms, model.collision_joint_indices, strict=True
+    ):
+        assert model.joint_names[joint] == mj_model.body(int(mj_model.geom_bodyid[geom])).name
+        world = np.asarray(mesh.vertices) @ transform[:3, :3].T + transform[:3, 3]
+        vertices.append(world)
+        rotation, position = _in_model_frame(data, data.geom_xpos[geom], data.geom_xmat[geom].reshape(3, 3))
+        local = (world - position) @ rotation @ MUJOCO_TO_MODEL
+        kind = mj_model.geom_type[geom]
+        size = mj_model.geom_size[geom]
+        if kind == mujoco.mjtGeom.mjGEOM_MESH:
+            index = mj_model.geom_dataid[geom]
+            start, count = mj_model.mesh_vertadr[index], mj_model.mesh_vertnum[index]
+            expected = mj_model.mesh_vert[start : start + count]
+            np.testing.assert_allclose((local @ directions.T).max(0), (expected @ directions.T).max(0), atol=2e-6)
+            continue
+        if kind == mujoco.mjtGeom.mjGEOM_BOX:
+            distance = (np.abs(local) - size).max(1)
+            extent = size
+        elif kind == mujoco.mjtGeom.mjGEOM_SPHERE:
+            distance = np.linalg.norm(local, axis=1) - size[0]
+            extent = np.repeat(size[0], 3)
+        elif kind == mujoco.mjtGeom.mjGEOM_CYLINDER:
+            distance = np.maximum(np.linalg.norm(local[:, :2], axis=1) - size[0], np.abs(local[:, 2]) - size[1])
+            extent = [size[0], size[0], size[1]]
+        elif kind == mujoco.mjtGeom.mjGEOM_CAPSULE:
+            local_axis = local.copy()
+            local_axis[:, 2] -= np.clip(local_axis[:, 2], -size[1], size[1])
+            distance = np.linalg.norm(local_axis, axis=1) - size[0]
+            extent = [size[0], size[0], size[1] + size[0]]
+        else:
+            assert kind == mujoco.mjtGeom.mjGEOM_ELLIPSOID
+            distance = np.linalg.norm(local / size, axis=1) - 1
+            extent = size
+        np.testing.assert_allclose(distance, 0, atol=2e-6)
+        # Curved primitives are tessellated; the native MuJoCo shapes stay analytic.
+        np.testing.assert_allclose(np.abs(local).max(0), extent, rtol=0.003, atol=2e-6)
+    posed = model.forward_meshes(geometry="collision", **{model._POSE: pose})[0]
+    np.testing.assert_allclose(posed.vertices, np.concatenate(vertices), atol=2e-6)
+
+
 def test_common_joints_and_presets_resolve(case) -> None:
     _, model, *_ = case
     for joint in model.common_joints:

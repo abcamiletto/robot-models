@@ -20,24 +20,27 @@ def assert_pose_helpers_round_trip(model, pose) -> None:
 def test_meshes_match_across_backends(name, model_class, kwargs) -> None:
     numpy_model = model_class(**kwargs)
     numpy_params = numpy_model.get_rest_pose(batch_dims=(2,), dtype=np.float32)
-    expected = mesh_vertices(numpy_model.forward_meshes(**numpy_params))
+    pose = numpy_params[numpy_model._POSE]
+    lo, hi = np.asarray(numpy_model.actuated_joint_limits).T
+    numpy_params[numpy_model._POSE] = np.clip(pose + np.array([[0.07], [0.13]], dtype=np.float32), lo, hi)
 
     torch = pytest.importorskip("torch")
     torch_model = model_cases.backend_model_class(name, "torch")(**kwargs)
-    torch_params = torch_model.get_rest_pose(batch_dims=(2,), dtype=torch.float32)
-    with torch.no_grad():
-        torch_meshes = torch_model.forward_meshes(**torch_params)
+    torch_params = {key: torch.as_tensor(value) for key, value in numpy_params.items()}
 
     pytest.importorskip("jax")
     import jax.numpy as jnp
 
     jax_model = model_cases.backend_model_class(name, "jax")(**kwargs)
-    jax_params = jax_model.get_rest_pose(batch_dims=(2,), dtype=jnp.float32)
-    jax_meshes = jax_model.forward_meshes(**jax_params)
-
-    assert all(isinstance(mesh, Trimesh) for mesh in (*torch_meshes, *jax_meshes))
-    np.testing.assert_allclose(mesh_vertices(torch_meshes), expected, rtol=1e-4, atol=1e-4)
-    np.testing.assert_allclose(mesh_vertices(jax_meshes), expected, rtol=1e-4, atol=1e-4)
+    jax_params = {key: jnp.asarray(value) for key, value in numpy_params.items()}
+    for geometry in ("visual", "collision"):
+        expected = mesh_vertices(numpy_model.forward_meshes(geometry=geometry, **numpy_params))
+        with torch.no_grad():
+            torch_meshes = torch_model.forward_meshes(geometry=geometry, **torch_params)
+        jax_meshes = jax_model.forward_meshes(geometry=geometry, **jax_params)
+        assert all(isinstance(mesh, Trimesh) for mesh in (*torch_meshes, *jax_meshes))
+        np.testing.assert_allclose(mesh_vertices(torch_meshes), expected, rtol=1e-4, atol=1e-4)
+        np.testing.assert_allclose(mesh_vertices(jax_meshes), expected, rtol=1e-4, atol=1e-4)
 
 
 @pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.MODELS)

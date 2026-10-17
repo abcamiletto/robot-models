@@ -75,32 +75,21 @@ def check(bundles: Path, output: Path) -> None:
         points = (
             mjcf_points(reference, data) if name == "ezgripper" else urdf_points(urdf, directory / "source", body_names)
         )
-        triangles, weights, links, expected_points = [], [], [], []
-        max_surface_error = 0.0
-        meshes = hand.link_meshes
-        for link_index, (body, local) in enumerate(points):
-            mesh = meshes[link_index]
-            # Millimetres avoid Trimesh's degeneracy tolerance on small CAD triangles.
-            probe = trimesh.Trimesh(vertices=np.asarray(mesh.vertices) * 1000, faces=mesh.faces, process=False)
-            closest, distance, triangle = probe.nearest.on_surface((local @ C.T) * 1000)
-            max_surface_error = max(max_surface_error, float(distance.max() / 1000))
-            assert distance.max() / 1000 < 2e-6, (name, body, distance.max() / 1000)
-            weights.extend(trimesh.triangles.points_to_barycentric(probe.triangles[triangle], closest))
-            triangles.extend(np.asarray(mesh.faces)[triangle] + hand._assets.link_vertex_starts[link_index])
-            links.extend([link_index] * len(local))
-            frame = frames[:, hand.joint_names.index(body)]
-            expected_points.append((np.einsum("bij,pj->bpi", frame[:, :3, :3], local) + frame[:, None, :3, 3]) @ C.T)
-        assert len(points) == len(hand.link_names)
+        visual_arrays, surface_error = surface_reference(hand, frames, points, "visual")
+        collision_points = (
+            mjcf_points(reference, data, collision=True)
+            if name == "ezgripper"
+            else urdf_points(urdf, directory / "source", body_names, element="collision")
+        )
+        collision_arrays, collision_error = surface_reference(hand, frames, collision_points, "collision")
         arrays = {
             "poses": poses,
             "joint_names": hand.joint_names,
             "pose_names": pose_names,
             "limits": limits,
             "transforms": expected.astype(np.float32),
-            "point_triangles": triangles,
-            "point_weights": weights,
-            "point_links": links,
-            "points": np.concatenate(expected_points, axis=1).astype(np.float32),
+            **visual_arrays,
+            **{f"collision_{key}": value for key, value in collision_arrays.items()},
         }
         np.savez_compressed(output / f"{name}.npz", **arrays)
         report = {
@@ -113,10 +102,39 @@ def check(bundles: Path, output: Path) -> None:
             "mimic_joints": len(mimics),
             "visuals": len(points),
             "fk_max_abs": fk_error,
-            "surface_max_m": max_surface_error,
+            "surface_max_m": surface_error,
+            "collisions": len(collision_points),
+            "collision_surface_max_m": collision_error,
         }
         (output / f"{name}.json").write_text(json.dumps(report, indent=2) + "\n")
         print(json.dumps(report))
+
+
+def surface_reference(hand, frames: np.ndarray, points: list, geometry: str) -> tuple[dict, float]:
+    """Bind original surface samples to runtime triangles, after checking conversion error."""
+    triangles, weights, links, expected_points = [], [], [], []
+    max_error = 0.0
+    meshes = hand.link_meshes if geometry == "visual" else hand.collision_meshes
+    assets = hand._assets if geometry == "visual" else hand._assets.collisions
+    assert len(points) == len(meshes)
+    for index, (body, local) in enumerate(points):
+        mesh = meshes[index]
+        # Millimetres avoid Trimesh's degeneracy tolerance on small CAD triangles.
+        probe = trimesh.Trimesh(vertices=np.asarray(mesh.vertices) * 1000, faces=mesh.faces, process=False)
+        closest, distance, triangle = probe.nearest.on_surface((local @ C.T) * 1000)
+        max_error = max(max_error, float(distance.max() / 1000))
+        assert distance.max() / 1000 < 2e-6, (geometry, body, distance.max() / 1000)
+        weights.extend(trimesh.triangles.points_to_barycentric(probe.triangles[triangle], closest))
+        triangles.extend(np.asarray(mesh.faces)[triangle] + assets.link_vertex_starts[index])
+        links.extend([index] * len(local))
+        frame = frames[:, hand.joint_names.index(body)]
+        expected_points.append((np.einsum("bij,pj->bpi", frame[:, :3, :3], local) + frame[:, None, :3, 3]) @ C.T)
+    return {
+        "point_triangles": triangles,
+        "point_weights": weights,
+        "point_links": links,
+        "points": np.concatenate(expected_points, axis=1).astype(np.float32),
+    }, max_error
 
 
 def urdf_reference(original: ET.Element) -> mujoco.MjModel:
@@ -130,12 +148,14 @@ def urdf_reference(original: ET.Element) -> mujoco.MjModel:
     return mujoco.MjModel.from_xml_string(ET.tostring(root, encoding="unicode"))
 
 
-def urdf_points(urdf: ET.Element, source: Path, bodies: list[str]) -> list[tuple[str, np.ndarray]]:
+def urdf_points(
+    urdf: ET.Element, source: Path, bodies: list[str], *, element: str = "visual"
+) -> list[tuple[str, np.ndarray]]:
     points = []
     # Match the source's tree order using its independent MuJoCo import.
     links = {link.attrib["name"]: link for link in urdf.findall("link")}
     for body in bodies:
-        for visual in links[body].findall("visual"):
+        for visual in links[body].findall(element):
             geometry = visual.find("geometry")
             tag = geometry.find("mesh")
             if tag is None:
@@ -152,19 +172,28 @@ def urdf_points(urdf: ET.Element, source: Path, bodies: list[str]) -> list[tuple
     return points
 
 
-def mjcf_points(model: mujoco.MjModel, data: mujoco.MjData) -> list[tuple[str, np.ndarray]]:
+def mjcf_points(model: mujoco.MjModel, data: mujoco.MjData, *, collision: bool = False) -> list[tuple[str, np.ndarray]]:
     points = []
+    paired = set(model.pair_geom1) | set(model.pair_geom2)
     for geom in range(model.ngeom):
-        if (
-            model.geom_type[geom] != mujoco.mjtGeom.mjGEOM_MESH
-            or model.geom_contype[geom]
-            or model.geom_conaffinity[geom]
-        ):
+        if model.geom_bodyid[geom] == 0:
+            continue  # Source scene floors are not part of the hand.
+        active = bool(model.geom_contype[geom] or model.geom_conaffinity[geom] or geom in paired)
+        if active != collision:
             continue
-        mesh = model.geom_dataid[geom]
-        start, count = model.mesh_vertadr[mesh], model.mesh_vertnum[mesh]
-        face_start, face_count = model.mesh_faceadr[mesh], model.mesh_facenum[mesh]
-        local = sample(model.mesh_vert[start : start + count], model.mesh_face[face_start : face_start + face_count])
+        if not collision and model.geom_type[geom] != mujoco.mjtGeom.mjGEOM_MESH:
+            continue
+        if model.geom_type[geom] == mujoco.mjtGeom.mjGEOM_MESH:
+            mesh = model.geom_dataid[geom]
+            start, count = model.mesh_vertadr[mesh], model.mesh_vertnum[mesh]
+            face_start, face_count = model.mesh_faceadr[mesh], model.mesh_facenum[mesh]
+            local = sample(
+                model.mesh_vert[start : start + count], model.mesh_face[face_start : face_start + face_count]
+            )
+        else:
+            assert model.geom_type[geom] == mujoco.mjtGeom.mjGEOM_BOX
+            mesh = trimesh.creation.box(extents=2 * model.geom_size[geom])
+            local = sample(mesh.vertices, mesh.faces)
         world = local @ data.geom_xmat[geom].reshape(3, 3).T + data.geom_xpos[geom]
         body = model.geom_bodyid[geom]
         in_body = (world - data.xpos[body]) @ data.xmat[body].reshape(3, 3)

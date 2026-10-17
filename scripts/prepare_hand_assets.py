@@ -74,11 +74,13 @@ def prepare(upstreams: Path, output: Path) -> None:
             mapping = convert_urdf(description, source, target)
             changes = (
                 "Runtime XML uses a free root at the origin; display meshes are converted to STL. "
-                "URDF rest transforms, joint axes/limits and all visuals are retained. "
+                "URDF rest transforms, joint axes/limits, all visuals and source collisions are retained. "
                 f"Coupling: {mapping['coupling_policy']}. "
-                "Original collision geometry and dynamics remain available in the source description. "
+                "Collision meshes are converted from the source collision elements; boxes remain analytic. "
+                "Collision geoms have zero density to retain the previous runtime inertias. "
+                "Original source dynamics remain available in the source description. "
                 "Runtime inertias are placeholders inferred from visual mesh volume at density 1000 kg/m^3. "
-                "The runtime is a kinematics/display model, not a simulation or motor-control replacement."
+                "URDF contact coefficients and motor dynamics are not translated to MuJoCo solver parameters."
             )
         notice = (
             f"# {name} canonical assets\n\nSource: {spec['upstream']}, revision `{spec['revision']}`.\n\n"
@@ -167,6 +169,32 @@ def convert_urdf(description: Path, source: Path, output: Path) -> dict:
                 raise ValueError(f"Unsupported visual: {name}")
             mesh.apply_transform(bundle.origin(visual.find("origin")))
             bundle.add_mesh(mesh, f"{name}_visual_{index}", body, assets, output)
+        for index, collision in enumerate(links[name].findall("collision")):
+            geometry = bundle.required(collision, "geometry")
+            mesh_tag = geometry.find("mesh")
+            geom_name = f"{name}_collision_{index}"
+            transform = bundle.origin(collision.find("origin"))
+            if mesh_tag is not None:
+                mesh = source_mesh(source, mesh_tag.attrib["filename"])
+                mesh.vertices *= bundle.vec(mesh_tag.get("scale"), "1 1 1")
+                mesh.apply_transform(transform)
+                bundle.add_mesh(mesh, geom_name, body, assets, output, collision=True)
+            elif geometry.find("box") is not None:
+                size = bundle.vec(bundle.required(geometry, "box").get("size")) / 2
+                ET.SubElement(
+                    body,
+                    "geom",
+                    {
+                        "name": geom_name,
+                        "type": "box",
+                        "size": bundle.numbers(size),
+                        "density": "0",
+                        "group": "3",
+                        **bundle.transform_attrs(transform),
+                    },
+                )
+            else:
+                raise ValueError(f"Unsupported collision: {name}")
         for child in joints:
             if bundle.required(child, "parent").get("link") == name:
                 visit(bundle.required(child, "child").attrib["link"], body, child)
@@ -186,6 +214,8 @@ def convert_urdf(description: Path, source: Path, output: Path) -> dict:
     independent = [joint for joint in world.findall(".//joint") if joint.attrib["name"] not in mimics]
     return {
         "root_link": root_name,
+        "asset_version": 2,
+        "collision_policy": "original URDF collision elements; source meshes and analytic primitives",
         "source_mimic": mimics,
         "side": "right",
         "joint_names": [joint.attrib["name"] for joint in independent],

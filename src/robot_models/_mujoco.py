@@ -36,7 +36,7 @@ def add_hand(
     root convention. The scene's options are unchanged. Packaged actuators,
     equalities and collision definitions are retained; none are synthesized.
     Barrett/Robotiq assets have placeholder inertias for their visual geometry;
-    supply appropriate dynamics, collision and actuation for simulation.
+    source collisions are supplied; configure appropriate dynamics and actuation.
     Requires the optional ``robot-models[mujoco]`` dependency.
     """
     cls = registry._model_class(name, "numpy")

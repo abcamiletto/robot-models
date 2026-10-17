@@ -53,9 +53,9 @@ mass scaling when compiled.
 Native attachment retains the packaged meshes, joints, actuators, equalities,
 tendons and collision definitions. The parent scene's global solver/options win;
 MuJoCo can warn when a hand's options differ. No collision shapes or motors are
-invented: Barrett and Robotiq packages provide kinematics and visual geometry,
-so simulation requires application-appropriate dynamics, collision and actuation
-configuration. Their packaged inertias are placeholders inferred from visual
+invented: Barrett and Robotiq packages provide kinematics, visual and source
+collision geometry, with application-appropriate dynamics and actuation still
+required. Their packaged inertias are placeholders inferred from visual
 mesh volume at density 1000 kg/m³, rather than the source URDF inertials.
 A compiled model alone does not establish grasping performance.
 

@@ -50,8 +50,24 @@ model = scene.compile()
 
 The same function works for all ten canonical hands. It mounts the hand at its
 root in native MuJoCo coordinates and retains the bundle's physical definitions.
-Barrett and Robotiq bundles provide kinematics and visuals; simulation requires
-appropriate collision and actuation definitions. See [mounting and namespaces](docs/mujoco.md).
+Barrett and Robotiq bundles provide kinematics, visuals and source collision
+geometry; simulation requires appropriate dynamics and actuation. See [mounting and namespaces](docs/mujoco.md).
+
+## Visual and collision geometry
+
+All ten hands expose both representations through the same model:
+
+```python
+from robot_models import create_model
+
+hand = create_model("shadow")
+params = hand.get_rest_pose()
+visual = hand.forward_meshes(**params)
+collision = hand.forward_meshes(geometry="collision", **params)
+```
+
+Collision definitions follow Menagerie, manufacturer models and established ROS
+sources. See [source choices, native shapes and validation](docs/collisions.md).
 
 ## Models
 

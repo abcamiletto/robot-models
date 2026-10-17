@@ -5,7 +5,7 @@ Models use MuJoCo MJCF files read by one loader. Public assets are hosted on Hug
 | Module | Responsibility |
 | --- | --- |
 | `_assets.py` | Resolve a model's asset directory: explicit path, config, cache, or download. |
-| `_common/mjcf.py` | Parse an MJCF file into a skeleton, hinges, couplings, and visual meshes. |
+| `_common/mjcf.py` | Parse an MJCF file into a skeleton, hinges, couplings, and visual/collision meshes. |
 | `_common/rigid.py` | Backend-independent kinematics and mesh posing. |
 | `_base.py` | `RigidBodyModel` and its two families, `Humanoid` and `Hand`. |
 | `<name>/_model.py` | One model: its asset name and common-joint map. |
@@ -32,6 +32,11 @@ created only after array-valued link transforms have been evaluated.
 2. Add `robot_models/<name>/` with `_model.py`, the three backend modules, and
    `assets/poses.npz` (`t_pose`/`a_pose`, or `{side}_flat`/`{side}_rest`).
 3. Register it in `_catalog.py` and add a docs page.
+
+The loader also collects contact-enabled geoms and geoms named in explicit
+contact pairs as collision meshes. Curved primitives are tessellated for the
+mesh interface; the original MJCF keeps their analytic definitions. Visual and
+collision meshes use the same skeleton, state materialization and posing path.
 
 Canonical hand preparation retains original source files and license notices in
 the asset bundle. See [hand sources and validation](hand-sources.md).

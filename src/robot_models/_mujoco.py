@@ -35,6 +35,8 @@ def add_hand(
     The hand root is fixed to the frame at its origin, matching robot-models'
     root convention. The scene's options are unchanged. Packaged actuators,
     equalities and collision definitions are retained; none are synthesized.
+    Barrett/Robotiq assets have placeholder inertias for their visual geometry;
+    supply appropriate dynamics, collision and actuation for simulation.
     Requires the optional ``robot-models[mujoco]`` dependency.
     """
     cls = registry._model_class(name, "numpy")

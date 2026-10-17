@@ -77,6 +77,7 @@ def prepare(upstreams: Path, output: Path) -> None:
                 "URDF rest transforms, joint axes/limits and all visuals are retained. "
                 f"Coupling: {mapping['coupling_policy']}. "
                 "Original collision geometry and dynamics remain available in the source description. "
+                "Runtime inertias are placeholders inferred from visual mesh volume at density 1000 kg/m^3. "
                 "The runtime is a kinematics/display model, not a simulation or motor-control replacement."
             )
         notice = (
@@ -231,6 +232,7 @@ def prepare_mjcf(description: Path, output: Path) -> dict:
         "joint_limits": [bundle.vec(joint.attrib["range"]).tolist() for joint in joints],
         "coupling_policy": "independent hinge poses; native tendon dynamics retained but not solved by FK",
         **bundle.RUNTIME_METADATA,
+        "runtime_scope": "native dynamics, tendons, contacts and actuator retained; FK does not solve tendon dynamics",
     }
 
 

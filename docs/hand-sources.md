@@ -65,6 +65,8 @@ to missing visual STLs, so the current upstream xacro with its original DAE
 visuals is used. No substitute mesh is introduced. All visual elements are
 retained, including fixed Barrett tactile frames. Runtime meshes are converted
 to STL; source collision definitions and dynamics remain available unchanged.
+Their runtime inertias are placeholders inferred from visual mesh volume at
+density 1000 kg/m³, rather than the source URDF inertials.
 
 EZGripper retains its native MJCF tendons, contacts and actuator. Preparation
 removes the scene floor/light, resets the mount position/quaternion, adds a free
@@ -91,13 +93,13 @@ Frozen reference fixtures and their upstream licenses are in
 ## Published bundles
 
 The three canonical bundles are mirrored in our Hugging Face repository at
-[revision `5c24dcc5`](https://huggingface.co/abcamiletto/robot-models/commit/5c24dcc59d9cbaa803a38cef7bb9f5122bc2d7df),
+[revision `c942fb61`](https://huggingface.co/abcamiletto/robot-models/commit/c942fb615f14735d5158583ac3c6c538dbf67440),
 with per-folder `LICENSE.md` files and complete upstream terms inside each ZIP.
 All 25 pre-existing asset/license files are unchanged. Preparation was repeated
 with byte-identical ZIP output; archive SHA-256 digests are:
 
 | Bundle | SHA-256 |
 | --- | --- |
-| `barrett/assets.zip` | `335ea6123e650da7a1ba95bbbdaccc0f9dc6d87cf8e93a653bd7bdb89f116403` |
-| `robotiq-3finger/assets.zip` | `792f8a01014b0659c9ebb34098fcf831bfba4c98475eff7749c06f828b72228c` |
-| `ezgripper/assets.zip` | `bbe9df0effeef1c038198ca9ac826673853c540ec9c6ab73798dfd65357649f9` |
+| `barrett/assets.zip` | `4cf4bfa9e877a49eb3142ab31d1a94fca8de20dc14556116f41bb3156f414a50` |
+| `robotiq-3finger/assets.zip` | `fcb45aa20a4c00d254b938b9256ad5ab42c74c811fa7a11578176d04e3bb82fc` |
+| `ezgripper/assets.zip` | `1d3869c8c6f3ed475368abfabe14765a1abf15003e1cdae1bebf363926387ecb` |

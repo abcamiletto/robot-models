@@ -39,7 +39,10 @@ model = scene.compile()
 The hand's root is fixed to the mount with identity local rotation, matching the
 root convention of `create_model`. The returned frame's `pos` and `quat` set its
 local placement. MuJoCo uses **Z-up and wxyz quaternions**; robot-models' FK uses
-Y-up. The basis in the source/validation documentation maps between these frames.
+Y-up. For a MuJoCo vector ``v``, the model-frame vector is ``M @ v``, where
+``M = [[0, 1, 0], [0, 0, 1], [1, 0, 0]]``. A model-frame translation ``t`` and
+rotation matrix ``R`` become mount position ``M.T @ t`` and rotation matrix
+``M.T @ R @ M`` (convert the latter to a MuJoCo wxyz quaternion).
 This helper does not add a floating joint. Move an existing parent body or frame
 to position the hand in the scene.
 
@@ -52,7 +55,9 @@ tendons and collision definitions. The parent scene's global solver/options win;
 MuJoCo can warn when a hand's options differ. No collision shapes or motors are
 invented: Barrett and Robotiq packages provide kinematics and visual geometry,
 so simulation requires application-appropriate dynamics, collision and actuation
-configuration. A compiled model alone does not establish grasping performance.
+configuration. Their packaged inertias are placeholders inferred from visual
+mesh volume at density 1000 kg/m³, rather than the source URDF inertials.
+A compiled model alone does not establish grasping performance.
 
 An explicit `model_path` has the same meaning as in `create_model`. See
 [hand sources](hand-sources.md) for description provenance and licenses.

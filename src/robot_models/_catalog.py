@@ -30,7 +30,7 @@ MODEL_SPECS: Mapping[str, ModelSpec] = MappingProxyType(
             "robot_models.baselines", "Robotiq3FingerGenDexGrasp", downloadable=False
         ),
         "shadow": ModelSpec("robot_models.shadow", "ShadowHand"),
-        "shadow-dexgraspnet": ModelSpec("robot_models.baselines", "ShadowDexGraspNet", downloadable=False),
+        "shadow-dexgraspnet": ModelSpec("robot_models.baselines", "ShadowDexGraspNet"),
         "shadow-gendexgrasp": ModelSpec("robot_models.baselines", "ShadowGenDexGrasp", downloadable=False),
         "sharpa": ModelSpec("robot_models.sharpa", "SharpaHand"),
         "t1": ModelSpec("robot_models.t1", "T1"),

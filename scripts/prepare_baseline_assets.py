@@ -90,6 +90,7 @@ def prepare_gendex(archive_path: Path, output: Path) -> None:
                     "revision": GENDEX_REVISION,
                     "robot": robot,
                     "archive_sha256": ARCHIVE_SHA256,
+                    "redistribution": "unresolved",
                     "description": f"source/{relative}",
                     "mesh_dir": f"source/{metadata['meshes_path'][robot]}",
                     "annotations": {"contacts": f"source/data/urdf/contact_{robot}.json"},
@@ -115,12 +116,30 @@ def prepare_dexgraspnet(dex: Path, output: Path) -> None:
     shutil.copyfile(notice, source / "OPENAI_ASSETS_LICENSE.md")
     # Preserve the pinned project's own license statement in addition to the inherited asset notice.
     shutil.copyfile(dex / "README.md", source / "UPSTREAM_README.md")
+    licenses = target / "licenses"
+    licenses.mkdir()
+    cc_license = Path(__file__).parent / "licenses/CC-BY-NC-4.0.txt"
+    shutil.copyfile(cc_license, licenses / cc_license.name)
     mapping = convert_mjcf(source / "mjcf/shadow_hand_wrist_free.xml", target)
     write_bundle(
         target,
         {
             "upstream": DEX_URL,
             "revision": DEX_REVISION,
+            "redistribution": "noncommercial",
+            "licenses": [
+                {
+                    "spdx_id": "CC-BY-NC-4.0",
+                    "scope": "DexGraspNet contributions, including annotations; inherited material retains its own terms",
+                    "url": "https://creativecommons.org/licenses/by-nc/4.0/",
+                    "text": "licenses/CC-BY-NC-4.0.txt",
+                },
+                {
+                    "spdx_id": "Apache-2.0",
+                    "scope": "Inherited OpenAI/Shadow asset notices",
+                    "text": "source/OPENAI_ASSETS_LICENSE.md",
+                },
+            ],
             "description": "source/mjcf/shadow_hand_wrist_free.xml",
             "mesh_dir": "source/mjcf/meshes",
             "annotations": {
@@ -131,11 +150,14 @@ def prepare_dexgraspnet(dex: Path, output: Path) -> None:
         },
         f"# DexGraspNet Shadow assets\n\nSource: {DEX_URL}, revision `{DEX_REVISION}`.\n\n"
         "DexGraspNet declares CC BY-NC 4.0: https://creativecommons.org/licenses/by-nc/4.0/ . "
+        "Full terms are included in licenses/CC-BY-NC-4.0.txt inside assets.zip. "
         "Attribution: Ruicheng Wang, Jialiang Zhang, Jiayi Chen, Yinzhen Xu, Puhao Li, Tengyu Liu, He Wang, "
         "DexGraspNet (2022). Retain the noncommercial restriction on project-specific assets/annotations.\n\n"
         "Source files are unchanged; runtime XML and display STLs are derived. "
         "Display capsules use explicit symmetric centering, independent of Trimesh version. "
-        "Native analytic collision and annotations remain in source/.\n\n" + notice.read_text(),
+        "Native analytic collision and annotations remain in source/. "
+        "Inherited material retains the following original terms; the project-specific CC license does not "
+        "replace those notices.\n\n" + notice.read_text(),
     )
 
 

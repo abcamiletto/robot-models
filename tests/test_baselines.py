@@ -17,6 +17,7 @@ import trimesh
 from robot_models import _assets as assets
 from robot_models import _config as config
 from robot_models import create_model
+from robot_models._catalog import MODEL_SPECS
 from robot_models._common.mjcf import MUJOCO_TO_MODEL as C
 from robot_models.baselines import source_assets
 from robot_models.baselines._source import BASELINE_NAMES
@@ -140,7 +141,7 @@ def test_source_bundle_paths_hashes_and_native_annotations(tmp_path):
 
 
 @pytest.mark.fast
-@pytest.mark.parametrize("name", RUNTIME_NAMES)
+@pytest.mark.parametrize("name", [name for name in RUNTIME_NAMES if not MODEL_SPECS[name].downloadable])
 def test_unpublished_variants_give_local_preparation_instructions(name, tmp_path):
     with pytest.raises(FileNotFoundError, match="Prepare a local bundle"):
         assets.download(name, tmp_path)

@@ -49,7 +49,9 @@ The equivalent NumPy and JAX classes live in `robot_models.g1.numpy` and
 - Explicit original GenDexGrasp Barrett, Robotiq-3F, EZGripper and Shadow variants
 - Original palm-rooted DexGraspNet Shadow variant
 
-Baseline variants use locally prepared source bundles; see
+The DexGraspNet Shadow source bundle downloads automatically, with its original
+CC BY-NC 4.0 and inherited asset notices. GenDexGrasp bundles require local
+preparation while redistribution permissions remain unresolved; see
 [compatibility, preparation, and asset licensing](docs/models/baselines.md).
 
 ## Teasers

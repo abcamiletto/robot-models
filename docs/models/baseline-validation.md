@@ -60,11 +60,27 @@ and JAX. The existing cross-model checks additionally cover MuJoCo body/visual
 agreement, batching, pose helpers, backend consistency, gradients, Torch compilation,
 JAX JIT and JAX state round trips for all five new variants.
 
-The prepared archives and source-derived numerical fixtures are local artifacts
-under `results/`; they are not distributed while the GenDexGrasp asset licenses
-remain unresolved. Ordinary CI can run the synthetic regressions without them.
+The DexGraspNet source bundle is published on the asset hub with its original
+licenses. GenDexGrasp archives and source-derived numerical fixtures remain local
+under `results/` while their redistribution terms are unresolved. Ordinary CI can
+run the synthetic regressions without them.
 Missing local bundles/fixtures cause explicitly explained skips in optional
 integration tests; the independent audit CLI fails rather than skipping.
+
+## Published DexGraspNet bundle
+
+Hugging Face snapshot
+[`ad225bba7b57f7f7237ceece2299d5b192d098ec`](https://huggingface.co/abcamiletto/robot-models/commit/ad225bba7b57f7f7237ceece2299d5b192d098ec)
+adds `shadow-dexgraspnet/assets.zip` and `LICENSE.md` and updates the per-folder
+license table. Every existing asset and license file is unchanged.
+
+Archive SHA-256:
+`e7badb9e8e4842a4307e2f450f252c06fffcba03723723555cbb7604464acd8d`.
+
+Anonymous download, archive digest, all 26 original-file hashes, license contents
+and runtime loading were verified after publication. The downloaded bundle was
+also checked against the pinned DexGraspNet implementation over the same 28 poses,
+including joint order/limits, mesh surfaces and all native annotations.
 
 These measurements establish source-hand fidelity at the checked poses. They do
 not claim original dataset grasp success rates or Isaac Gym stability reproduction.

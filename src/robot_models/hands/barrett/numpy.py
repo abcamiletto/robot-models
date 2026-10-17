@@ -1,8 +1,7 @@
-"""numpy BarrettHand."""
+"""Numpy BarrettHand."""
 
-from robot_models import _backend
-from robot_models.hands.barrett import _model
+from robot_models._backend import model_for_backend
 
-BarrettHand = _backend.model_for_backend(_model.BarrettHand, "numpy", module=__name__)
+BarrettHand = model_for_backend("barrett", "numpy", module=__name__)
 
 __all__ = ["BarrettHand"]

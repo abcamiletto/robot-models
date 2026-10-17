@@ -5,7 +5,7 @@ The single supplied assembly uses the API side tag `right`; no mirrored assembly
 is synthesized. Coordinate counts describe kinematics, rather than motor counts.
 
 ```python
-from robot_models.hands.robotiq.numpy import Robotiq3Finger
+from robot_models.hands.robotiq_3finger.numpy import Robotiq3Finger
 
 hand = Robotiq3Finger()
 params = hand.get_rest_pose(hands="rest")
@@ -24,4 +24,6 @@ equilibrium or optimizer initialization.
 robot-models download robotiq-3finger
 ```
 
-::: robot_models.hands.robotiq.numpy.Robotiq3Finger
+## API
+
+::: robot_models.hands.robotiq_3finger.numpy.Robotiq3Finger

@@ -1,8 +1,7 @@
-"""NumPy GR1 model."""
+"""Numpy GR1."""
 
 from robot_models._backend import model_for_backend
-from robot_models.humanoids.gr1._model import GR1 as _GR1
 
-GR1 = model_for_backend(_GR1, "numpy", module=__name__)
+GR1 = model_for_backend("gr1", "numpy", module=__name__)
 
 __all__ = ["GR1"]

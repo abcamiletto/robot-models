@@ -1,1 +1,1 @@
-"""BarrettHand model family."""
+"""BarrettHand: canonical model bindings."""

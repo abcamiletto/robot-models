@@ -45,7 +45,7 @@ robot-models set g1 /path/to/g1
 
 ## Usage
 
-Each model has `numpy`, `torch`, and `jax` modules. All models derive from
+Choose NumPy, Torch or JAX through the model import, following Body Models. All models derive from
 `RigidBodyModel` and expose skeleton transforms, link transforms, link-local
 meshes, posed meshes, joint metadata, and MuJoCo `qpos` conversion.
 Model packages are grouped under `robot_models.humanoids` and `robot_models.hands`.

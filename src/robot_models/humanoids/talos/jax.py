@@ -1,8 +1,7 @@
-"""JAX TALOS model."""
+"""Jax Talos."""
 
 from robot_models._backend import model_for_backend
-from robot_models.humanoids.talos._model import Talos as _Talos
 
-Talos = model_for_backend(_Talos, "jax", module=__name__)
+Talos = model_for_backend("talos", "jax", module=__name__)
 
 __all__ = ["Talos"]

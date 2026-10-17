@@ -37,11 +37,11 @@ def test_updated_collision_assets_refresh_only_outdated_cache(tmp_path, monkeypa
 
 @pytest.mark.fast
 @pytest.mark.parametrize("configured", [False, True])
-def test_explicit_outdated_assets_warn_without_changing_files(tmp_path, monkeypatch, configured):
+def test_explicit_outdated_assets_fail_without_changing_files(tmp_path, monkeypatch, configured):
     monkeypatch.setattr(assets.config, "get_model_path", lambda name: tmp_path if configured else None)
     (tmp_path / "source.json").write_text('{"asset_version": 1}')
-    with pytest.warns(UserWarning, match="collision geometry may be incomplete"):
-        assert assets.model_dir("barrett", None if configured else tmp_path) == tmp_path
+    with pytest.raises(ValueError, match="asset version 3"):
+        assets.model_dir("barrett", None if configured else tmp_path)
     assert (tmp_path / "source.json").read_text() == '{"asset_version": 1}'
 
 

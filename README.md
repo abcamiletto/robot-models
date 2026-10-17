@@ -29,7 +29,8 @@ skeleton = model.forward_skeleton(**params)
 meshes = model.forward_meshes(**params)
 ```
 
-The equivalent NumPy and JAX classes live in `robot_models.humanoids.g1.numpy` and
+Select the backend through the import, as in Body Models: the equivalent
+classes live in `robot_models.humanoids.g1.numpy` and
 `robot_models.humanoids.g1.jax`. Torch models are `torch.nn.Module` instances.
 
 ## Add a hand to MuJoCo
@@ -79,10 +80,11 @@ Model packages are grouped into two families:
 | `robot_models.humanoids` | `g1`, `gr1`, `h1`, `t1`, `talos` |
 | `robot_models.hands` | `ability`, `allegro`, `barrett`, `brainco`, `ezgripper`, `inspire`, `leap`, `robotiq-3finger`, `sharpa`, `shadow` |
 
-Import a class from its family, for example
-`robot_models.hands.shadow.numpy.ShadowHand` or
-`robot_models.humanoids.g1.torch.G1`. These replace the former flat package
-paths. The shared `create_model` factory, model identifiers and defaults stay the same.
+Use model-specific imports such as `from robot_models.hands.shadow.torch import ShadowHand`.
+Construct it with `ShadowHand(side="right")`; no runtime argument is needed.
+Discover definitions with `list_models(family="hands")` or
+`list_models(family="humanoids")`. Robot definitions are data; the named classes
+bind each definition to the same shared family implementation.
 
 Each hand has one canonical model from its manufacturer, MuJoCo Menagerie or
 an established ROS description. See the [hand source and validation record](docs/hand-sources.md).

@@ -110,7 +110,7 @@ refresh an older first-party bundle with:
 robot-models download shadow --output-dir /path/to/shadow
 ```
 
-Outdated configured/explicit directories produce a warning and are left intact.
+Outdated configured/explicit directories are rejected and left intact.
 An outdated managed cache needs a network connection for its first refresh.
 
 ## Validation and rebuilding

@@ -139,7 +139,7 @@ def load_models(names: list[str] | None) -> dict[str, RigidBodyModel]:
     for name in names or list(MODEL_SPECS):
         print(f"Loading {name}", flush=True)
         model_id, kwargs = MODEL_SPECS[name]
-        model = create_model(model_id, runtime="numpy", **kwargs)
+        model = create_model(model_id, **kwargs)
         if not isinstance(model, RigidBodyModel):
             raise TypeError(f"{name} is not a rigid body model")
         models[name] = model

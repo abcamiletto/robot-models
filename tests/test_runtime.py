@@ -60,15 +60,21 @@ def test_factory_returns_backend_specific_model() -> None:
 
 def test_torch_model_manages_module_state() -> None:
     torch = pytest.importorskip("torch")
-    from robot_models.humanoids.g1.torch import G1
+    from robot_models import create_model
 
-    model = G1().double()
+    model = create_model("g1", runtime="torch").double()
     for geometry in ("visual", "collision"):
         assert f"_assets.{geometry}.vertices" in model.state_dict()
         assert getattr(model._assets, geometry).vertices.dtype == torch.float64
+        attribute = "link_meshes" if geometry == "visual" else "collision_meshes"
+        meshes = getattr(model, attribute)
+        original = meshes[0].vertices[0].copy()
+        meshes[0].vertices[0] += 1
+        np.testing.assert_array_equal(getattr(model, attribute)[0].vertices[0], original)
 
     restored = pickle.loads(pickle.dumps(model))
-    assert isinstance(restored, G1)
+    assert type(restored) is type(model)
+    assert restored.name == "g1"
     assert "_assets.visual.vertices" in restored.state_dict()
     assert "_assets.collision.vertices" in restored.state_dict()
     restored.load_state_dict(model.state_dict())
@@ -84,6 +90,7 @@ def test_jax_model_pytree_round_trip(name, model_class, kwargs) -> None:
 
     assert type(restored) is type(model)
     assert restored.runtime == model.runtime
+    assert restored.name == name
     assert restored.joint_names == model.joint_names
     if hasattr(model, "side"):
         assert restored.side == model.side

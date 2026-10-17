@@ -1,1 +1,1 @@
-"""EZGripper model family."""
+"""EZGripper: canonical model bindings."""

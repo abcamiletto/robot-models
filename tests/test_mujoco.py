@@ -8,12 +8,12 @@ import numpy as np
 import pytest
 
 from robot_models import _assets as assets
+from robot_models import _catalog as catalog
 from robot_models import add_hand
 from robot_models._common.mjcf import MUJOCO_TO_MODEL
-from robot_models.hands._base import Hand
 
 mujoco = pytest.importorskip("mujoco")
-CASES = [(name, side) for name, cls, _ in model_cases.MODELS if issubclass(cls, Hand) for side in cls.supported_sides]
+CASES = [(name, side) for name, spec in catalog.MODEL_SPECS.items() for side in spec.sides]
 
 
 @pytest.mark.parametrize("name,side", CASES)

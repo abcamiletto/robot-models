@@ -3,7 +3,6 @@
 import json
 import tarfile
 import tempfile
-import warnings
 import zipfile
 from collections.abc import Iterable
 from pathlib import Path
@@ -24,10 +23,9 @@ def model_dir(name: str, model_path: Path | str | None = None) -> Path:
     if model_path is not None:
         directory = config.validate_model_path(model_path)
         if _asset_version(directory) < required_version:
-            warnings.warn(
-                f"{name} assets at {directory} predate asset version {required_version}; "
-                f"collision geometry may be incomplete. Refresh with robot-models download {name} --output-dir {directory}",
-                stacklevel=2,
+            raise ValueError(
+                f"{name} assets at {directory} require asset version {required_version}. "
+                f"Refresh with robot-models download {name} --output-dir {directory}"
             )
         return directory
     cached = get_cache_dir() / name

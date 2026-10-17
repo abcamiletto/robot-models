@@ -1,1 +1,1 @@
-"""H1 models. Import a class from the NumPy, Torch, or JAX module."""
+"""H1: canonical model bindings."""

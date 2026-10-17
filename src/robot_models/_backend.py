@@ -1,75 +1,45 @@
-"""Backend-specific public model classes."""
+"""Thin model-specific bindings over the shared family implementations."""
 
-from __future__ import annotations
+from pathlib import Path
+from typing import Any, cast
 
-import inspect
-from inspect import Parameter, Signature
-from typing import Any
+from robot_models import _catalog as catalog
+from robot_models._runtime import JaxRuntime, NumpyRuntime, RuntimeName, TorchRuntime
+from robot_models._spec import Side
+from robot_models.hands._base import Hand
+from robot_models.humanoids._base import Humanoid
 
-from robot_models._runtime import ArrayRuntime, JaxRuntime, NumpyRuntime, RuntimeName, TorchRuntime
-
-_RUNTIME_CLASSES: dict[RuntimeName, type[ArrayRuntime]] = {
-    "numpy": NumpyRuntime,
-    "torch": TorchRuntime,
-    "jax": JaxRuntime,
-}
+_RUNTIMES = {"numpy": NumpyRuntime, "torch": TorchRuntime, "jax": JaxRuntime}
 
 
-def model_for_backend(
-    model_class: type[Any],
-    backend: RuntimeName,
-    *,
-    module: str,
-) -> type[Any]:
-    """Bind a model class to one array backend."""
-    runtime_class = _RUNTIME_CLASSES[backend]
-    backend_base: Any = model_class
+def model_for_backend(name: str, backend: RuntimeName, *, module: str) -> type[Any]:
+    """Bind one canonical definition to a runtime, following Body Models' import style."""
+    definition = catalog.model_spec(name)
+    runtime = _RUNTIMES[backend]
+    module_base: Any = object
     if backend == "torch":
         from torch import nn
 
-        torch_base: Any = nn.Module
+        module_base = nn.Module
+    adapter_base = cast(Any, module_base)
+    if definition.family == "hands":
 
-        class BackendModel(backend_base, torch_base):
-            def __init__(self, *args: Any, **kwargs: Any) -> None:
-                _reject_runtime(kwargs, model_class)
-                nn.Module.__init__(self)
-                super().__init__(*args, runtime=runtime_class(), **kwargs)
+        class Model(Hand, adapter_base):
+            def __init__(self, *, side: Side = "right", model_path: Path | str | None = None) -> None:
+                if backend == "torch":
+                    module_base.__init__(self)
+                super().__init__(name, side=side, model_path=model_path, runtime=runtime())
 
     else:
 
-        class BackendModel(backend_base):
-            def __init__(self, *args: Any, **kwargs: Any) -> None:
-                _reject_runtime(kwargs, model_class)
-                super().__init__(*args, runtime=runtime_class(), **kwargs)
+        class Model(Humanoid, adapter_base):
+            def __init__(self, *, model_path: Path | str | None = None) -> None:
+                if backend == "torch":
+                    module_base.__init__(self)
+                super().__init__(name, model_path=model_path, runtime=runtime())
 
-    BackendModel.__name__ = model_class.__name__
-    BackendModel.__qualname__ = model_class.__qualname__
-    BackendModel.__module__ = module
-    BackendModel.__doc__ = model_class.__doc__
-    backend_signature = _backend_signature(model_class)
-    BackendModel.__signature__ = backend_signature
-    backend_init: Any = BackendModel.__init__
-    backend_init.__module__ = module
-    backend_init.__qualname__ = f"{model_class.__qualname__}.__init__"
-    self_parameter = Parameter("self", kind=Parameter.POSITIONAL_ONLY)
-    initializer_signature = backend_signature.replace(
-        parameters=(self_parameter, *backend_signature.parameters.values())
-    )
-    backend_init.__dict__["__signature__"] = initializer_signature
-    return BackendModel
-
-
-def _backend_signature(model_class: type[Any]) -> Signature:
-    model_signature = inspect.signature(model_class)
-    parameters = list(model_signature.parameters.values())
-    runtime_index = next(index for index, parameter in enumerate(parameters) if parameter.name == "runtime")
-    parameters.pop(runtime_index)
-    return model_signature.replace(parameters=parameters)
-
-
-def _reject_runtime(kwargs: dict[str, Any], model_class: type[Any]) -> None:
-    if "runtime" in kwargs:
-        raise TypeError(f"{model_class.__name__}() got an unexpected keyword argument 'runtime'")
-
-
-__all__ = ["model_for_backend"]
+    Model.__name__ = definition.class_name
+    Model.__qualname__ = definition.class_name
+    Model.__module__ = module
+    Model.__doc__ = f"Canonical {name} using {backend} arrays."
+    return Model

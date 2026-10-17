@@ -1,8 +1,7 @@
-"""torch EZGripper."""
+"""Torch EZGripper."""
 
-from robot_models import _backend
-from robot_models.hands.ezgripper import _model
+from robot_models._backend import model_for_backend
 
-EZGripper = _backend.model_for_backend(_model.EZGripper, "torch", module=__name__)
+EZGripper = model_for_backend("ezgripper", "torch", module=__name__)
 
 __all__ = ["EZGripper"]

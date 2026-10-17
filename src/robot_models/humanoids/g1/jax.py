@@ -1,8 +1,7 @@
-"""JAX G1 model."""
+"""Jax G1."""
 
 from robot_models._backend import model_for_backend
-from robot_models.humanoids.g1._model import G1 as _G1
 
-G1 = model_for_backend(_G1, "jax", module=__name__)
+G1 = model_for_backend("g1", "jax", module=__name__)
 
 __all__ = ["G1"]

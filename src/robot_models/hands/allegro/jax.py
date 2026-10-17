@@ -1,8 +1,7 @@
-"""JAX Allegro model."""
+"""Jax AllegroHand."""
 
 from robot_models._backend import model_for_backend
-from robot_models.hands.allegro._model import AllegroHand as _AllegroHand
 
-AllegroHand = model_for_backend(_AllegroHand, "jax", module=__name__)
+AllegroHand = model_for_backend("allegro", "jax", module=__name__)
 
 __all__ = ["AllegroHand"]

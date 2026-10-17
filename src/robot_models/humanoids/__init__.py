@@ -1,1 +1,1 @@
-"""Canonical humanoids; import model classes from their NumPy, Torch or JAX modules."""
+"""Canonical humanoids definitions and shared runtime bindings."""

@@ -5,17 +5,20 @@ import numpy as np
 import pytest
 
 from robot_models import _assets as assets
+from robot_models import _catalog as catalog
 from robot_models._common.mjcf import MUJOCO_TO_MODEL
 from robot_models.hands._base import Hand
 
 CASES = [
     (name, kwargs)
     for name, model_class, _ in model_cases.MODELS
-    for kwargs in ([{"side": side} for side in model_class.supported_sides] if issubclass(model_class, Hand) else [{}])
+    for kwargs in (
+        [{"side": side} for side in catalog.MODEL_SPECS[name].sides] if issubclass(model_class, Hand) else [{}]
+    )
 ]
 
 
-@pytest.fixture(params=CASES, ids=lambda case: "-".join([case[0], *case[1].values()]))
+@pytest.fixture(params=CASES, ids=lambda case: "-".join(filter(None, (case[0], case[1].get("side")))))
 def case(request):
     """A model, MuJoCo's model of the same file, and both posed with one random pose."""
     mujoco = pytest.importorskip("mujoco")
@@ -85,7 +88,7 @@ def test_collision_meshes_match_mujoco_geoms(case) -> None:
         i for i in range(mj_model.ngeom) if mj_model.geom_contype[i] or mj_model.geom_conaffinity[i] or i in paired
     ]
     assert geoms, "Every model must supply collision geometry"
-    if model._NAME == "shadow":
+    if model.name == "shadow":
         assert len(geoms) == 38
     assert len(model.collision_meshes) == len(geoms) == len(model.collision_names)
     transforms = model.forward_links(geometry="collision", **{model._POSE: pose})

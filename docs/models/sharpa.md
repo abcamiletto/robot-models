@@ -45,8 +45,6 @@ skeleton = hand.forward_skeleton(**params)
 meshes = hand.forward_meshes(**params)
 ```
 
-Equivalent classes are available in `robot_models.hands.sharpa.torch` and
-`robot_models.hands.sharpa.jax`.
 
 ## Notes
 

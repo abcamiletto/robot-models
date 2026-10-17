@@ -1,1 +1,1 @@
-"""Inspire hand models. Import a class from the NumPy, Torch, or JAX module."""
+"""InspireHand: canonical model bindings."""

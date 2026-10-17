@@ -158,7 +158,7 @@ def forward_meshes_from_links(
     vertices = xp.concat(chunks, axis=-2) if chunks else zeros_as(links, shape=(*links.shape[:-3], 0, 3), xp=xp)
     batched = to_numpy(vertices).reshape(prod(links.shape[:-3]), len(source_vertices), 3)
     faces = to_numpy(assets.faces)
-    return [Trimesh(vertices=vertices, faces=faces.copy(), process=False) for vertices in batched]
+    return [Trimesh(vertices=batch_vertices, faces=faces.copy(), process=False) for batch_vertices in batched]
 
 
 def link_meshes(
@@ -177,7 +177,7 @@ def link_meshes(
         assets.face_offsets[1:],
         strict=True,
     ):
-        link_vertices = vertices[vertex_start:vertex_end]
+        link_vertices = vertices[vertex_start:vertex_end].copy()
         link_faces = faces[face_start:face_end] - vertex_start
         meshes.append(Trimesh(vertices=link_vertices, faces=link_faces, process=False))
     return meshes

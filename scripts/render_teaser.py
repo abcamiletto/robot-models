@@ -101,7 +101,7 @@ def render_lineup(group, names, args) -> None:
 
 
 def display_mesh(name, group):
-    model = robot_models.create_model(name, runtime="numpy")
+    model = robot_models.create_model(name)
     if model.has_hands != (group == "hands"):
         raise ValueError(f"{name} does not belong in the {group} lineup")
     params = model.get_rest_pose(hands="flat") if model.has_hands else model.get_tpose()

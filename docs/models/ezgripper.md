@@ -28,4 +28,6 @@ equilibrium or optimizer initialization.
 robot-models download ezgripper
 ```
 
+## API
+
 ::: robot_models.hands.ezgripper.numpy.EZGripper

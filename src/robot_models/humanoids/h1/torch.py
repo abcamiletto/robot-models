@@ -1,8 +1,7 @@
-"""PyTorch H1 model."""
+"""Torch H1."""
 
 from robot_models._backend import model_for_backend
-from robot_models.humanoids.h1._model import H1 as _H1
 
-H1 = model_for_backend(_H1, "torch", module=__name__)
+H1 = model_for_backend("h1", "torch", module=__name__)
 
 __all__ = ["H1"]

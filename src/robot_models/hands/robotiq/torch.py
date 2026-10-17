@@ -1,8 +1,0 @@
-"""torch Robotiq3Finger."""
-
-from robot_models import _backend
-from robot_models.hands.robotiq import _model
-
-Robotiq3Finger = _backend.model_for_backend(_model.Robotiq3Finger, "torch", module=__name__)
-
-__all__ = ["Robotiq3Finger"]

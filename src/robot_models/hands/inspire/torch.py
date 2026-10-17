@@ -1,8 +1,7 @@
-"""PyTorch Inspire model."""
+"""Torch InspireHand."""
 
 from robot_models._backend import model_for_backend
-from robot_models.hands.inspire._model import InspireHand as _InspireHand
 
-InspireHand = model_for_backend(_InspireHand, "torch", module=__name__)
+InspireHand = model_for_backend("inspire", "torch", module=__name__)
 
 __all__ = ["InspireHand"]

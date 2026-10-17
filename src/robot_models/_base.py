@@ -5,7 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from functools import cache, cached_property, partial
+from functools import cache, partial
 from importlib.resources import files
 from pathlib import Path
 from typing import Any, ClassVar, Literal
@@ -23,6 +23,7 @@ from robot_models._common import rigid as rigid_ops
 from robot_models._constants import Joint
 from robot_models._rotations import RotationType, rotation_dims, rotation_ndim
 from robot_models._runtime import ArrayRuntime
+from robot_models._spec import Side
 
 Array = Any
 ParameterRole = Literal["pose", "transform"]
@@ -55,6 +56,14 @@ class ParameterSpec:
         )
 
 
+@dataclass(frozen=True)
+class ModelConfig:
+    """Static identity preserved when a model is serialized or passed through JAX."""
+
+    name: str
+    side: Side | None = None
+
+
 class RigidBodyModel(ABC):
     """Rigid articulated model loaded from one MJCF file.
 
@@ -62,28 +71,35 @@ class RigidBodyModel(ABC):
     hinges, both in MuJoCo order. Outputs are Y-up and in meters.
     """
 
-    # Asset folder on Hugging Face and package holding ``assets/poses.npz``.
-    _NAME: ClassVar[str]
     _POSE: ClassVar[str]
     # Left/right name fragments that pair mirrored joints.
     _MIRROR: ClassVar[tuple[tuple[str, str], ...]] = ()
     _state_fields: ClassVar[tuple[str, ...]] = ("_assets",)
     has_hands: ClassVar[bool] = False
-    _config: Any
+    _config: ModelConfig
     _runtime: ArrayRuntime
     _assets: rigid_ops.RigidAssets
+
+    @abstractmethod
+    def __init__(self, **kwargs: Any) -> None:
+        """Construct a canonical robot from its description."""
 
     def _load(self, xml_name: str, model_path: Path | str | None, runtime: ArrayRuntime) -> None:
         self._runtime = runtime
         if runtime.name == "jax":
             _register_jax_model(type(self))
-        xml_path = assets.model_dir(self._NAME, model_path) / xml_name
+        xml_path = assets.model_dir(self.name, model_path) / xml_name
         self._assets = runtime._materialize(mjcf.load(xml_path))
 
     @property
     def runtime(self) -> ArrayRuntime:
         """Array runtime used by this model."""
         return self._runtime
+
+    @property
+    def name(self) -> str:
+        """Canonical model identifier."""
+        return self._config.name
 
     def __setstate__(self, values: dict[str, Any]) -> None:
         self.__dict__.update(values)
@@ -201,7 +217,7 @@ class RigidBodyModel(ABC):
 
     def _preset(self, name: str, batch_dims: tuple[int, ...], dtype: Any | None) -> dict[str, Float[Array, "..."]]:
         params = RigidBodyModel.get_rest_pose(self, batch_dims=batch_dims, dtype=dtype)
-        pose = self._runtime.asarray(_presets(self._NAME)[name], like=params[self._POSE])
+        pose = self._runtime.asarray(_presets(self.name)[name], like=params[self._POSE])
         params[self._POSE] = self._runtime.xp.broadcast_to(pose, (*batch_dims, self.num_dofs))
         return params
 
@@ -238,9 +254,9 @@ class RigidBodyModel(ABC):
     def link_joint_indices(self) -> list[int]:
         return list(self._assets.visual.joint_indices)
 
-    @cached_property
+    @property
     def link_meshes(self) -> Sequence[Trimesh]:
-        """Meshes in their joint's frame, aligned with :attr:`link_names` and ``forward_links()``."""
+        """Independent mesh snapshots in joint-local frames, aligned with ``forward_links()``."""
         return rigid_ops.link_meshes(self._assets.visual, to_numpy=self._runtime.to_numpy)
 
     @property
@@ -253,7 +269,7 @@ class RigidBodyModel(ABC):
         """Skeleton joint index for each collision geometry."""
         return list(self._assets.collision.joint_indices)
 
-    @cached_property
+    @property
     def collision_meshes(self) -> Sequence[Trimesh]:
         """Source collision meshes in joint-local Y-up frames.
 
@@ -353,7 +369,7 @@ class RigidBodyModel(ABC):
 
 @cache
 def _presets(name: str) -> dict[str, Float[np.ndarray, "Q"]]:
-    with (files(catalog.MODEL_SPECS[name].module) / "assets" / "poses.npz").open("rb") as file:
+    with (files(catalog.model_module(name)) / "assets" / "poses.npz").open("rb") as file:
         return dict(np.load(file))
 
 

@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any
 
 from jaxtyping import Float
 
-from robot_models._base import RigidBodyModel
+from robot_models import _catalog as catalog
+from robot_models._base import ModelConfig, RigidBodyModel
 from robot_models._constants import Joint
 from robot_models._runtime import ArrayRuntime
 
@@ -20,15 +21,17 @@ class Humanoid(RigidBodyModel):
 
     _POSE = "body_pose"
     _MIRROR = (("left", "right"),)
-    _COMMON_JOINTS: ClassVar[Mapping[Joint, str]]
 
-    def __init__(self, *, model_path: Path | str | None = None, runtime: ArrayRuntime) -> None:
-        self._config = None
-        self._load(f"{self._NAME}.xml", model_path, runtime)
+    def __init__(self, name: str, *, model_path: Path | str | None = None, runtime: ArrayRuntime) -> None:
+        name = catalog.normalize_name(name)
+        if catalog.model_spec(name).family != "humanoids":
+            raise ValueError(f"{name!r} is not a humanoid")
+        self._config = ModelConfig(name)
+        self._load(f"{name}.xml", model_path, runtime)
 
     @property
     def common_joints(self) -> Mapping[Joint, str]:
-        return self._COMMON_JOINTS
+        return {Joint(key): value for key, value in catalog.model_spec(self.name).joints.items()}
 
     def forward_skeleton(
         self,

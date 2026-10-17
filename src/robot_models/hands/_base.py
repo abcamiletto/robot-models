@@ -4,16 +4,17 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, ClassVar, Literal
+from typing import Any, Literal, cast
 
 from jaxtyping import Float
 
-from robot_models._base import RigidBodyModel
+from robot_models import _catalog as catalog
+from robot_models._base import ModelConfig, RigidBodyModel
 from robot_models._constants import Joint
 from robot_models._runtime import ArrayRuntime
+from robot_models._spec import Side
 
 Array = Any
-Side = Literal["left", "right"]
 
 
 class Hand(RigidBodyModel):
@@ -21,31 +22,40 @@ class Hand(RigidBodyModel):
 
     _POSE = "hand_pose"
     has_hands = True
-    supported_sides: ClassVar[tuple[Side, ...]] = ("right", "left")
-    # Native names keyed by ``Joint`` without its side. In names, ``{side}``
-    # expands to ``left``/``right`` and ``{s}`` to ``l``/``r``.
-    _HAND_JOINTS: ClassVar[Mapping[str, str]]
 
     def __init__(
         self,
+        name: str,
         *,
         model_path: Path | str | None = None,
         side: Side = "right",
         runtime: ArrayRuntime,
     ) -> None:
-        if side not in self.supported_sides:
-            raise ValueError(f"Invalid side: {side!r}")
-        self._config = side
+        name = catalog.normalize_name(name)
+        definition = catalog.model_spec(name)
+        if definition.family != "hands":
+            raise ValueError(f"{name!r} is not a hand")
+        if side not in definition.sides:
+            raise ValueError(f"{name!r} supports side(s): {definition.sides}")
+        self._config = ModelConfig(name, side)
         self._load(f"{side}.xml", model_path, runtime)
 
     @property
     def side(self) -> Side:
-        return self._config
+        return cast(Side, self._config.side)
+
+    @property
+    def supported_sides(self) -> tuple[Side, ...]:
+        """Sides supplied by this hand's canonical description."""
+        return catalog.model_spec(self.name).sides
 
     @property
     def common_joints(self) -> Mapping[Joint, str]:
         side = self.side
-        return {Joint(f"{side}_{key}"): name.format(side=side, s=side[0]) for key, name in self._HAND_JOINTS.items()}
+        return {
+            Joint(f"{side}_{key}"): name.format(side=side, s=side[0])
+            for key, name in catalog.model_spec(self.name).joints.items()
+        }
 
     def forward_skeleton(
         self,

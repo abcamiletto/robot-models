@@ -42,7 +42,7 @@ def load(xml_path: Path) -> RigidAssets:
 
     names, parents, offsets, rotations = [], [], [], []
     hinges: list[tuple[str, int, Float[np.ndarray, "3"], tuple[float, float]]] = []
-    links: list[tuple[str, int, Float[np.ndarray, "V 3"], Int[np.ndarray, "F 3"]]] = []
+    visuals: list[tuple[str, int, Float[np.ndarray, "V 3"], Int[np.ndarray, "F 3"]]] = []
     collisions: list[tuple[str, int, Float[np.ndarray, "V 3"], Int[np.ndarray, "F 3"]]] = []
     paired = {pair.attrib[key] for pair in root.findall("contact/pair") for key in ("geom1", "geom2")}
     for index, (body, parent, cls) in enumerate(_bodies(worldbody)):
@@ -64,7 +64,7 @@ def load(xml_path: Path) -> RigidAssets:
                 continue
             vertices, faces = _geom_mesh(attrs, meshes)
             if visual:
-                links.append((attrs["mesh"], index, vertices, faces))
+                visuals.append((attrs["mesh"], index, vertices, faces))
             if collision:
                 name = attrs.get("name", f"{body.get('name')}_collision_{geom_index}")
                 collisions.append((name, index, vertices, faces))
@@ -91,23 +91,23 @@ def load(xml_path: Path) -> RigidAssets:
         hinge_polycoef=np.asarray(polycoef, dtype=np.float32),
         actuated_joint_names=actuated,
         actuated_joint_limits=np.asarray([limits[name] for name in actuated], dtype=np.float32),
-        visual=_mesh_assets(links),
+        visual=_mesh_assets(visuals),
         collision=_mesh_assets(collisions),
     )
 
 
-def _mesh_assets(links: list[tuple[str, int, np.ndarray, np.ndarray]]) -> MeshAssets:
-    vertex_counts = [len(vertices) for _, _, vertices, _ in links]
-    face_counts = [len(faces) for *_, faces in links]
+def _mesh_assets(pieces: list[tuple[str, int, np.ndarray, np.ndarray]]) -> MeshAssets:
+    vertex_counts = [len(vertices) for _, _, vertices, _ in pieces]
+    face_counts = [len(faces) for *_, faces in pieces]
     vertex_offsets = np.cumsum([0, *vertex_counts]).tolist()
     face_offsets = np.cumsum([0, *face_counts]).tolist()
-    vertices = [vertices @ MUJOCO_TO_MODEL.T for _, _, vertices, _ in links]
-    faces = [faces + start for (*_, faces), start in zip(links, vertex_offsets[:-1], strict=True)]
+    vertices = [vertices @ MUJOCO_TO_MODEL.T for _, _, vertices, _ in pieces]
+    faces = [faces + start for (*_, faces), start in zip(pieces, vertex_offsets[:-1], strict=True)]
     return MeshAssets(
-        vertices=np.concatenate(vertices).astype(np.float32) if links else np.empty((0, 3), dtype=np.float32),
-        faces=np.concatenate(faces).astype(np.int64) if links else np.empty((0, 3), dtype=np.int64),
-        names=[name for name, *_ in links],
-        joint_indices=[joint for _, joint, _, _ in links],
+        vertices=np.concatenate(vertices).astype(np.float32) if pieces else np.empty((0, 3), dtype=np.float32),
+        faces=np.concatenate(faces).astype(np.int64) if pieces else np.empty((0, 3), dtype=np.int64),
+        names=[name for name, *_ in pieces],
+        joint_indices=[joint for _, joint, _, _ in pieces],
         vertex_offsets=vertex_offsets,
         face_offsets=face_offsets,
     )

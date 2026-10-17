@@ -24,4 +24,6 @@ equilibrium or optimizer initialization.
 robot-models download barrett
 ```
 
+## API
+
 ::: robot_models.hands.barrett.numpy.BarrettHand

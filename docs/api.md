@@ -2,9 +2,19 @@
 
 ## Model creation
 
-Model classes are grouped under `robot_models.hands.<model>.<runtime>` and
-`robot_models.humanoids.<model>.<runtime>`. The factory below accepts the same
-model identifiers for either family.
+Choose the backend through the import, as in Body Models:
+
+```python
+from robot_models.hands.shadow.torch import ShadowHand
+from robot_models.humanoids.g1.torch import G1
+
+hand = ShadowHand(side="right")
+humanoid = G1()
+```
+
+Constructors take no runtime argument. `list_models(family="hands")` and
+`list_models(family="humanoids")` discover canonical definitions. The optional
+generic factory below follows Body Models' catalog factory.
 
 ::: robot_models.create_model
     options:

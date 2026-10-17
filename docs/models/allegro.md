@@ -27,6 +27,9 @@ params = hand.get_rest_pose(hands="rest")
 
 The hand has four fingers and no coupled joints. The common wrist joint is the palm origin at the finger bases; the upstream model has no wrist body.
 
+GenDexGrasp's original Allegro is left-handed. Reuse `side="left"`; see the
+[original baseline compatibility and validation](baselines.md).
+
 ## API
 
 ::: robot_models.allegro.numpy.AllegroHand

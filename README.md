@@ -46,6 +46,11 @@ The equivalent NumPy and JAX classes live in `robot_models.g1.numpy` and
 - Unitree G1 humanoid robot
 - Unitree H1 humanoid robot
 - Wonik Robotics Allegro robotic hand
+- Explicit original GenDexGrasp Barrett, Robotiq-3F, EZGripper and Shadow variants
+- Original palm-rooted DexGraspNet Shadow variant
+
+Baseline variants use locally prepared source bundles; see
+[compatibility, preparation, and asset licensing](docs/models/baselines.md).
 
 ## Development
 

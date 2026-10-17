@@ -26,6 +26,11 @@ _ROOT_TRANSFORM = {
 }
 
 EXPECTED_PARAMETER_SPECS = {
+    "barrett-gendexgrasp": {"hand_pose": ((8,), "pose", None), **_ROOT_TRANSFORM},
+    "robotiq-3finger-gendexgrasp": {"hand_pose": ((11,), "pose", None), **_ROOT_TRANSFORM},
+    "ezgripper-gendexgrasp": {"hand_pose": ((4,), "pose", None), **_ROOT_TRANSFORM},
+    "shadow-gendexgrasp": {"hand_pose": ((24,), "pose", None), **_ROOT_TRANSFORM},
+    "shadow-dexgraspnet": {"hand_pose": ((22,), "pose", None), **_ROOT_TRANSFORM},
     "ability": {"hand_pose": ((6,), "pose", None), **_ROOT_TRANSFORM},
     "allegro": {"hand_pose": ((16,), "pose", None), **_ROOT_TRANSFORM},
     "brainco": {"hand_pose": ((6,), "pose", None), **_ROOT_TRANSFORM},

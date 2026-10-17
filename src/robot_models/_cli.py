@@ -54,7 +54,7 @@ def download(
 ) -> None:
     """Download one model family, or every supported family."""
     _require_choice(model, (*MODEL_NAMES, "all"), "model")
-    names = MODEL_NAMES if model == "all" else (model,)
+    names = tuple(name for name, spec in MODEL_SPECS.items() if spec.downloadable) if model == "all" else (model,)
     for name in names:
         destination = output_dir / name if output_dir is not None and model == "all" else output_dir
         path = assets.download(name, destination)

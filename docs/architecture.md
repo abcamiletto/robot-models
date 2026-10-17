@@ -1,6 +1,7 @@
 # Architecture
 
-Every model is a MuJoCo MJCF file hosted on Hugging Face, read by one loader:
+Models use MuJoCo MJCF files read by one loader. Public assets are hosted on Hugging Face;
+[original grasp baseline variants](models/baselines.md) can be prepared locally with their untouched source files:
 
 | Module | Responsibility |
 | --- | --- |
@@ -32,3 +33,7 @@ created only after array-valued link transforms have been evaluated.
 2. Add `robot_models/<name>/` with `_model.py`, the three backend modules, and
    `assets/poses.npz` (`t_pose`/`a_pose`, or `{side}_flat`/`{side}_rest`).
 3. Register it in `_catalog.py` and add a docs page.
+
+Baseline preparation follows the same archive layout. Its `source.json` manifest and
+`source/` tree expose native descriptions/annotations independently of the derived
+runtime MJCF, so baseline collision and sampling algorithms can consume original assets.

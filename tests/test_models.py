@@ -11,7 +11,7 @@ from robot_models._common.mjcf import MUJOCO_TO_MODEL
 CASES = [
     (name, kwargs)
     for name, model_class, _ in model_cases.MODELS
-    for kwargs in ([{"side": "right"}, {"side": "left"}] if issubclass(model_class, Hand) else [{}])
+    for kwargs in ([{"side": side} for side in model_class.supported_sides] if issubclass(model_class, Hand) else [{}])
 ]
 
 

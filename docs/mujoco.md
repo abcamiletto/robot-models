@@ -43,6 +43,10 @@ Y-up. The basis in the source/validation documentation maps between these frames
 This helper does not add a floating joint. Move an existing parent body or frame
 to position the hand in the scene.
 
+Source-wide mass normalization (`settotalmass`) is resolved into per-body
+inertias before attachment. The parent scene can still impose its own global
+mass scaling when compiled.
+
 Native attachment retains the packaged meshes, joints, actuators, equalities,
 tendons and collision definitions. The parent scene's global solver/options win;
 MuJoCo can warn when a hand's options differ. No collision shapes or motors are

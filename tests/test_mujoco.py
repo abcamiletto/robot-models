@@ -32,6 +32,8 @@ def test_mounted_hand_matches_fk_and_preserves_definitions(name, side):
     data = mujoco.MjData(model)
     prefix = f"{name}_{side}_"
     indices = [model.body(prefix + joint).id for joint in hand.joint_names]
+    for attribute in ("body_mass", "body_inertia", "body_ipos", "body_iquat"):
+        np.testing.assert_allclose(getattr(model, attribute)[indices], getattr(original, attribute)[1:], atol=1e-12)
     assert (model.nu, model.neq, model.ntendon, model.nexclude, model.npair) == (
         original.nu,
         original.neq,

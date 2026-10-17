@@ -45,6 +45,17 @@ def add_hand(
     mujoco = cast(Any, import_module("mujoco"))  # Native bindings do not provide type stubs.
     directory = assets.model_dir(cls._NAME, model_path)
     hand = mujoco.MjSpec.from_file(str(directory / f"{side}.xml"))
+    if hand.compiler.settotalmass > 0:
+        # Global mass normalization is not applied to an attached subtree.
+        compiled = hand.compile()
+        for body in hand.bodies[1:]:
+            index = compiled.body(body.name).id
+            body.mass = compiled.body_mass[index]
+            body.inertia = compiled.body_inertia[index]
+            body.ipos = compiled.body_ipos[index]
+            body.iquat = compiled.body_iquat[index]
+            body.explicitinertial = True
+        hand.compiler.settotalmass = -1
     (root,) = hand.worldbody.bodies
     root.pos = [0, 0, 0]
     root.quat = [1, 0, 0, 0]

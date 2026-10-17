@@ -68,4 +68,5 @@ jobs:
             tests/test_compile.py \
             tests/test_gradients.py \
             tests/test_hand_fidelity.py \
+            tests/test_mujoco.py \
             tests/test_models.py

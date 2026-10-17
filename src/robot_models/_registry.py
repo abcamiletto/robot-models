@@ -32,6 +32,11 @@ def create_model(
     Raises:
         ValueError: If ``model_name`` is unknown.
     """
+    return _model_class(model_name, runtime)(**kwargs)
+
+
+def _model_class(model_name: str, runtime: RuntimeName) -> type[RigidBodyModel]:
+    """Resolve the shared catalog entry without loading its assets."""
     name = _normalize_name(model_name)
     if runtime not in ("numpy", "torch", "jax"):
         raise ValueError(f"Unknown runtime {runtime!r}. Expected numpy, torch, or jax.")
@@ -41,8 +46,7 @@ def create_model(
         available = ", ".join(list_models())
         raise ValueError(f"Unknown model {model_name!r}. Available models: {available}") from exc
     module = import_module(f"{spec.module}.{runtime}")
-    model_class = getattr(module, spec.class_name)
-    return model_class(**kwargs)
+    return getattr(module, spec.class_name)
 
 
 def list_models(*, pattern: str | None = None) -> list[str]:

@@ -16,6 +16,7 @@ EXPECTED_ROOT_EXPORTS = (
     "RigidBodyModel",
     "RotationType",
     "RuntimeName",
+    "add_hand",
     "create_model",
     "list_models",
 )

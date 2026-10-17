@@ -62,18 +62,27 @@ def prepare(upstreams: Path, output: Path) -> None:
                 shutil.copyfile(checkout / path, destination)
         if name == "ezgripper":
             mapping = prepare_mjcf(source / spec["description"], target)
+            changes = (
+                "Original model by Vikash Kumar; pinned revision maintained by SAKE Robotics. "
+                "Runtime XML removes the scene floor and light, resets the mount position/quaternion, "
+                "adds a free root and rewrites mesh paths. Original copyright comments are retained; "
+                "STL meshes are copied unchanged. Native tendons, contacts and actuators are retained. "
+                "FK does not solve tendon dynamics."
+            )
         else:
-            description = source / spec["description"]
             description = expand_xacro(source, spec, target / "expanded.urdf")
             mapping = convert_urdf(description, source, target)
+            changes = (
+                "Runtime XML uses a free root at the origin; display meshes are converted to STL. "
+                "URDF rest transforms, joint axes/limits and all visuals are retained. "
+                f"Coupling: {mapping['coupling_policy']}. "
+                "Original collision geometry and dynamics remain available in the source description. "
+                "The runtime is a kinematics/display model, not a simulation or motor-control replacement."
+            )
         notice = (
             f"# {name} canonical assets\n\nSource: {spec['upstream']}, revision `{spec['revision']}`.\n\n"
             f"Upstream license: {spec['license']}.\n\n"
-            "Original sources are unchanged under source/. Runtime XML uses a free root at the origin; "
-            "display meshes are converted to STL. URDF rest transforms, joint axes/limits and mimic "
-            "equalities are preserved. All URDF visuals are retained. Original collision geometry "
-            "and dynamics remain available in the source description. The runtime is a kinematics/display "
-            "model, not a simulation or motor-control replacement.\n\n" + (source / "LICENSE").read_text()
+            f"Original sources are unchanged under source/. {changes}\n\n" + (source / "LICENSE").read_text()
         )
         bundle.write_bundle(
             target,
@@ -180,14 +189,24 @@ def convert_urdf(description: Path, source: Path, output: Path) -> dict:
         "side": "right",
         "joint_names": [joint.attrib["name"] for joint in independent],
         "joint_limits": [bundle.vec(joint.attrib["range"]).tolist() for joint in independent],
-        "coupling_policy": "declared URDF mimic equalities",
+        "coupling_policy": "declared URDF mimic equalities"
+        if mimics
+        else "independent hinges; source declares no mimics",
         **bundle.RUNTIME_METADATA,
     }
 
 
 def prepare_mjcf(description: Path, output: Path) -> dict:
     """Retain the endorsed MJCF tree and physical definitions; make a floating display root."""
-    root = ET.parse(description).getroot()
+    parser = ET.XMLParser(target=ET.TreeBuilder(insert_comments=True))
+    root = ET.parse(description, parser=parser).getroot()
+    root.insert(
+        0,
+        ET.Comment(
+            "Derived by prepare_hand_assets.py from source/ezgripper.xml: removed scene floor/light; "
+            "reset mount position/quaternion; added free root; rewrote mesh paths. STL meshes unchanged."
+        ),
+    )
     world = bundle.required(root, "worldbody")
     (body,) = world.findall("body")
     for element in list(world):

@@ -10,7 +10,8 @@ uv add robot-models
 ```
 
 Optional runtime dependencies are available as `robot-models[torch]` and
-`robot-models[jax]`.
+`robot-models[jax]`. Native MuJoCo attachment uses `robot-models[mujoco]`; see
+[adding a hand to a scene](mujoco.md).
 
 ## Assets
 
@@ -28,12 +29,15 @@ robot-models set g1 /path/to/g1
 | --- | --- | --- |
 | [Ability Hand](models/ability.md) | PSYONIC Ability Hand robotic hand | auto-download |
 | [Allegro](models/allegro.md) | Wonik Robotics Allegro robotic hand | auto-download |
+| [Barrett BH280](models/barrett.md) | Barrett BH280 robotic hand | auto-download |
 | [BrainCo](models/brainco.md) | BrainCo Revo 2 robotic hand | auto-download |
+| [EZGripper](models/ezgripper.md) | SAKE EZGripper | auto-download |
 | [G1](models/g1.md) | Unitree G1 humanoid | auto-download |
 | [GR1](models/gr1.md) | Fourier GR1 humanoid | auto-download |
 | [H1](models/h1.md) | Unitree H1 humanoid | auto-download |
 | [Inspire](models/inspire.md) | Inspire RH56 robotic hand | auto-download |
 | [LEAP Hand](models/leap.md) | LEAP Hand v1 robotic hand | auto-download |
+| [Robotiq 3-Finger](models/robotiq.md) | Robotiq 3-Finger Adaptive Gripper | auto-download |
 | [Sharpa Wave](models/sharpa.md) | Sharpa Wave robotic hand | auto-download |
 | [Shadow](models/shadow.md) | Shadow Dexterous Hand E3M5 | auto-download |
 | [T1](models/t1.md) | Booster Robotics T1 humanoid | auto-download |

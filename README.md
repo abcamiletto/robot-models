@@ -32,6 +32,27 @@ meshes = model.forward_meshes(**params)
 The equivalent NumPy and JAX classes live in `robot_models.g1.numpy` and
 `robot_models.g1.jax`. Torch models are `torch.nn.Module` instances.
 
+## Add a hand to MuJoCo
+
+```bash
+uv add "robot-models[mujoco]"
+```
+
+```python
+import mujoco
+from robot_models import add_hand
+
+scene = mujoco.MjSpec()
+mount = add_hand(scene, "shadow", side="right")
+mount.pos = [0, 0, 0.4]
+model = scene.compile()
+```
+
+The same function works for all ten canonical hands. It mounts the hand at its
+root in native MuJoCo coordinates and retains the bundle's physical definitions.
+Barrett and Robotiq bundles provide kinematics and visuals; simulation requires
+appropriate collision and actuation definitions. See [mounting and namespaces](docs/mujoco.md).
+
 ## Models
 
 - Booster Robotics T1 humanoid robot

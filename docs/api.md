@@ -10,6 +10,12 @@
     options:
       show_source: false
 
+## MuJoCo attachment
+
+::: robot_models.add_hand
+    options:
+      show_source: false
+
 ## Model contract
 
 `forward_skeleton(..., joint_indices=...)` returns only the requested joints and

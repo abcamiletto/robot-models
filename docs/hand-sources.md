@@ -10,7 +10,7 @@ ROS descriptions, with the exact upstream revision and conversion changes record
 | `allegro` | Allegro V3, both sides | [Menagerie](https://github.com/google-deepmind/mujoco_menagerie/tree/f054586a8e90465d49ee5be15335c4a0c7f57caf/wonik_allegro) | BSD-2-Clause |
 | `barrett` | Barrett BH280 | [Robotnik ROS description](https://github.com/RobotnikAutomation/barrett_hand_common/tree/b3d96febf8ef7b2aae4dab6015928918324c364a) | BSD-3-Clause |
 | `brainco` | BrainCo Revo 2, both sides | Official SDK `Revo2_xml.zip`, dated 2025-11-05; [manufacturer description](https://github.com/BrainCoTech/revo2_description/tree/92cc697c7fa691db59404ce52344f3969a5ef7a6) | Hosted notice records Apache-2.0 and the SDK archive's coverage limitation |
-| `ezgripper` | SAKE EZGripper MuJoCo model | [Vikash Kumar model](https://github.com/vikashplus/ezgripper_sim/tree/0fdf9dbdb5023e9345f392a381cef80b1ebe965d), linked by [SAKE support](https://sakerobotics.com/support/) | Apache-2.0 |
+| `ezgripper` | SAKE EZGripper MuJoCo model | [SAKE-maintained model](https://github.com/vikashplus/ezgripper_sim/tree/0fdf9dbdb5023e9345f392a381cef80b1ebe965d), linked by [SAKE support](https://sakerobotics.com/support/) | Apache-2.0 |
 | `inspire` | Inspire RH56 DFQ, both sides | [Unitree G1 integration](https://github.com/unitreerobotics/unitree_ros/tree/5994d4faef0a9cadd3287f8de0199a67eeb2a259/robots/g1_description) | BSD-3-Clause |
 | `leap` | LEAP Hand v1, both sides | [Menagerie](https://github.com/google-deepmind/mujoco_menagerie/tree/f054586a8e90465d49ee5be15335c4a0c7f57caf/leap_hand) | MIT |
 | `robotiq-3finger` | Robotiq 3-Finger Adaptive Gripper | [Historical ROS package](https://github.com/ros-industrial-attic/robotiq/tree/45196f6558fe8ba9d89bc8a105396c68c3e7e892/robotiq_3f_gripper_visualization), authored by Robotiq | BSD-2-Clause |
@@ -19,8 +19,8 @@ ROS descriptions, with the exact upstream revision and conversion changes record
 
 Robotnik is a robotics integrator; its Barrett description is not represented as
 a Barrett Technology release. The Robotiq ROS repository is now archived. SAKE
-links the EZGripper simulator on its own support page; its repository belongs to
-Vikash Kumar. These qualifications are part of the provenance.
+links the EZGripper simulator on its own support page. Its original model is by
+Vikash Kumar; the pinned revision is maintained by SAKE Robotics. These qualifications are part of the provenance.
 
 The existing seven hand bundles and their default behavior are preserved. Their
 hub `LICENSE.md` files describe conversions and license scope. The three new
@@ -66,6 +66,11 @@ visuals is used. No substitute mesh is introduced. All visual elements are
 retained, including fixed Barrett tactile frames. Runtime meshes are converted
 to STL; source collision definitions and dynamics remain available unchanged.
 
+EZGripper retains its native MJCF tendons, contacts and actuator. Preparation
+removes the scene floor/light, resets the mount position/quaternion, adds a free
+root and rewrites mesh paths. Original copyright comments are retained and STL
+meshes are copied unchanged. The original MJCF remains under `source/`.
+
 The independent oracle imports the expanded upstream URDF into MuJoCo, without
 using robot-models' FK or runtime XML. Only geometry is removed from that FK
 reference, with inertia compilation bounds/balancing; these do not affect the
@@ -86,13 +91,13 @@ Frozen reference fixtures and their upstream licenses are in
 ## Published bundles
 
 The three canonical bundles are mirrored in our Hugging Face repository at
-[revision `4f8577cc`](https://huggingface.co/abcamiletto/robot-models/commit/4f8577ccf5e6ec8ca1f4d4a1a83ba34b12a1e4aa),
+[revision `5c24dcc5`](https://huggingface.co/abcamiletto/robot-models/commit/5c24dcc59d9cbaa803a38cef7bb9f5122bc2d7df),
 with per-folder `LICENSE.md` files and complete upstream terms inside each ZIP.
 All 25 pre-existing asset/license files are unchanged. Preparation was repeated
 with byte-identical ZIP output; archive SHA-256 digests are:
 
 | Bundle | SHA-256 |
 | --- | --- |
-| `barrett/assets.zip` | `ba9a97317bd02c499e15bc0c3e026b66b973045ac05092837e67077ba64ca9b1` |
-| `robotiq-3finger/assets.zip` | `59fae78d0b4644bdb5815307de034ac85d4899932566d5ee647ca0d53ed4f1a3` |
-| `ezgripper/assets.zip` | `939e882dc48a17ce4f10da20acf3934708f7e64a68fcfb2bae5a9e52c5b86077` |
+| `barrett/assets.zip` | `335ea6123e650da7a1ba95bbbdaccc0f9dc6d87cf8e93a653bd7bdb89f116403` |
+| `robotiq-3finger/assets.zip` | `792f8a01014b0659c9ebb34098fcf831bfba4c98475eff7749c06f828b72228c` |
+| `ezgripper/assets.zip` | `bbe9df0effeef1c038198ca9ac826673853c540ec9c6ab73798dfd65357649f9` |

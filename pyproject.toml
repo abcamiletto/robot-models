@@ -75,6 +75,7 @@ explicit = true
 exclude = [
     "tests/",
     "scripts/visualize.py",
+    "scripts/render_teaser.py",  # Blender runs in the script's isolated Python 3.13 environment.
     "scripts/check_baseline_fidelity.py",  # Dynamically imports incompatible external vendored kinematics packages.
 ]
 

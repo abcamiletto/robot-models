@@ -22,3 +22,5 @@ def test_backend_model_signatures() -> None:
             assert model_class.__module__ == module_name
             assert "runtime" not in parameters
             assert "name" not in parameters
+            with pytest.raises(TypeError, match=rf"{spec.class_name}\.__init__\(\)"):
+                model_class(runtime=backend)

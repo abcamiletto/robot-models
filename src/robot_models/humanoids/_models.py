@@ -8,6 +8,7 @@ MODELS = {
     "g1": ModelSpec(
         class_name="G1",
         family="humanoids",
+        mirror=(("left", "right"),),
         joints=MappingProxyType(
             {
                 "pelvis": "pelvis",
@@ -31,6 +32,7 @@ MODELS = {
     "gr1": ModelSpec(
         class_name="GR1",
         family="humanoids",
+        mirror=(("left", "right"),),
         joints=MappingProxyType(
             {
                 "pelvis": "base_link",
@@ -56,6 +58,7 @@ MODELS = {
     "h1": ModelSpec(
         class_name="H1",
         family="humanoids",
+        mirror=(("left", "right"),),
         joints=MappingProxyType(
             {
                 "pelvis": "pelvis",
@@ -75,6 +78,7 @@ MODELS = {
     "t1": ModelSpec(
         class_name="T1",
         family="humanoids",
+        mirror=(("left", "right"), ("Left", "Right"), ("AL", "AR")),
         joints=MappingProxyType(
             {
                 "pelvis": "Waist",
@@ -98,6 +102,7 @@ MODELS = {
     "talos": ModelSpec(
         class_name="Talos",
         family="humanoids",
+        mirror=(("left", "right"),),
         joints=MappingProxyType(
             {
                 "pelvis": "base_link",

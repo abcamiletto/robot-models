@@ -40,6 +40,8 @@ def model_for_backend(name: str, backend: RuntimeName, *, module: str) -> type[A
 
     Model.__name__ = definition.class_name
     Model.__qualname__ = definition.class_name
+    Model.__init__.__qualname__ = f"{definition.class_name}.__init__"
+    Model.__init__.__module__ = module
     Model.__module__ = module
     Model.__doc__ = f"Canonical {name} using {backend} arrays."
     return Model

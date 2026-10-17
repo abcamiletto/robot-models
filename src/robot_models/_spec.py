@@ -17,3 +17,4 @@ class ModelSpec:
     joints: Mapping[str, str]
     sides: tuple[Side, ...] = ()
     asset_version: int = 1
+    mirror: tuple[tuple[str, str], ...] = ()

@@ -4,6 +4,7 @@ import model_cases
 import numpy as np
 import pytest
 
+from robot_models import Joint
 from robot_models import _assets as assets
 from robot_models import _catalog as catalog
 from robot_models._common.mjcf import MUJOCO_TO_MODEL
@@ -141,6 +142,12 @@ def test_common_joints_and_presets_resolve(case) -> None:
     for joint in model.common_joints:
         model.joint_index(joint)
     assert all(left != right for left, right in model.symmetric_joints)
+    for joint in model.common_joints:
+        if joint.value.startswith("left_"):
+            counterpart = Joint(joint.value.replace("left_", "right_", 1))
+            if counterpart in model.common_joints:
+                pair = (model.joint_index(joint), model.joint_index(counterpart))
+                assert pair in model.symmetric_joints
 
     if isinstance(model, Hand):
         presets = [model.get_rest_pose(hands="flat"), model.get_rest_pose(hands="rest")]

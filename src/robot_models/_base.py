@@ -72,8 +72,6 @@ class RigidBodyModel(ABC):
     """
 
     _POSE: ClassVar[str]
-    # Left/right name fragments that pair mirrored joints.
-    _MIRROR: ClassVar[tuple[tuple[str, str], ...]] = ()
     _state_fields: ClassVar[tuple[str, ...]] = ("_assets",)
     has_hands: ClassVar[bool] = False
     _config: ModelConfig
@@ -148,10 +146,11 @@ class RigidBodyModel(ABC):
             ValueError: If a sided joint name has no counterpart.
         """
         names = self.joint_names
+        fragments = catalog.model_spec(self.name).mirror
         pairs = []
         for index, name in enumerate(names):
             mirrored = name
-            for left, right in self._MIRROR:
+            for left, right in fragments:
                 mirrored = mirrored.replace(left, right)
             if mirrored != name:
                 if mirrored not in names:

@@ -18,6 +18,7 @@ plugins:
       handlers:
         python:
           options:
+            force_inspection: true
             show_source: true
             inherited_members: true
             members_order: source

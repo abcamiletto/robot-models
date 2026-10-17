@@ -20,7 +20,6 @@ class Humanoid(RigidBodyModel):
     """Floating-base humanoid posed by ``body_pose``."""
 
     _POSE = "body_pose"
-    _MIRROR = (("left", "right"),)
 
     def __init__(self, name: str, *, model_path: Path | str | None = None, runtime: ArrayRuntime) -> None:
         name = catalog.normalize_name(name)

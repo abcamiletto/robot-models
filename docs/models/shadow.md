@@ -9,8 +9,8 @@ from robot_models.shadow.numpy import ShadowHand
 from robot_models import create_model
 
 hand = ShadowHand()  # source="menagerie", unchanged default
-native = ShadowHand(source="dexgraspnet")
-same_class = create_model("shadow", source="dexgraspnet")
+native = ShadowHand(source="dexgraspnet", model_path="/path/to/prepared/assets")
+same_class = create_model("shadow", source="dexgraspnet", model_path="/path/to/prepared/assets")
 print(ShadowHand.available_sources)
 print(native.source, native.num_dofs)  # dexgraspnet, 22
 ```
@@ -23,7 +23,7 @@ Their existing asset folder and cache/config keys remain internal bundle names.
 | --- | ---: | ---: | --- | --- | --- |
 | `menagerie` (default) | 24 | 25 | Forearm | right, left | Automatic download; Apache-2.0 |
 | `gendexgrasp` | 24 | 30 | Forearm | right | Local preparation; redistribution unresolved |
-| `dexgraspnet` | 22 | 45 | Palm | right | Automatic download; CC BY-NC 4.0 and inherited notices |
+| `dexgraspnet` | 22 | 45 | Palm | right | Local preparation; inherited mesh terms unresolved |
 
 ## Physical joints, coordinates and motors
 
@@ -53,7 +53,6 @@ Hugging Face repository, with the upstream license and a list of changes. To pre
 
 ```bash
 robot-models download shadow
-robot-models download shadow --source dexgraspnet
 ```
 
 A manual `model_path` is a directory with `left.xml`, `right.xml` and their meshes.
@@ -64,12 +63,13 @@ bundles raise `ValueError` before presets are applied. Configure each independen
 ```bash
 robot-models set shadow /path/to/menagerie/assets
 robot-models set shadow /path/to/gendexgrasp/assets --source gendexgrasp
+robot-models set shadow /path/to/dexgraspnet/assets --source dexgraspnet
 robot-models unset shadow --source gendexgrasp
 ```
 
 `--source menagerie` addresses the same path as the omitted/default source.
-`download all` fetches both published Shadow bundles and keeps their paths
-separate. The GenDexGrasp bundle requires [local preparation](baselines.md).
+`download all` fetches the published Menagerie bundle. Both native baseline
+sources require [local preparation](baselines.md) and use separate configured paths.
 
 ## Usage
 
@@ -93,7 +93,7 @@ Original baseline URDF/MJCF files and optional annotations remain available:
 ```python
 from robot_models.baselines import source_assets
 
-native = source_assets("shadow", source="dexgraspnet")
+native = source_assets("shadow", source="dexgraspnet", model_path="/path/to/prepared/assets")
 native.verify()
 original_mjcf = native.description
 contacts = native.annotations["contacts"]

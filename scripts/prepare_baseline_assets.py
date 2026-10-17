@@ -5,7 +5,7 @@ uv run python scripts/prepare_baseline_assets.py --gendexgrasp CHECKOUT \
 
 The output follows <identifier>/{assets.zip,LICENSE.md} hub conventions and also
 contains extracted assets/ directories for local use. Source bytes are unchanged.
-Unresolved GenDexGrasp asset licenses prevent claiming these are publishable.
+Unresolved inherited asset terms prevent publishing complete baseline bundles.
 """
 
 import argparse
@@ -126,7 +126,8 @@ def prepare_dexgraspnet(dex: Path, output: Path) -> None:
         {
             "upstream": DEX_URL,
             "revision": DEX_REVISION,
-            "redistribution": "noncommercial",
+            "redistribution": "unresolved",
+            "redistribution_blocker": "Inherited ShadowRobot mesh terms are not established for this exact bundle",
             "licenses": [
                 {
                     "spdx_id": "CC-BY-NC-4.0",
@@ -158,7 +159,12 @@ def prepare_dexgraspnet(dex: Path, output: Path) -> None:
         "Native analytic collision and annotations remain in source/. "
         "Inherited material retains the following original terms; the project-specific CC license does not "
         "replace those notices. The Apache grant below identifies Vikash Kumar code; it is not a blanket "
-        "Apache grant for every referenced ShadowRobot model or mesh.\n\n" + notice.read_text(),
+        "Apache grant for every referenced ShadowRobot model or mesh.\n\n"
+        "Redistribution status: unresolved for the complete bundle. The referenced sr_description package "
+        "declares GPL without a version, but the exact inherited mesh terms and corresponding source "
+        "have not been established here. Keep local until those permissions are resolved. "
+        "See https://github.com/shadow-robot/sr_common/blob/kinetic-devel/sr_description/package.xml .\n\n"
+        + notice.read_text(),
     )
 
 

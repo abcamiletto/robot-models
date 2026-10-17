@@ -60,18 +60,17 @@ and JAX. The existing cross-model checks additionally cover MuJoCo body/visual
 agreement, batching, pose helpers, backend consistency, gradients, Torch compilation,
 JAX JIT and JAX state round trips for all five new variants.
 
-The DexGraspNet source bundle is published on the asset hub with its original
-licenses. GenDexGrasp archives and source-derived numerical fixtures remain local
-under `results/` while their redistribution terms are unresolved. Ordinary CI can
+All native source bundles and source-derived numerical fixtures remain local
+under `results/` while complete redistribution terms are unresolved. Ordinary CI can
 run the synthetic regressions without them.
 Missing local bundles/fixtures cause explicitly explained skips in optional
 integration tests; the independent audit CLI fails rather than skipping.
 
-## Published DexGraspNet bundle
+## DexGraspNet download validation and withdrawal
 
 Hugging Face snapshot
 [`3788bdcfc8082a3c9bc696da5bbff8f8fd90ebaf`](https://huggingface.co/abcamiletto/robot-models/commit/3788bdcfc8082a3c9bc696da5bbff8f8fd90ebaf)
-contains `shadow-dexgraspnet/assets.zip` and `LICENSE.md` with the per-folder
+previously published `shadow-dexgraspnet/assets.zip` and `LICENSE.md` with the per-folder
 license table. The review update changes only the bundle notice and manifest: it
 narrows the Apache scope to the code identified in the unchanged inherited notice
 and records license-file hashes. Source files and runtime geometry are identical
@@ -84,6 +83,15 @@ Anonymous download, archive digest, all 26 original-file hashes, both license-fi
 and runtime loading were verified after publication. The downloaded bundle was
 also checked against the pinned DexGraspNet implementation over the same 28 poses,
 including joint order/limits, mesh surfaces and all native annotations.
+
+Review then identified unresolved permission for the inherited ShadowRobot meshes:
+the Apache notice identifies code, and the referenced package declares GPL without
+establishing the exact mesh terms/source. The bundle was withdrawn from current
+hub `main` in [revision `301ad580`](https://huggingface.co/abcamiletto/robot-models/commit/301ad580c7412d49c25b5f1d93adf7c8002cb3a8),
+and automatic download is disabled. All 25 pre-existing canonical asset/license
+files were verified unchanged against the original hub snapshot. Previous hub revisions still
+contain the upload. The download checks above establish fidelity and integrity,
+not a complete redistribution grant. Local preparation remains supported.
 
 These measurements establish source-hand fidelity at the checked poses. They do
 not claim original dataset grasp success rates or Isaac Gym stability reproduction.

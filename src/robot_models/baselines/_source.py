@@ -36,7 +36,7 @@ class SourceAssets:
     manifest: dict[str, Any]
 
     def verify(self) -> None:
-        """Check original sources and recorded license files against their SHA-256."""
+        """Check SHA-256 hashes; older manifests without license hashes check sources only."""
         groups = (
             (self.manifest["source_sha256"], self.root),
             (self.manifest.get("license_sha256", {}), self.root.parent),

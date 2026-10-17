@@ -10,6 +10,7 @@ import typer
 from robot_models import _assets as assets
 from robot_models import _config as config
 from robot_models._catalog import MODEL_SOURCES, MODEL_SPECS, asset_spec
+from robot_models.shadow import _source as shadow_source
 
 app = typer.Typer(add_completion=False, no_args_is_help=False)
 
@@ -41,6 +42,8 @@ def set(
     """Validate and save a model asset path."""
     _require_choice(model, MODEL_NAMES, "model")
     _require_source(model, source)
+    if model == "shadow":
+        shadow_source.validate_source(config.validate_model_path(path), source or "menagerie")
     config.set_model_path(model, path, source=source)
     typer.echo(f"Set {model} ({source or 'default'}) = {config.get_model_path(model, source=source)}")
 

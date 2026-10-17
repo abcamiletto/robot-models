@@ -51,7 +51,7 @@ MODEL_SOURCES: Mapping[str, Mapping[str, AssetSpec]] = MappingProxyType(
             {
                 "menagerie": AssetSpec("shadow"),
                 "gendexgrasp": AssetSpec("shadow-gendexgrasp", downloadable=False),
-                "dexgraspnet": AssetSpec("shadow-dexgraspnet"),
+                "dexgraspnet": AssetSpec("shadow-dexgraspnet", downloadable=False),
             }
         )
     }

@@ -23,22 +23,20 @@ anatomical finger joints to source-native bodies; see [one-family source selecti
 
 ## Asset availability
 
-The `shadow-dexgraspnet` source bundle is published in
-[abcamiletto/robot-models on Hugging Face](https://huggingface.co/abcamiletto/robot-models/tree/main/shadow-dexgraspnet).
-It downloads automatically on first use, or explicitly with:
+All complete native baseline bundles require local preparation while their
+redistribution permissions remain unresolved. DexGraspNet's project license does
+not establish the terms of every inherited Shadow mesh. Its initially published
+bundle was withdrawn from the current Hugging Face release after review; earlier
+hub revisions retain that upload. Automatic download is disabled.
 
-```bash
-robot-models download shadow --source dexgraspnet
-```
-
-It contains the original MJCF, meshes, contact and penetration annotations, an
+The locally prepared DexGraspNet bundle contains original MJCF, meshes, contact and penetration annotations, an
 unchanged upstream README and inherited license notices, full CC BY-NC 4.0 terms,
 the derived runtime files and a provenance/hash manifest. Project-specific content
 remains noncommercial; inherited assets retain their original notices.
 
-The four GenDexGrasp runtime bundles and its source-only Allegro bundle still
-require local preparation. Their complete redistribution terms are unresolved;
-see the licensing record below. `robot-models download all` includes published
+The four GenDexGrasp runtime bundles and its source-only Allegro bundle also
+require local preparation; see the licensing record below.
+`robot-models download all` includes published
 models only. Explicit requests for unpublished bundles explain local preparation.
 
 ## Prepare local assets
@@ -252,13 +250,16 @@ in the Python package or committed in this change.
   attribution, full CC terms and the unchanged inherited OpenAI notice. Its
   Apache-2.0 grant identifies Vikash Kumar code; it does not establish a blanket
   Apache license for every referenced ShadowRobot model or mesh.
+  The referenced [ShadowRobot package](https://github.com/shadow-robot/sr_common/blob/kinetic-devel/sr_description/package.xml)
+  declares GPL without a version. Exact inherited mesh terms and corresponding
+  source have not been established for this bundle, so it remains local.
   Do not relabel the full bundle Apache-2.0: project annotations have separate terms.
 
 ### Redistribution review (2026-10-17)
 
 | Source bundle | Evidence | Distribution |
 | --- | --- | --- |
-| DexGraspNet Shadow | Pinned README grants CC BY-NC 4.0; inherited OpenAI/Shadow notice is retained | Published for noncommercial reuse with attribution and both sets of terms |
+| DexGraspNet Shadow | Pinned README grants CC BY-NC 4.0 for project contributions; inherited notice identifies Apache code and references a GPL-declared ShadowRobot package, without establishing exact mesh terms | Local preparation only; withdrawn from current hub release |
 | GenDexGrasp Barrett | URDF attributes Robotnik; [Robotnik's original project has BSD-3-Clause terms](https://github.com/RobotnikAutomation/barrett_hand_common/blob/kinetic-devel/LICENSE), but the supplied modified source/contact bundle has no complete grant | Local preparation only |
 | GenDexGrasp Robotiq-3F | Supplied directory has no license; a license from another Robotiq description does not establish permissions for this exact description and contact annotations | Local preparation only |
 | GenDexGrasp EZGripper | Package declares BSD but includes no full license; the complete modified source/contact bundle has no established redistribution grant | Local preparation only |
@@ -270,8 +271,8 @@ grant. A public download link and licenses on other projects are not substituted
 for permissions on these exact bundles. No GenDexGrasp bundle is uploaded pending
 clarification from the applicable rights holders.
 
-Publishing preserves the hub layout `<identifier>/{assets.zip,LICENSE.md}` and
-updates the hub model card's per-folder license table. The ZIP includes the same
+Preparation preserves the hub layout `<identifier>/{assets.zip,LICENSE.md}` for
+bundles whose redistribution can later be cleared. The ZIP includes the same
 notice and all original source files; `source.json` records source hashes, upstream
 revision, redistribution status and, for DexGraspNet, the scoped license paths.
 Existing published model folders and their licenses are preserved.

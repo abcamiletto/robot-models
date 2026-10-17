@@ -50,9 +50,9 @@ The equivalent NumPy and JAX classes live in `robot_models.g1.numpy` and
 
 Select Shadow descriptions with `create_model("shadow", source="dexgraspnet")`
 or `ShadowHand(source="gendexgrasp")`; the existing default is `"menagerie"`.
-The DexGraspNet source bundle downloads automatically, with its original
-CC BY-NC 4.0 and inherited asset notices. GenDexGrasp bundles require local
-preparation while redistribution permissions remain unresolved; see
+Both native baseline sources require locally prepared assets while complete
+redistribution permissions remain unresolved. Original license declarations,
+attribution and annotations are retained; see
 [compatibility, preparation, and asset licensing](docs/models/baselines.md).
 
 ## Teasers

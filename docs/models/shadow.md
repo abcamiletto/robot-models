@@ -27,6 +27,11 @@ params = hand.get_rest_pose(hands="rest")
 
 Every hinge is independent: the J1/J2 tendon coupling of the real hand is actuation, not kinematics.
 
+Original GenDexGrasp and DexGraspNet hands have explicit
+[`shadow-gendexgrasp` and `shadow-dexgraspnet` variants](baselines.md).
+They retain their source roots, axes, limits, geometry and annotations; `shadow`
+continues to mean the existing canonical E3M5 model.
+
 ## API
 
 ::: robot_models.shadow.numpy.ShadowHand

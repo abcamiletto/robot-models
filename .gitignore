@@ -225,3 +225,6 @@ tests/assets/
 README_render*.png
 scripts/.readme_meshes/
 scripts/teaser/.meshes/
+
+# Prepared source asset bundles and upstream fidelity reports
+/results/

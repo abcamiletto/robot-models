@@ -378,6 +378,7 @@ class Hand(RigidBodyModel):
 
     _POSE = "hand_pose"
     has_hands = True
+    supported_sides: ClassVar[tuple[Side, ...]] = ("right", "left")
     # Native names keyed by ``Joint`` without its side. In names, ``{side}``
     # expands to ``left``/``right`` and ``{s}`` to ``l``/``r``.
     _HAND_JOINTS: ClassVar[Mapping[str, str]]

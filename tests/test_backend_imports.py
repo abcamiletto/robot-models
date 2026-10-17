@@ -6,7 +6,8 @@ import inspect
 import pytest
 
 from robot_models import _catalog as catalog
-from robot_models._base import Hand, Humanoid
+from robot_models.hands._base import Hand
+from robot_models.humanoids._base import Humanoid
 
 
 @pytest.mark.fast

@@ -57,12 +57,15 @@ def load(xml_path: Path) -> RigidAssets:
                 hinges.append((attrs["name"], index, *_hinge(attrs)))
         for geom_index, geom in enumerate(body.findall("geom")):
             attrs = _attrs(geom, cls, defaults)
-            if "mesh" in attrs and attrs.get("contype") == "0" and attrs.get("conaffinity") == "0":
-                vertices, faces = meshes[attrs["mesh"]]
-                body_vertices = vertices @ _orientation(attrs).T + _vec(attrs.get("pos"), 3)
-                links.append((attrs["mesh"], index, body_vertices, faces))
-            if int(attrs.get("contype", "1")) or int(attrs.get("conaffinity", "1")) or attrs.get("name") in paired:
-                vertices, faces = _collision_mesh(attrs, meshes)
+            contact = int(attrs.get("contype", "1")) or int(attrs.get("conaffinity", "1"))
+            visual = "mesh" in attrs and not contact
+            collision = contact or attrs.get("name") in paired
+            if not (visual or collision):
+                continue
+            vertices, faces = _geom_mesh(attrs, meshes)
+            if visual:
+                links.append((attrs["mesh"], index, vertices, faces))
+            if collision:
                 name = attrs.get("name", f"{body.get('name')}_collision_{geom_index}")
                 collisions.append((name, index, vertices, faces))
     if len({joint for _, joint, _, _ in hinges}) != len(hinges):
@@ -78,7 +81,6 @@ def load(xml_path: Path) -> RigidAssets:
 
     to_model = MUJOCO_TO_MODEL
     return RigidAssets(
-        **vars(_mesh_assets(links)),
         joint_names=names,
         parents=parents,
         local_offsets=(np.asarray(offsets) @ to_model.T).astype(np.float32),
@@ -89,30 +91,29 @@ def load(xml_path: Path) -> RigidAssets:
         hinge_polycoef=np.asarray(polycoef, dtype=np.float32),
         actuated_joint_names=actuated,
         actuated_joint_limits=np.asarray([limits[name] for name in actuated], dtype=np.float32),
-        collisions=_mesh_assets(collisions),
+        visual=_mesh_assets(links),
+        collision=_mesh_assets(collisions),
     )
 
 
 def _mesh_assets(links: list[tuple[str, int, np.ndarray, np.ndarray]]) -> MeshAssets:
     vertex_counts = [len(vertices) for _, _, vertices, _ in links]
     face_counts = [len(faces) for *_, faces in links]
-    vertex_starts = np.cumsum([0, *vertex_counts[:-1]]).tolist() if links else []
-    face_starts = np.cumsum([0, *face_counts[:-1]]).tolist() if links else []
+    vertex_offsets = np.cumsum([0, *vertex_counts]).tolist()
+    face_offsets = np.cumsum([0, *face_counts]).tolist()
     vertices = [vertices @ MUJOCO_TO_MODEL.T for _, _, vertices, _ in links]
-    faces = [faces + start for (*_, faces), start in zip(links, vertex_starts, strict=True)]
+    faces = [faces + start for (*_, faces), start in zip(links, vertex_offsets[:-1], strict=True)]
     return MeshAssets(
         vertices=np.concatenate(vertices).astype(np.float32) if links else np.empty((0, 3), dtype=np.float32),
         faces=np.concatenate(faces).astype(np.int64) if links else np.empty((0, 3), dtype=np.int64),
-        link_names=[name for name, *_ in links],
-        link_joint_indices=[joint for _, joint, _, _ in links],
-        link_vertex_starts=vertex_starts,
-        link_vertex_counts=vertex_counts,
-        link_face_starts=face_starts,
-        link_face_counts=face_counts,
+        names=[name for name, *_ in links],
+        joint_indices=[joint for _, joint, _, _ in links],
+        vertex_offsets=vertex_offsets,
+        face_offsets=face_offsets,
     )
 
 
-def _collision_mesh(attrs: dict[str, str], meshes: dict[str, Mesh]) -> Mesh:
+def _geom_mesh(attrs: dict[str, str], meshes: dict[str, Mesh]) -> Mesh:
     """Triangulate a source geom, retaining its body-local pose and dimensions."""
     kind = attrs.get("type", "mesh" if "mesh" in attrs else "sphere")
     rotation = _orientation(attrs)

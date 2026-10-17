@@ -63,12 +63,15 @@ def test_torch_model_manages_module_state() -> None:
     from robot_models.humanoids.g1.torch import G1
 
     model = G1().double()
-    assert "_assets.vertices" in model.state_dict()
-    assert model._assets.vertices.dtype == torch.float64
+    for geometry in ("visual", "collision"):
+        assert f"_assets.{geometry}.vertices" in model.state_dict()
+        assert getattr(model._assets, geometry).vertices.dtype == torch.float64
 
     restored = pickle.loads(pickle.dumps(model))
     assert isinstance(restored, G1)
-    assert "_assets.vertices" in restored.state_dict()
+    assert "_assets.visual.vertices" in restored.state_dict()
+    assert "_assets.collision.vertices" in restored.state_dict()
+    restored.load_state_dict(model.state_dict())
 
 
 @pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.MODELS)
@@ -82,3 +85,5 @@ def test_jax_model_pytree_round_trip(name, model_class, kwargs) -> None:
     assert type(restored) is type(model)
     assert restored.runtime == model.runtime
     assert restored.joint_names == model.joint_names
+    if hasattr(model, "side"):
+        assert restored.side == model.side

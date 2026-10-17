@@ -2,13 +2,13 @@
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from math import prod
 from typing import Any
 
 import numpy as np
 from jaxtyping import Float, Int
 from nanomanifold import SO3
 from trimesh import Trimesh
-from trimesh.util import concatenate
 
 from robot_models._common.kinematics import affine_transforms, select_joint_chains
 from robot_models._common.ops import at_set, eye_as, zeros_as
@@ -23,16 +23,14 @@ class MeshAssets:
 
     vertices: Float[Array, "V 3"]
     faces: Int[Array, "F 3"]
-    link_names: list[str]
-    link_joint_indices: list[int]
-    link_vertex_starts: list[int]
-    link_vertex_counts: list[int]
-    link_face_starts: list[int]
-    link_face_counts: list[int]
+    names: list[str]
+    joint_indices: list[int]
+    vertex_offsets: list[int]
+    face_offsets: list[int]
 
 
 @dataclass(frozen=True)
-class RigidAssets(MeshAssets):
+class RigidAssets:
     """Skeleton, hinge, and link-mesh data of one rigid articulated model.
 
     Every hinge angle is a polynomial of one pose coordinate:
@@ -50,7 +48,8 @@ class RigidAssets(MeshAssets):
     hinge_polycoef: Float[Array, "H 5"]
     actuated_joint_names: list[str]
     actuated_joint_limits: Float[Array, "Q 2"]
-    collisions: MeshAssets
+    visual: MeshAssets
+    collision: MeshAssets
 
 
 def hinge_angles(assets: RigidAssets, pose: Float[Array, "... Q"], *, xp: Any) -> Float[Array, "... H"]:
@@ -152,25 +151,14 @@ def forward_meshes_from_links(
     link_rot = links[..., :3, :3]
     link_pos = links[..., :3, 3]
     source_vertices = xp.asarray(assets.vertices, dtype=links.dtype)
-    source_faces = xp.asarray(assets.faces)
-    batch_size = _batch_size(links)
-    meshes_by_batch: list[list[Trimesh]] = [[] for _ in range(batch_size)]
-
-    for link_idx in range(len(assets.link_vertex_starts)):
-        vertex_start = assets.link_vertex_starts[link_idx]
-        vertex_count = assets.link_vertex_counts[link_idx]
-        face_start = assets.link_face_starts[link_idx]
-        face_count = assets.link_face_counts[link_idx]
-        local_vertices = source_vertices[vertex_start : vertex_start + vertex_count]
-        transformed = xp.squeeze(link_rot[..., link_idx, None, :, :] @ local_vertices[..., None], axis=-1)
-        mesh_vertices = transformed + link_pos[..., link_idx, None, :]
-        mesh_faces = source_faces[face_start : face_start + face_count] - vertex_start
-        batched_vertices = _as_batched_vertices(mesh_vertices, batch_size=batch_size, to_numpy=to_numpy)
-        faces_np = to_numpy(mesh_faces)
-        for batch_idx, batch_vertices in enumerate(batched_vertices):
-            meshes_by_batch[batch_idx].append(_make_trimesh(vertices=batch_vertices, faces=faces_np))
-
-    return [_concatenate_meshes(batch_meshes) for batch_meshes in meshes_by_batch]
+    chunks = []
+    for index, (start, end) in enumerate(zip(assets.vertex_offsets[:-1], assets.vertex_offsets[1:], strict=True)):
+        rotated = source_vertices[start:end] @ link_rot[..., index, :, :].mT
+        chunks.append(rotated + link_pos[..., index, None, :])
+    vertices = xp.concat(chunks, axis=-2) if chunks else zeros_as(links, shape=(*links.shape[:-3], 0, 3), xp=xp)
+    batched = to_numpy(vertices).reshape(prod(links.shape[:-3]), len(source_vertices), 3)
+    faces = to_numpy(assets.faces)
+    return [Trimesh(vertices=vertices, faces=faces.copy(), process=False) for vertices in batched]
 
 
 def link_meshes(
@@ -182,49 +170,14 @@ def link_meshes(
     vertices = to_numpy(assets.vertices)
     faces = to_numpy(assets.faces)
     meshes = []
-    for vertex_start, vertex_count, face_start, face_count in zip(
-        assets.link_vertex_starts,
-        assets.link_vertex_counts,
-        assets.link_face_starts,
-        assets.link_face_counts,
+    for vertex_start, vertex_end, face_start, face_end in zip(
+        assets.vertex_offsets[:-1],
+        assets.vertex_offsets[1:],
+        assets.face_offsets[:-1],
+        assets.face_offsets[1:],
         strict=True,
     ):
-        link_vertices = vertices[vertex_start : vertex_start + vertex_count]
-        link_faces = faces[face_start : face_start + face_count] - vertex_start
-        meshes.append(_make_trimesh(vertices=link_vertices, faces=link_faces))
+        link_vertices = vertices[vertex_start:vertex_end]
+        link_faces = faces[face_start:face_end] - vertex_start
+        meshes.append(Trimesh(vertices=link_vertices, faces=link_faces, process=False))
     return meshes
-
-
-def _make_trimesh(
-    *,
-    vertices: Float[np.ndarray, "V 3"],
-    faces: Int[np.ndarray, "F 3"],
-) -> Trimesh:
-    return Trimesh(vertices=vertices, faces=faces, process=False)
-
-
-def _as_batched_vertices(
-    vertices: Float[Array, "... V 3"],
-    *,
-    batch_size: int,
-    to_numpy: _ToNumpy,
-) -> Float[np.ndarray, "B V 3"]:
-    vertices = to_numpy(vertices)
-    if vertices.ndim == 2:
-        vertices = vertices[None]
-    if vertices.ndim < 3:
-        raise ValueError("forward_meshes expects vertices with shape [..., V, 3].")
-    return vertices.reshape(batch_size, vertices.shape[-2], vertices.shape[-1])
-
-
-def _batch_size(links: Float[Array, "... L 4 4"]) -> int:
-    batch_shape = links.shape[:-3]
-    if not batch_shape:
-        return 1
-    return int(np.prod(batch_shape))
-
-
-def _concatenate_meshes(meshes: list[Trimesh]) -> Trimesh:
-    if not meshes:
-        return Trimesh(vertices=np.empty((0, 3)), faces=np.empty((0, 3), dtype=np.int64), process=False)
-    return concatenate(meshes)

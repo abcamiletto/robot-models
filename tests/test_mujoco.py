@@ -9,8 +9,8 @@ import pytest
 
 from robot_models import _assets as assets
 from robot_models import add_hand
-from robot_models._base import Hand
 from robot_models._common.mjcf import MUJOCO_TO_MODEL
+from robot_models.hands._base import Hand
 
 mujoco = pytest.importorskip("mujoco")
 CASES = [(name, side) for name, cls, _ in model_cases.MODELS if issubclass(cls, Hand) for side in cls.supported_sides]
@@ -80,7 +80,7 @@ def test_multiple_hands_use_separate_namespaces():
 
 
 @pytest.mark.parametrize("name", ["barrett", "robotiq-3finger", "ezgripper"])
-def test_converted_hand_filters_self_contacts_and_keeps_object_contacts(name):
+def test_mounted_hand_filters_self_contacts_and_keeps_object_contacts(name):
     scene = mujoco.MjSpec()
     add_hand(scene, name)
     model = scene.compile()

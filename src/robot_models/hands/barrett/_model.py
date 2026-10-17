@@ -2,7 +2,7 @@
 
 from types import MappingProxyType
 
-from robot_models._base import Hand
+from robot_models.hands._base import Hand
 
 
 class BarrettHand(Hand):

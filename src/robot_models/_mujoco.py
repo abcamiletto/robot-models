@@ -6,7 +6,7 @@ from typing import Any, cast
 
 from robot_models import _assets as assets
 from robot_models import _registry as registry
-from robot_models._base import Hand, Side
+from robot_models.hands._base import Hand, Side
 
 
 def add_hand(

@@ -11,7 +11,8 @@ mesh API. Shared code stays at the package root; no robot implementation is dupl
 | `_assets.py` | Resolve a model's asset directory: explicit path, config, cache, or download. |
 | `_common/mjcf.py` | Parse an MJCF file into a skeleton, hinges, couplings, and visual/collision meshes. |
 | `_common/rigid.py` | Backend-independent kinematics and mesh posing. |
-| `_base.py` | `RigidBodyModel` and its two families, `Humanoid` and `Hand`. |
+| `_base.py` | The shared `RigidBodyModel` contract and backend state. |
+| `hands/_base.py`, `humanoids/_base.py` | Family constructors, pose parameters and presets. |
 | `hands/<name>/_model.py`, `humanoids/<name>/_model.py` | One model: its asset name and common-joint map. |
 | `<family>/<name>/numpy.py`, `torch.py`, `jax.py` | Bind the model to an array runtime. |
 
@@ -43,6 +44,19 @@ mesh interface; the original MJCF keeps their analytic definitions. Visual and
 collision meshes use the same skeleton, state materialization and posing path.
 Both families expose `collision_meshes` for local geometry and
 `forward_meshes(geometry="collision", **params)` for posed meshes.
+
+Loaded state separates skeleton/hinge data from two equivalent mesh groups,
+`visual` and `collision`. Each group packs its vertices and faces once; offset
+arrays delimit the individual pieces and attach each to a skeleton joint.
+Posing transforms those ranges, joins the arrays once and creates one `Trimesh`
+per batch element. The per-hand classes contain names and anatomical mappings;
+all hands share loading, coupling evaluation, FK and geometry assembly.
+
+Torch materializes both geometry groups as buffers; JAX registers the same data
+as a pytree. Internal Torch buffer keys now use `_assets.visual.*` and
+`_assets.collision.*`. Serialized model objects and state dictionaries written
+with the earlier flat visual layout need to be regenerated. Public model
+constructors and numerical methods retain their signatures.
 
 Canonical hand preparation retains original source files and license notices in
 the asset bundle. See [hand sources and validation](hand-sources.md).

@@ -2,8 +2,8 @@
 
 from types import MappingProxyType
 
-from robot_models._base import Humanoid
 from robot_models._constants import Joint
+from robot_models.humanoids._base import Humanoid
 
 
 class Talos(Humanoid):

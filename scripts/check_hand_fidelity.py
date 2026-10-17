@@ -115,7 +115,7 @@ def surface_reference(hand, frames: np.ndarray, points: list, geometry: str) -> 
     triangles, weights, links, expected_points = [], [], [], []
     max_error = 0.0
     meshes = hand.link_meshes if geometry == "visual" else hand.collision_meshes
-    assets = hand._assets if geometry == "visual" else hand._assets.collisions
+    assets = getattr(hand._assets, geometry)
     assert len(points) == len(meshes)
     for index, (body, local) in enumerate(points):
         mesh = meshes[index]
@@ -125,7 +125,7 @@ def surface_reference(hand, frames: np.ndarray, points: list, geometry: str) -> 
         max_error = max(max_error, float(distance.max() / 1000))
         assert distance.max() / 1000 < 2e-6, (geometry, body, distance.max() / 1000)
         weights.extend(trimesh.triangles.points_to_barycentric(probe.triangles[triangle], closest))
-        triangles.extend(np.asarray(mesh.faces)[triangle] + assets.link_vertex_starts[index])
+        triangles.extend(np.asarray(mesh.faces)[triangle] + assets.vertex_offsets[index])
         links.extend([index] * len(local))
         frame = frames[:, hand.joint_names.index(body)]
         expected_points.append((np.einsum("bij,pj->bpi", frame[:, :3, :3], local) + frame[:, None, :3, 3]) @ C.T)

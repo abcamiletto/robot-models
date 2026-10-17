@@ -5,8 +5,8 @@ import numpy as np
 import pytest
 
 from robot_models import _assets as assets
-from robot_models._base import Hand
 from robot_models._common.mjcf import MUJOCO_TO_MODEL
+from robot_models.hands._base import Hand
 
 CASES = [
     (name, kwargs)

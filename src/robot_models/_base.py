@@ -26,7 +26,6 @@ from robot_models._runtime import ArrayRuntime
 
 Array = Any
 ParameterRole = Literal["pose", "transform"]
-Side = Literal["left", "right"]
 GeometryKind = Literal["visual", "collision"]
 
 
@@ -185,7 +184,7 @@ class RigidBodyModel(ABC):
         dtype: Any | None,
     ) -> Float[Array, "..."]:
         runtime = self.runtime
-        reference = self._assets.vertices
+        reference = self._assets.visual.vertices
         if spec.rotation_type is not None:
             encoded_dims = rotation_ndim(spec.rotation_type)
             rotation_batch = spec.dims[:-encoded_dims]
@@ -208,7 +207,7 @@ class RigidBodyModel(ABC):
 
     @property
     def faces(self) -> Int[Array, "F 3"]:
-        return self._assets.faces
+        return self._assets.visual.faces
 
     @property
     def joint_names(self) -> list[str]:
@@ -233,26 +232,26 @@ class RigidBodyModel(ABC):
 
     @property
     def link_names(self) -> list[str]:
-        return list(self._assets.link_names)
+        return list(self._assets.visual.names)
 
     @property
     def link_joint_indices(self) -> list[int]:
-        return list(self._assets.link_joint_indices)
+        return list(self._assets.visual.joint_indices)
 
     @cached_property
     def link_meshes(self) -> Sequence[Trimesh]:
         """Meshes in their joint's frame, aligned with :attr:`link_names` and ``forward_links()``."""
-        return rigid_ops.link_meshes(self._assets, to_numpy=self._runtime.to_numpy)
+        return rigid_ops.link_meshes(self._assets.visual, to_numpy=self._runtime.to_numpy)
 
     @property
     def collision_names(self) -> list[str]:
         """Collision geometry names, aligned with :attr:`collision_meshes`."""
-        return list(self._assets.collisions.link_names)
+        return list(self._assets.collision.names)
 
     @property
     def collision_joint_indices(self) -> list[int]:
         """Skeleton joint index for each collision geometry."""
-        return list(self._assets.collisions.link_joint_indices)
+        return list(self._assets.collision.joint_indices)
 
     @cached_property
     def collision_meshes(self) -> Sequence[Trimesh]:
@@ -263,11 +262,11 @@ class RigidBodyModel(ABC):
         Authored mesh triangles are returned as supplied; MuJoCo uses their
         convex hulls for collision detection.
         """
-        return rigid_ops.link_meshes(self._assets.collisions, to_numpy=self._runtime.to_numpy)
+        return rigid_ops.link_meshes(self._assets.collision, to_numpy=self._runtime.to_numpy)
 
     @property
     def num_vertices(self) -> int:
-        return self._assets.vertices.shape[0]
+        return self._assets.visual.vertices.shape[0]
 
     def unpack_pose(self, pose: Float[Array, "*batch Q"]) -> dict[str, Float[Array, "*batch 1"]]:
         """Unpack a pose ``[..., Q]`` into ``name -> [..., 1]`` arrays."""
@@ -319,7 +318,7 @@ class RigidBodyModel(ABC):
     ) -> Float[Array, "*batch L 4 4"]:
         """Compute joint-frame transforms aligned with visual or collision meshes."""
         meshes = self._geometry_assets(geometry)
-        return self.forward_skeleton(**parameters)[..., meshes.link_joint_indices, :, :]
+        return self.forward_skeleton(**parameters)[..., meshes.joint_indices, :, :]
 
     def forward_meshes(self, *, geometry: GeometryKind = "visual", **parameters: Float[Array, "..."]) -> list[Trimesh]:
         """Build one posed visual or collision mesh per batch element (visual by default)."""
@@ -331,11 +330,9 @@ class RigidBodyModel(ABC):
         )
 
     def _geometry_assets(self, geometry: GeometryKind) -> rigid_ops.MeshAssets:
-        if geometry == "visual":
-            return self._assets
-        if geometry == "collision":
-            return self._assets.collisions
-        raise ValueError(f"Unknown geometry {geometry!r}; expected 'visual' or 'collision'")
+        if geometry not in ("visual", "collision"):
+            raise ValueError(f"Unknown geometry {geometry!r}; expected 'visual' or 'collision'")
+        return getattr(self._assets, geometry)
 
     def _forward_skeleton(
         self,
@@ -352,100 +349,6 @@ class RigidBodyModel(ABC):
             joint_indices=joint_indices,
             xp=self._runtime.xp,
         )
-
-
-class Humanoid(RigidBodyModel):
-    """Floating-base humanoid posed by ``body_pose``."""
-
-    _POSE = "body_pose"
-    _MIRROR = (("left", "right"),)
-    _COMMON_JOINTS: ClassVar[Mapping[Joint, str]]
-
-    def __init__(self, *, model_path: Path | str | None = None, runtime: ArrayRuntime) -> None:
-        self._config = None
-        self._load(f"{self._NAME}.xml", model_path, runtime)
-
-    @property
-    def common_joints(self) -> Mapping[Joint, str]:
-        return self._COMMON_JOINTS
-
-    def forward_skeleton(
-        self,
-        body_pose: Float[Array, "*batch Q"],
-        *,
-        global_rotation: Float[Array, "*batch 3"] | None = None,
-        global_translation: Float[Array, "*batch 3"] | None = None,
-        joint_indices: Sequence[int] | None = None,
-    ) -> Float[Array, "*batch J 4 4"]:
-        """Compute posed joint transforms."""
-        return self._forward_skeleton(body_pose, global_rotation, global_translation, joint_indices)
-
-    def get_tpose(
-        self, *, batch_dims: tuple[int, ...] = (), dtype: Any | None = None
-    ) -> dict[str, Float[Array, "..."]]:
-        """Return the T-pose."""
-        return self._preset("t_pose", batch_dims, dtype)
-
-    def get_apose(
-        self, *, batch_dims: tuple[int, ...] = (), dtype: Any | None = None
-    ) -> dict[str, Float[Array, "..."]]:
-        """Return the A-pose."""
-        return self._preset("a_pose", batch_dims, dtype)
-
-
-class Hand(RigidBodyModel):
-    """Single robot hand posed by ``hand_pose``."""
-
-    _POSE = "hand_pose"
-    has_hands = True
-    supported_sides: ClassVar[tuple[Side, ...]] = ("right", "left")
-    # Native names keyed by ``Joint`` without its side. In names, ``{side}``
-    # expands to ``left``/``right`` and ``{s}`` to ``l``/``r``.
-    _HAND_JOINTS: ClassVar[Mapping[str, str]]
-
-    def __init__(
-        self,
-        *,
-        model_path: Path | str | None = None,
-        side: Side = "right",
-        runtime: ArrayRuntime,
-    ) -> None:
-        if side not in self.supported_sides:
-            raise ValueError(f"Invalid side: {side!r}")
-        self._config = side
-        self._load(f"{side}.xml", model_path, runtime)
-
-    @property
-    def side(self) -> Side:
-        return self._config
-
-    @property
-    def common_joints(self) -> Mapping[Joint, str]:
-        side = self.side
-        return {Joint(f"{side}_{key}"): name.format(side=side, s=side[0]) for key, name in self._HAND_JOINTS.items()}
-
-    def forward_skeleton(
-        self,
-        hand_pose: Float[Array, "*batch Q"],
-        *,
-        global_rotation: Float[Array, "*batch 3"] | None = None,
-        global_translation: Float[Array, "*batch 3"] | None = None,
-        joint_indices: Sequence[int] | None = None,
-    ) -> Float[Array, "*batch J 4 4"]:
-        """Compute posed joint transforms."""
-        return self._forward_skeleton(hand_pose, global_rotation, global_translation, joint_indices)
-
-    def get_rest_pose(
-        self,
-        *,
-        batch_dims: tuple[int, ...] = (),
-        dtype: Any | None = None,
-        hands: Literal["default", "flat", "rest"] = "default",
-    ) -> dict[str, Float[Array, "..."]]:
-        """Return the zero pose (``"default"``) or the ``"flat"`` or ``"rest"`` hand preset."""
-        if hands == "default":
-            return super().get_rest_pose(batch_dims=batch_dims, dtype=dtype)
-        return self._preset(f"{self.side}_{hands}", batch_dims, dtype)
 
 
 @cache

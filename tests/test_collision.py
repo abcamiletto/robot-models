@@ -32,17 +32,16 @@ def test_collision_defaults_frames_and_explicit_pairs(tmp_path):
       <contact><pair geom1="paired" geom2="sphere"/></contact>
     </mujoco>""")
     assets = mjcf.load(path)
-    assert assets.collisions.link_names == ["capsule", "sphere", "box", "cylinder", "ellipsoid", "paired"]
+    assert assets.collision.names == ["capsule", "sphere", "box", "cylinder", "ellipsoid", "paired"]
     # A point-sized sphere independently probes the source collision surfaces.
     spec = mujoco.MjSpec.from_file(str(path))
     probe = spec.worldbody.add_body(name="probe", mocap=True)
     probe.add_geom(name="probe", type=mujoco.mjtGeom.mjGEOM_SPHERE, size=[1e-7, 0, 0])
     model = spec.compile()
     data = mujoco.MjData(model)
-    for index, name in enumerate(assets.collisions.link_names):
-        start = assets.collisions.link_vertex_starts[index]
-        count = assets.collisions.link_vertex_counts[index]
-        native = assets.collisions.vertices[start : start + count] @ mjcf.MUJOCO_TO_MODEL
+    for index, name in enumerate(assets.collision.names):
+        start, end = assets.collision.vertex_offsets[index : index + 2]
+        native = assets.collision.vertices[start:end] @ mjcf.MUJOCO_TO_MODEL
         for point in native[np.linspace(0, len(native) - 1, 12, dtype=int)]:
             data.mocap_pos[0] = point
             mujoco.mj_kinematics(model, data)

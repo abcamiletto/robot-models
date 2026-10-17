@@ -69,19 +69,22 @@ def test_rigid_body_contract(name, model_class, kwargs) -> None:
 def test_link_meshes_reconstruct_forward_mesh(name, model_class, kwargs) -> None:
     model = model_class(**kwargs)
     params = model.get_rest_pose()
-    transforms = np.asarray(model.forward_links(**params))
+    for geometry, meshes in (("visual", model.link_meshes), ("collision", model.collision_meshes)):
+        transforms = np.asarray(model.forward_links(geometry=geometry, **params))
+        vertices = []
+        faces = []
+        vertex_offset = 0
+        for mesh, transform in zip(meshes, transforms, strict=True):
+            vertices.append(np.asarray(mesh.vertices) @ transform[:3, :3].T + transform[:3, 3])
+            faces.append(np.asarray(mesh.faces) + vertex_offset)
+            vertex_offset += len(mesh.vertices)
 
-    vertices = []
-    faces = []
-    vertex_offset = 0
-    for mesh, transform in zip(model.link_meshes, transforms, strict=True):
-        vertices.append(np.asarray(mesh.vertices) @ transform[:3, :3].T + transform[:3, 3])
-        faces.append(np.asarray(mesh.faces) + vertex_offset)
-        vertex_offset += len(mesh.vertices)
-
-    expected = model.forward_meshes(**params)[0]
-    np.testing.assert_allclose(np.concatenate(vertices), expected.vertices, rtol=1e-6, atol=1e-6)
-    np.testing.assert_array_equal(np.concatenate(faces), expected.faces)
+        expected = model.forward_meshes(geometry=geometry, **params)[0]
+        np.testing.assert_allclose(np.concatenate(vertices), expected.vertices, rtol=1e-6, atol=1e-6)
+        np.testing.assert_array_equal(np.concatenate(faces), expected.faces)
+        expected.faces[0, 0] = expected.faces[0, 1]
+        untouched = model.forward_meshes(geometry=geometry, **params)[0]
+        np.testing.assert_array_equal(untouched.faces, np.concatenate(faces))
 
 
 @pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.MODELS)
@@ -118,3 +121,6 @@ def test_arbitrary_leading_dimensions(name, model_class, kwargs) -> None:
 
         assert links.shape == (*batch_shape, len(model.link_names), 4, 4)
         assert skeleton.shape == (*batch_shape, len(joint_indices), 4, 4)
+        for geometry in ("visual", "collision"):
+            meshes = model.forward_meshes(geometry=geometry, **params)
+            assert len(meshes) == int(np.prod(batch_shape))

@@ -32,7 +32,7 @@ def test_canonical_hands_match_upstream_reference(name):
         np.testing.assert_allclose(hand.forward_skeleton(poses), reference["transforms"], atol=2e-6)
         for geometry in ("visual", "collision"):
             prefix = "" if geometry == "visual" else "collision_"
-            mesh_assets = hand._assets if geometry == "visual" else hand._assets.collisions
+            mesh_assets = getattr(hand._assets, geometry)
             triangles = mesh_assets.vertices[reference[f"{prefix}point_triangles"]]
             local = np.einsum("pi,pij->pj", reference[f"{prefix}point_weights"], triangles)
             frames = hand.forward_links(geometry=geometry, hand_pose=poses)[:, reference[f"{prefix}point_links"]]

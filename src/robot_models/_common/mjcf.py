@@ -214,12 +214,18 @@ def _reachable(
     edges = sorted({lo, hi, *(root for root in roots if lo < root < hi)})
     inside = []
     for a, b in pairwise(edges):
-        middle = (a + b) / 2 if np.isfinite(a + b) else a + 1 if np.isfinite(a) else b - 1 if np.isfinite(b) else 0.0
-        if coupled[0] <= angle(middle) <= coupled[1]:
+        if coupled[0] <= angle(_middle(a, b)) <= coupled[1]:
             inside.append((a, b))
     if not inside or any(before[1] != after[0] for before, after in pairwise(inside)):
         raise ValueError(f"A coupled hinge's range {coupled} leaves no single interval of its driver's {driver}")
     return inside[0][0], inside[-1][1]
+
+
+def _middle(a: float, b: float) -> float:
+    """The middle of the interval from ``a`` to ``b``, an infinite end replaced by the other end -/+ 2."""
+    start = a if np.isfinite(a) else (b - 2 if np.isfinite(b) else -1.0)
+    end = b if np.isfinite(b) else start + 2
+    return (start + end) / 2
 
 
 def _couplings(root: ET.Element) -> dict[str, tuple[str, Float[np.ndarray, "5"]]]:

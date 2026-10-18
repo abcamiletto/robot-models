@@ -21,7 +21,7 @@ plugins:
             force_inspection: true
             show_root_heading: true
             filters: ["!^_", "!^has_hands$"]
-            show_source: true
+            show_source: false
             inherited_members: true
             members_order: source
             merge_init_into_class: true

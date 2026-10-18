@@ -1,13 +1,7 @@
 # Add a hand to MuJoCo
 
-Install the optional native MuJoCo dependency:
-
-```bash
-uv add "robot-models[mujoco]"
-```
-
-`add_hand` attaches any canonical hand to an uncompiled `mujoco.MjSpec`, using
-its usual asset download/configuration. It returns the attachment frame:
+Install `robot-models[mujoco]`. `add_hand` attaches a hand to an uncompiled
+`mujoco.MjSpec` and returns its mount frame:
 
 ```python
 import mujoco
@@ -17,17 +11,16 @@ scene = mujoco.MjSpec()
 mount = add_hand(scene, "shadow", side="right")
 mount.pos = [0, 0, 0.4]
 model = scene.compile()
-data = mujoco.MjData(model)
 ```
 
-Supported identifiers are `ability`, `allegro`, `barrett`, `brainco`, `ezgripper`,
-`inspire`, `leap`, `robotiq-3finger`, `sharpa` and `shadow`. Barrett, Robotiq and
-EZGripper supply only the `right` assembly tag; the others supply both sides.
+All ten [hands](hand-sources.md) are supported. Barrett, Robotiq and EZGripper use
+only the `right` assembly tag; the others provide both sides. Assets download
+automatically. Pass `model_path` to use a local bundle.
 
-## Mounting on an existing robot
+## Mount on a robot
 
-Pass an existing MuJoCo frame, or its name. Names are prefixed automatically with
-`{name}_{side}_`; use a distinct `prefix` when adding the same hand and side twice.
+Pass a frame or its name. Names receive the prefix `{name}_{side}_` by default;
+use a unique `prefix` for repeated copies:
 
 ```python
 scene = mujoco.MjSpec.from_file("robot.xml")
@@ -36,28 +29,20 @@ add_hand(scene, "allegro", side="left", frame=wrist, prefix="gripper_")
 model = scene.compile()
 ```
 
-The hand's root is fixed to the mount with identity local rotation, matching the
-root convention of `create_model`. The returned frame's `pos` and `quat` set its
-local placement. MuJoCo uses **Z-up and wxyz quaternions**; robot-models' FK uses
-Y-up. For a MuJoCo vector ``v``, the model-frame vector is ``M @ v``, where
-``M = [[0, 1, 0], [0, 0, 1], [1, 0, 0]]``. A model-frame translation ``t`` and
-rotation matrix ``R`` become mount position ``M.T @ t`` and rotation matrix
-``M.T @ R @ M`` (convert the latter to a MuJoCo wxyz quaternion).
-This helper does not add a floating joint. Move an existing parent body or frame
-to position the hand in the scene.
+The root is fixed to the mount with identity local rotation. Set the returned
+frame's `pos` and `quat` to place it. The helper adds no floating joint.
 
-Source-wide mass normalization (`settotalmass`) is resolved into per-body
-inertias before attachment. The parent scene can still impose its own global
-mass scaling when compiled.
+MuJoCo uses **Z-up and wxyz quaternions**; model FK uses Y-up. With
+`M = [[0, 1, 0], [0, 0, 1], [1, 0, 0]]`, convert a model-frame translation `t`
+and rotation `R` to MuJoCo with `M.T @ t` and `M.T @ R @ M`.
 
-Native attachment retains the packaged meshes, joints, actuators, equalities,
-tendons and collision definitions. The parent scene's global solver/options win;
-MuJoCo can warn when a hand's options differ. No collision shapes or motors are
-invented: Barrett and Robotiq packages provide kinematics, visual and source
-collision geometry, with application-appropriate dynamics and actuation still
-required. Their packaged inertias are placeholders inferred from visual
-mesh volume at density 1000 kg/m³, rather than the source URDF inertials.
-A compiled model alone does not establish grasping performance.
+## Physics
 
-An explicit `model_path` has the same meaning as in `create_model`. See
-[hand sources](hand-sources.md) for description provenance and licenses.
+Attachment retains native meshes, collision shapes, joints, actuators, equalities
+and tendons. The parent scene controls global solver options and can override
+mass scaling; child `settotalmass` is resolved into body inertias first.
+MuJoCo can warn about different child options.
+
+Barrett and Robotiq have placeholder inertias inferred from visual mesh volume
+at 1000 kg/m³. Their dynamics, actuation and contact settings need to be configured
+for the application. See [collision behavior](collisions.md).

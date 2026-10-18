@@ -1,20 +1,12 @@
 # GR1
 
-GR1 is the Fourier GR1T2 humanoid without dexterous hands. Its skeleton has 33 joints, one per MJCF body, and `body_pose` has 32 hinge coordinates.
+The Fourier GR1T2 has 33 skeleton joints and 32 `body_pose` coordinates,
+without dexterous hands.
 
-## Setup
-
-The assets come from Fourier `Wiki-GRx-Models`, converted from URDF to MJCF (GPL-3.0). They download on first use from the
-[`abcamiletto/robot-models`](https://huggingface.co/abcamiletto/robot-models)
-Hugging Face repository, with the upstream license and a list of changes. To prefetch them:
-
-```bash
-robot-models download gr1
-```
+Source: Fourier `Wiki-GRx-Models`, converted from URDF to MJCF (GPL-3.0).
+Assets download automatically; see [asset setup](../index.md#assets).
 
 A manual `model_path` is a directory with `gr1.xml` and its meshes.
-
-## Usage
 
 ```python
 from robot_models.humanoids.gr1.numpy import GR1
@@ -22,8 +14,6 @@ from robot_models.humanoids.gr1.numpy import GR1
 model = GR1()
 params = model.get_tpose()
 ```
-
-## Notes
 
 Data recorded with the robosuite GR1 variant (RoboCasa, DexMimicGen, GR00T) uses another joint order and slightly different offsets.
 

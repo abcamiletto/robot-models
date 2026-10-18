@@ -1,20 +1,12 @@
 # Shadow
 
-Shadow is the Shadow Dexterous Hand E3M5, from the forearm. Its skeleton has 25 joints, one per MJCF body, and `hand_pose` has 24 hinge coordinates.
+The Shadow Dexterous Hand E3M5 starts at the forearm. It has 25 skeleton
+joints and 24 independent `hand_pose` coordinates.
 
-## Setup
-
-The assets come from MuJoCo Menagerie `shadow_hand` (Apache-2.0). They download on first use from the
-[`abcamiletto/robot-models`](https://huggingface.co/abcamiletto/robot-models)
-Hugging Face repository, with the upstream license and a list of changes. To prefetch them:
-
-```bash
-robot-models download shadow
-```
+Source: MuJoCo Menagerie `shadow_hand` (Apache-2.0).
+Assets download automatically; see [asset setup](../index.md#assets).
 
 A manual `model_path` is a directory with `left.xml`, `right.xml` and their meshes.
-
-## Usage
 
 ```python
 from robot_models.hands.shadow.numpy import ShadowHand
@@ -22,8 +14,6 @@ from robot_models.hands.shadow.numpy import ShadowHand
 hand = ShadowHand(side="right")
 params = hand.get_rest_pose(hands="rest")
 ```
-
-## Notes
 
 Every hinge is independent: the J1/J2 tendon coupling of the real hand is actuation, not kinematics.
 

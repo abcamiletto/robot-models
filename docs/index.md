@@ -1,7 +1,6 @@
 # robot-models
 
-`robot-models` provides rigid articulated models with NumPy, PyTorch, and JAX
-runtimes. It is a standalone package and does not depend on `body-models`.
+`robot-models` provides robot hands and humanoids for NumPy, PyTorch and JAX.
 
 ## Install
 
@@ -25,31 +24,27 @@ robot-models set g1 /path/to/g1
 
 ## Models
 
-| Model | Scope | Setup |
-| --- | --- | --- |
-| [Ability Hand](models/ability.md) | PSYONIC Ability Hand robotic hand | auto-download |
-| [Allegro](models/allegro.md) | Wonik Robotics Allegro robotic hand | auto-download |
-| [Barrett BH280](models/barrett.md) | Barrett BH280 robotic hand | auto-download |
-| [BrainCo](models/brainco.md) | BrainCo Revo 2 robotic hand | auto-download |
-| [EZGripper](models/ezgripper.md) | SAKE EZGripper | auto-download |
-| [G1](models/g1.md) | Unitree G1 humanoid | auto-download |
-| [GR1](models/gr1.md) | Fourier GR1 humanoid | auto-download |
-| [H1](models/h1.md) | Unitree H1 humanoid | auto-download |
-| [Inspire](models/inspire.md) | Inspire RH56 robotic hand | auto-download |
-| [LEAP Hand](models/leap.md) | LEAP Hand v1 robotic hand | auto-download |
-| [Robotiq 3-Finger](models/robotiq.md) | Robotiq 3-Finger Adaptive Gripper | auto-download |
-| [Sharpa Wave](models/sharpa.md) | Sharpa Wave robotic hand | auto-download |
-| [Shadow](models/shadow.md) | Shadow Dexterous Hand E3M5 | auto-download |
-| [T1](models/t1.md) | Booster Robotics T1 humanoid | auto-download |
-| [TALOS](models/talos.md) | PAL Robotics TALOS humanoid | auto-download |
+| Model | Description |
+| --- | --- |
+| [Ability Hand](models/ability.md) | PSYONIC Ability Hand robotic hand |
+| [Allegro](models/allegro.md) | Wonik Robotics Allegro robotic hand |
+| [Barrett BH280](models/barrett.md) | Barrett BH280 robotic hand |
+| [BrainCo](models/brainco.md) | BrainCo Revo 2 robotic hand |
+| [EZGripper](models/ezgripper.md) | SAKE EZGripper |
+| [G1](models/g1.md) | Unitree G1 humanoid |
+| [GR1](models/gr1.md) | Fourier GR1 humanoid |
+| [H1](models/h1.md) | Unitree H1 humanoid |
+| [Inspire](models/inspire.md) | Inspire RH56 robotic hand |
+| [LEAP Hand](models/leap.md) | LEAP Hand v1 robotic hand |
+| [Robotiq 3-Finger](models/robotiq.md) | Robotiq 3-Finger Adaptive Gripper |
+| [Sharpa Wave](models/sharpa.md) | Sharpa Wave robotic hand |
+| [Shadow](models/shadow.md) | Shadow Dexterous Hand E3M5 |
+| [T1](models/t1.md) | Booster Robotics T1 humanoid |
+| [TALOS](models/talos.md) | PAL Robotics TALOS humanoid |
 
 ## Usage
 
-Choose NumPy, Torch or JAX through the model import, following Body Models. All models derive from
-`RigidBodyModel` and expose skeleton transforms, link transforms, link-local
-meshes, posed meshes, joint metadata, and MuJoCo `qpos` conversion.
-Model packages are grouped under `robot_models.humanoids` and `robot_models.hands`.
-Both families expose local `collision_meshes` and posed collision geometry:
+Choose the backend in the import. Hands and humanoids share the geometry API:
 
 ```python
 from robot_models.humanoids.g1.numpy import G1
@@ -60,5 +55,5 @@ links = model.forward_links(**params)
 collision = model.forward_meshes(geometry="collision", **params)
 ```
 
-Array shapes support arbitrary leading batch dimensions. Underscore-prefixed
-modules are private implementation details.
+Use `.torch` or `.jax` for other backends. Arrays support any leading batch dimensions.
+See the [API reference](api.md) for poses, transforms and joint metadata.

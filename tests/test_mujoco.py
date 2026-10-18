@@ -189,3 +189,40 @@ def test_effort_limits_account_for_gear_and_preserve_stricter_bounds(tmp_path):
     add_hand(scene, "allegro", model_path=tmp_path)
     model = scene.compile()
     np.testing.assert_allclose(model.actuator_forcerange, [[-0.35, 0.35], [-0.1, 0.2]])
+
+
+@pytest.mark.parametrize("name,side", CASES)
+def test_qpos_places_the_hand_in_any_scene_frame_by_joint_names(name, side):
+    hand = model_cases.backend_model_class(name, "numpy")(side=side)
+    scene = mujoco.MjSpec()
+    _, root = add_hand(scene, name, side=side, prefix="h1-", free=True)
+    model = scene.compile()
+    data = mujoco.MjData(model)
+    assert len(hand.qpos_joint_names) == model.nq - 7
+
+    rng = np.random.default_rng(0)
+    lo, hi = np.asarray(hand.actuated_joint_limits).T
+    pose = rng.uniform(np.maximum(lo, -1.0), np.minimum(hi, 1.0)).astype(np.float32)
+    rotation, translation = rng.normal(size=3), rng.normal(size=3)
+    scene_transform = np.eye(4)
+    scene_transform[:3, :3] = _rotation(rng)
+    scene_transform[:3, 3] = rng.normal(size=3)
+    qpos = hand.to_qpos(pose, global_rotation=rotation, global_translation=translation, scene_transform=scene_transform)
+    root_address = model.jnt_qposadr[model.body_jntadr[model.body(root.name).id]]
+    data.qpos[root_address : root_address + 7] = qpos[:7]
+    for joint, angle in zip(hand.qpos_joint_names, qpos[7:], strict=True):
+        data.qpos[model.joint("h1-" + joint).qposadr[0]] = angle
+    mujoco.mj_kinematics(model, data)
+
+    frames = hand.forward_skeleton(pose, global_rotation=rotation, global_translation=translation)
+    bodies = [model.body("h1-" + joint).id for joint in hand.joint_names]
+    rotation_to_scene, offset = scene_transform[:3, :3], scene_transform[:3, 3]
+    np.testing.assert_allclose(data.xpos[bodies], frames[:, :3, 3] @ rotation_to_scene.T + offset, atol=2e-5)
+    expected = rotation_to_scene @ frames[:, :3, :3] @ MUJOCO_TO_MODEL
+    np.testing.assert_allclose(data.xmat[bodies].reshape(-1, 3, 3), expected, atol=2e-5)
+
+
+def _rotation(rng):
+    q, r = np.linalg.qr(rng.normal(size=(3, 3)))
+    q = q * np.sign(np.diag(r))
+    return q * np.linalg.det(q)

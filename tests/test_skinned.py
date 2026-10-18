@@ -190,3 +190,14 @@ def test_shaped_models_match_across_backends_and_skin_is_differentiable(name):
 
     gradient = jax.jit(jax.grad(energy))(jax_params[jax_model._POSE])
     np.testing.assert_allclose(gradient, torch_params[jax_model._POSE].grad.numpy(), rtol=1e-3, atol=1e-5)
+
+
+@pytest.mark.parametrize("side", ("right", "left"))
+def test_mano_limits_are_enforced(side):
+    mujoco = pytest.importorskip("mujoco")
+    from robot_models import _assets
+
+    hand = create_model("mano", side=side)
+    model = mujoco.MjModel.from_xml_path(str(_assets.model_dir("mano") / f"{side}.xml"))
+    assert model.jnt_limited.all()
+    np.testing.assert_allclose(model.jnt_range, hand.actuated_joint_limits, atol=1e-6)

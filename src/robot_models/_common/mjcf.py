@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
+from itertools import pairwise
 from pathlib import Path
 
 import numpy as np
@@ -31,7 +32,9 @@ def load(xml_path: Path) -> RigidAssets:
     Curved primitives are tessellated for this mesh interface. A body's hinges
     compose in MJCF order, as in MuJoCo. A hinge
     named as ``joint1`` of an ``<equality><joint>`` follows ``joint1 = polycoef(joint2)``;
-    every other hinge is a pose coordinate, in MuJoCo ``qpos`` order.
+    every other hinge is a pose coordinate, in MuJoCo ``qpos`` order. A coordinate's limits are
+    what it can reach in MuJoCo: its enforced range, narrowed to where its coupled hinges stay
+    within theirs.
     """
     root = ET.parse(xml_path).getroot()
     compiler = root.find("compiler")
@@ -76,6 +79,8 @@ def load(xml_path: Path) -> RigidAssets:
     drivers = [actuated.index(driver) for driver, _ in resolved]
     polycoef = [coef for _, coef in resolved]
     limits = {name: limit for name, _, _, limit in hinges}
+    for name, (driver, coef) in coupling.items():
+        limits[driver] = _reachable(coef, limits[driver], limits[name])
 
     to_model = MUJOCO_TO_MODEL
     return RigidAssets(
@@ -83,6 +88,7 @@ def load(xml_path: Path) -> RigidAssets:
         parents=parents,
         local_offsets=(np.asarray(offsets) @ to_model.T).astype(np.float32),
         rest_local_rotations=(to_model @ np.asarray(rotations) @ to_model.T).astype(np.float32),
+        hinge_names=hinge_names,
         hinge_joint_indices=[joint for _, joint, _, _ in hinges],
         hinge_axes=np.asarray([to_model @ axis for _, _, axis, _ in hinges], dtype=np.float32),
         hinge_drivers=drivers,
@@ -187,12 +193,39 @@ def _bodies(worldbody: ET.Element) -> list[tuple[ET.Element, int, str]]:
 
 
 def _hinge(attrs: dict[str, str]) -> tuple[Float[np.ndarray, "3"], tuple[float, float]]:
-    """Return a hinge's unit axis and range."""
+    """Return a hinge's unit axis and enforced range."""
     if attrs.get("type", "hinge") != "hinge" or np.any(_vec(attrs.get("pos"), 3)):
         raise ValueError(f"Joint {attrs['name']!r} must be a hinge through its body origin")
     axis = _vec(attrs.get("axis", "0 0 1"), 3)
-    lo, hi = (float(value) for value in attrs.get("range", "-inf inf").split())
-    return axis / np.linalg.norm(axis), (lo, hi)
+    enforced = "range" in attrs and attrs.get("limited") != "false"
+    lo, hi = _vec(attrs["range"], 2) if enforced else (-np.inf, np.inf)
+    return axis / np.linalg.norm(axis), (float(lo), float(hi))
+
+
+def _reachable(
+    coef: Float[np.ndarray, "5"], driver: tuple[float, float], coupled: tuple[float, float]
+) -> tuple[float, float]:
+    """The part of a driver's range where its coupled hinge, at angle ``coef(driver)``, stays within ``coupled``."""
+    lo, hi = driver
+    if lo >= hi or not np.isfinite(coupled).any():
+        return driver
+    angle = Polynomial(coef)
+    roots = [root.real for bound in coupled if np.isfinite(bound) for root in (angle - bound).roots() if not root.imag]
+    edges = sorted({lo, hi, *(root for root in roots if lo < root < hi)})
+    inside = []
+    for a, b in pairwise(edges):
+        if coupled[0] <= angle(_middle(a, b)) <= coupled[1]:
+            inside.append((a, b))
+    if not inside or any(before[1] != after[0] for before, after in pairwise(inside)):
+        raise ValueError(f"A coupled hinge's range {coupled} leaves no single interval of its driver's {driver}")
+    return inside[0][0], inside[-1][1]
+
+
+def _middle(a: float, b: float) -> float:
+    """The middle of the interval from ``a`` to ``b``, an infinite end replaced by the other end -/+ 2."""
+    start = a if np.isfinite(a) else (b - 2 if np.isfinite(b) else -1.0)
+    end = b if np.isfinite(b) else start + 2
+    return (start + end) / 2
 
 
 def _couplings(root: ET.Element) -> dict[str, tuple[str, Float[np.ndarray, "5"]]]:

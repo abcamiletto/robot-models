@@ -15,9 +15,22 @@ from jaxtyping import Float
 # Reflection of a left hand into the right one (and back): MANO's left model mirrors the right across x.
 MIRROR = np.diag([-1.0, 1.0, 1.0])
 
-# Anatomical joint limits after manotorch (AnatomyConstraintLossEE.setup), degrees: bend, spread, twist.
-_FINGER = {1: ((0, 90), (-5, 5), (0, 0)), 2: ((0, 90), (0, 0), (0, 0)), 3: ((0, 90), (0, 0), (0, 0))}
-_THUMB = {1: ((0, 45), (-15, 45), (-45, 45)), 2: ((0, 90), (-10, 10), (0, 0)), 3: ((0, 90), (0, 0), (0, 0))}
+# MANO's joint limits, degrees, (low, high) of bend, spread and twist per joint of a finger and of the thumb.
+# Enforced in MuJoCo: human maximal ranges widened generously, beyond any real hand; 99.9% of 237k synthesized
+# MANO grasps (six methods) lie within, the others bend a joint where no hand can (a finger folded back flat).
+_LIMITS = {
+    "finger": (
+        ((-90, 150), (-60, 60), (-60, 60)),
+        ((-60, 150), (-45, 45), (-60, 60)),
+        ((-75, 135), (-45, 45), (-60, 60)),
+    ),
+    "thumb": (
+        ((-75, 150), (-60, 90), (-75, 120)),
+        ((-90, 105), (-75, 60), (-90, 60)),
+        ((-75, 135), (-60, 90), (-60, 90)),
+    ),
+}
+_ROLES = ("bend", "spread", "twist")
 
 
 @dataclass(frozen=True)
@@ -25,7 +38,7 @@ class Source:
     """How one skinned robot is built from a Body Models model.
 
     ``hinges`` gives, for the mean-shape rest joints of a variant, each joint's three hinge
-    axes in rotation order (rows) and their names and ranges; ranges are recorded, not enforced.
+    axes in rotation order (rows) and their names and enforced ranges (none: unlimited).
     """
 
     body_model: str
@@ -75,9 +88,8 @@ def _mano_hinges(variant: str, joints: np.ndarray, parents: list[int], names: li
         axes = np.stack([bend, spread, twist]) / np.linalg.norm([bend, spread, twist], axis=1, keepdims=True)
         if variant == "left":
             axes = -axes @ MIRROR
-        finger, index = name[:-1], int(name[-1])
-        limits = (_THUMB if finger == "thumb" else _FINGER)[index]
-        out.append((axes, [f"{name}_{role}" for role in ("bend", "spread", "twist")], np.radians(limits)))
+        limits = _LIMITS["thumb" if name.startswith("thumb") else "finger"][int(name[-1]) - 1]
+        out.append((axes, [f"{name}_{role}" for role in _ROLES], np.radians(limits)))
     return out
 
 

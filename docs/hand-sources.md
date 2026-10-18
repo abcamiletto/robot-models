@@ -49,16 +49,13 @@ tendon dynamics. Rest transforms, axes/signs, limits, geometry and declared URDF
 mimics follow the recorded source. This validates the software description, rather
 than certifying physical calibration or simulation dynamics.
 
-## Rebuild and validate the new canonical bundles
+## Asset preparation and validation
 
-Clone the three repositories above into `UPSTREAMS/barrett`, `UPSTREAMS/robotiq`
-and `UPSTREAMS/ezgripper-sim`, and check out their pinned revisions.
-
-```bash
-uv run --group asset-preparation python -m scripts.prepare_hand_assets UPSTREAMS results/canonical-hands
-uv run --group asset-preparation python -m scripts.check_hand_fidelity \
-  results/canonical-hands results/canonical-reference
-```
+Use the published bundles through `robot-models download`; no local conversion
+is needed. Each bundle retains its original sources, licenses and preparation
+metadata. The preparation and independent validation tools used for publication
+are preserved in the repository's
+[publication history](https://github.com/abcamiletto/robot-models/tree/27fdab1/scripts).
 
 Barrett and Robotiq use the upstream standalone xacros expanded by `xacro`; their
 original files remain unchanged. Robotiq's old checked-in generated URDF points

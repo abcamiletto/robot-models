@@ -113,7 +113,7 @@ robot-models download shadow --output-dir /path/to/shadow
 Outdated configured/explicit directories are rejected and left intact.
 An outdated managed cache needs a network connection for its first refresh.
 
-## Validation and rebuilding
+## Validation
 
 The shared model tests compare collision pieces with MuJoCo at articulated poses,
 including source primitive dimensions, mesh support surfaces and joint frames.
@@ -121,21 +121,12 @@ An independent MuJoCo distance-query test covers inherited defaults, explicit
 contact pairs and alternative primitive orientations. Backend consistency tests
 exercise visual and collision meshes at nonzero poses across NumPy/Torch/JAX.
 
-The original-source fixture generator also validates Barrett, Robotiq and
+The original-source fixture generator validated Barrett, Robotiq and
 EZGripper collision surfaces at every fixed reference pose. Maximum surface
-conversion error is below 3e-9 m. Rebuild these bundles with the commands in
+conversion error is below 3e-9 m. The fixtures remain in the regression tests;
+source revisions and publication history are recorded in
 [hand sources](hand-sources.md).
 
-For Shadow, use the pinned Menagerie checkout and the original
-[canonical archive](https://huggingface.co/abcamiletto/robot-models/resolve/2fd448dce9a30b38cf4f106086bd7e2f13781f03/shadow/assets.zip):
-
-```bash
-uv run --group asset-preparation python -m scripts.prepare_shadow_assets \
-  UPSTREAMS/menagerie ORIGINAL_SHADOW_ZIP results/shadow-collisions
-uv run --group asset-preparation python -m scripts.check_shadow_fidelity \
-  UPSTREAMS/menagerie results/shadow-collisions/assets results/shadow-check.json
-```
-
-The latter imports untouched upstream MJCF files separately from the runtime
-bundle and compares both sides at five poses. Body-transform error is zero;
+Shadow was checked against untouched upstream MJCF files separately from the
+runtime bundle, comparing both sides at five poses. Body-transform error is zero;
 original visual and collision mesh support surfaces agree within 8e-9 m.

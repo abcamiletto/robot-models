@@ -38,13 +38,6 @@ requires = ["uv_build>=0.11.11,<0.12.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
-asset-preparation = [
-    "mujoco>=3.3.7",
-    "pycollada>=0.9",
-    "rtree>=1.2",
-    "scipy>=1.10",
-    "xacro>=2.1",
-]
 dev = [
     "pytest>=9.0.2",
     "mujoco>=3.3.7",
@@ -75,8 +68,6 @@ exclude = [
     "tests/",
     "scripts/visualize.py",
     "scripts/render_teaser.py",  # Blender runs in the script's isolated Python 3.13 environment.
-    "scripts/check_shadow_fidelity.py",  # Independent reference uses untyped native MuJoCo bindings.
-    "scripts/check_hand_fidelity.py",  # Independent reference uses untyped native MuJoCo bindings.
 ]
 
 [tool.ruff]

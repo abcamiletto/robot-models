@@ -20,17 +20,6 @@ Assets download on first use, or with:
 robot-models download sharpa
 ```
 
-To reproduce the hosted assets locally:
-
-```bash
-git clone https://github.com/sharpa-robotics/sharpa-urdf-usd-xml /tmp/sharpa-upstream
-git -C /tmp/sharpa-upstream checkout 0d19cac602f46456b819e4b6a2c09a74982c9a3e
-uv run python scripts/prepare_sharpa_assets.py /tmp/sharpa-upstream /tmp/sharpa-hub
-mkdir -p /tmp/sharpa-model
-unzip /tmp/sharpa-hub/assets.zip -d /tmp/sharpa-model
-robot-models set sharpa /tmp/sharpa-model
-```
-
 A manual `model_path` points to the extracted directory containing `left.xml`,
 `right.xml`, and the two mesh folders. The archive and `LICENSE.md` preserve upstream licensing and record the path changes.
 

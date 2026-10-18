@@ -70,9 +70,13 @@ spread completes the frame. The three intrinsic Euler angles reach every MANO po
 exactly. The left hand's axes are the right's mirrored, so an angle means the same
 motion on either side; positive bend flexes.
 
-Joint ranges are manotorch's anatomical limits, recorded for `close`, presets and
-validation but not enforced in MuJoCo: MANO data often leaves them. Fingers' twist,
-and the PIP and DIP spread, have empty ranges.
+`actuated_joint_limits` are enforced, as for every hand, by the MJCF too: human maximal
+ranges widened generously, beyond any real hand. 99.9% of 237k synthesized MANO grasps
+from six methods lie within; the others bend a joint where no hand can, such as a finger
+folded back flat. `anatomical_limits` are manotorch's natural ranges, narrower and
+partly empty (a finger's twist, the PIP and DIP spread): a pose outside them is possible
+but unnatural, so measure against them how far a grasp lies from a natural hand. `close`
+keeps within the enforced limits; the presets are natural poses, within both.
 
 ## Geometry
 
@@ -95,7 +99,7 @@ weights over the link's four nearest vertices, as grasp-bench does. Links have
 spread hinge (the thumb's base: also twist), from fingertip strength times each
 joint's lever; the hinges no muscle turns are unbounded, as the joint's passive
 structure holds them. Presets: `flat` and `open` are the flat hand, `rest` a
-relaxed curl, `closed` every bend at its upper limit.
+relaxed curl, `closed` every bend at its upper anatomical limit.
 
 ```python
 import mujoco

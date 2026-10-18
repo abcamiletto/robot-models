@@ -26,7 +26,7 @@ import trimesh
 from robot_models._common.mjcf import MUJOCO_TO_MODEL
 from robot_models._skinned._sources import MIRROR, SOURCES, Source
 
-ASSET_VERSION = 3
+ASSET_VERSION = 4
 NEAREST = 4  # rest link vertices each piece vertex follows
 STIFFNESS = 10.0  # N·m/rad of the packaged position actuators
 DAMPING = 0.003  # N·m·s/rad per hinge
@@ -283,7 +283,7 @@ def _mjcf(source, variant, own, order, offsets, hinges, links, cuts, pieces) -> 
     root = ET.Element("mujoco", model=f"{source.body_model}_{variant}")
     ET.SubElement(root, "compiler", angle="radian", inertiafromgeom="false", autolimits="true")
     default = ET.SubElement(root, "default")
-    ET.SubElement(default, "joint", damping=_fmt(DAMPING), armature=_fmt(ARMATURE), limited="false")
+    ET.SubElement(default, "joint", damping=_fmt(DAMPING), armature=_fmt(ARMATURE))
     visual = ET.SubElement(default, "default", {"class": "visual"})
     ET.SubElement(visual, "geom", type="mesh", contype="0", conaffinity="0", group="2", rgba="0.8 0.65 0.55 1")
     collision = ET.SubElement(default, "default", {"class": "collision"})

@@ -42,6 +42,7 @@ class RigidAssets:
     parents: list[int]
     local_offsets: Float[Array, "J 3"]
     rest_local_rotations: Float[Array, "J 3 3"]
+    hinge_names: list[str]
     hinge_joint_indices: list[int]
     hinge_axes: Float[Array, "H 3"]
     hinge_drivers: list[int]

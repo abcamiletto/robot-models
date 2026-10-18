@@ -1,4 +1,4 @@
-"""Shape a skinned robot's MuJoCo model specification."""
+"""Give a skinned robot's MuJoCo model specification the geometry of its constructor arguments."""
 
 from pathlib import Path
 from typing import Any
@@ -15,8 +15,8 @@ def apply_geometry(spec: Any, name: str, xml_path: Path, shape: Any, conform_to:
     The joint offsets, link and piece meshes are that model's, and each link's mass, center and
     inertia follow from its mesh at the robot's tissue density.
     """
-    shaped = geometry(name, xml_path, shape, conform_to)
-    rigid, density = shaped.assets, shaped.density
+    built = geometry(name, xml_path, shape, conform_to)
+    rigid, density = built.assets, built.density
 
     def mujoco_frame(vectors):
         return vectors @ MUJOCO_TO_MODEL  # rows of model (Y-up) vectors to MuJoCo (Z-up)

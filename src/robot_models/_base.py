@@ -242,6 +242,11 @@ class RigidBodyModel(ABC):
         return list(self._assets.actuated_joint_names)
 
     @property
+    def qpos_joint_names(self) -> list[str]:
+        """MJCF joint names of the hinge angles of :meth:`to_qpos`, in order, coupled hinges included."""
+        return list(self._assets.hinge_names)
+
+    @property
     def actuated_joint_limits(self) -> Float[Array, "Q 2"]:
         return self._assets.actuated_joint_limits
 
@@ -306,12 +311,16 @@ class RigidBodyModel(ABC):
         *,
         global_rotation: Float[Array, "*batch 3"] | None = None,
         global_translation: Float[Array, "*batch 3"] | None = None,
+        scene_transform: Float[Array, "*batch 4 4"] | None = None,
         clamp_to_limits: bool = False,
     ) -> Float[Array, "*batch qpos"]:
         """Build MuJoCo ``qpos`` as ``[root_xyz, root_wxyz, hinge_angles]``.
 
-        The root prefix is the free joint of the MJCF root body, converted to MuJoCo's
-        Z-up frame. Hinge angles include coupled hinges, in MJCF order.
+        The root prefix is the free joint of the MJCF root body in the scene's world.
+        ``scene_transform`` is the rigid transform from the frame of ``global_rotation`` and
+        ``global_translation`` to the scene's world; by default, the model frame turned to
+        MuJoCo's Z-up axes (``M.T``, no offset). Hinge angles follow, coupled hinges included,
+        in MJCF order: those of :attr:`qpos_joint_names`.
         """
         if pose.shape[-1] != self.num_dofs:
             raise ValueError(f"pose must have shape [..., {self.num_dofs}], got {tuple(pose.shape)}")
@@ -328,8 +337,11 @@ class RigidBodyModel(ABC):
             pose = xp.clip(pose, limits[:, 0], limits[:, 1])
 
         to_model = xp.asarray(mjcf.MUJOCO_TO_MODEL, dtype=pose.dtype)
-        root_t = xp.squeeze(to_model.mT @ global_translation[..., None], axis=-1)
-        root_quat = SO3.conversions.from_rotmat_to_quat(to_model.mT @ root_rot @ to_model, convention="wxyz", xp=xp)
+        to_scene, offset = to_model.mT, zeros_as(pose, shape=(3,), xp=xp)
+        if scene_transform is not None:
+            to_scene, offset = scene_transform[..., :3, :3], scene_transform[..., :3, 3]
+        root_t = xp.squeeze(to_scene @ global_translation[..., None], axis=-1) + offset
+        root_quat = SO3.conversions.from_rotmat_to_quat(to_scene @ root_rot @ to_model, convention="wxyz", xp=xp)
         angles = rigid_ops.hinge_angles(self._assets, pose, xp=xp)
         return xp.concat([root_t, root_quat, angles], axis=-1)
 

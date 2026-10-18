@@ -17,11 +17,10 @@ skin = body.forward_vertices(**params)  # SMPL's skin, exactly; faces in body.sk
 
 SMPL is built like [MANO](mano.md): locally, from your own files as Body Models
 configures them (`body-models set smpl-neutral PATH`, likewise `male` and `female`),
-in about two minutes, never downloaded or redistributed. The shape and `conform_to` fixed at
-construction, the conversion
-from and to Body Models parameters (its `pelvis_rotation` folds into
-`global_rotation`), the rigid links of the rest skin and their convex pieces
-(about 960) follow the same principle. Links have 1000 kg/m³ density; the root has
+in about two minutes, never downloaded or redistributed. The shape and `conform_to`
+fixed at construction, the conversion from and to Body Models parameters (its
+`pelvis_rotation` folds into `global_rotation`), the rigid links of the skin and their
+convex pieces (about 960) follow the same principle. Links have 1000 kg/m³ density; the root has
 a free joint; the MJCF has no actuators.
 
 ## API

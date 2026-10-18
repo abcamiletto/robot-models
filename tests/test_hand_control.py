@@ -46,7 +46,10 @@ def test_closing_semantics_match_native_finger_motion(name, side):
     np.testing.assert_allclose(hand.effort_limits, expected_effort)
     opened = hand.get_rest_pose(hands="open")["hand_pose"]
     closed = hand.get_rest_pose(hands="closed")["hand_pose"]
-    np.testing.assert_allclose(hand.close(opened, 1000), closed)
+    fully_closed = hand.close(opened, 1000)
+    if name == "mano":  # its presets are natural: closed flexes to the anatomical limits, close to the enforced ones
+        fully_closed = np.clip(fully_closed, *np.asarray(hand.anatomical_limits).T)
+    np.testing.assert_allclose(fully_closed, closed)
     np.testing.assert_array_equal(hand.close(opened, 0), opened)
 
     model = mujoco.MjModel.from_xml_path(str(assets.model_dir(name) / f"{side}.xml"))
@@ -86,9 +89,8 @@ def test_closing_semantics_match_native_finger_motion(name, side):
         if dof.finger not in FINGERS:
             continue
         pose = opened.copy()
-        pose[index] += 0.02 if pose[index] + 0.02 <= upper[index] or lower[index] == upper[index] else -0.02
-        if lower[index] < upper[index]:  # MANO records anatomical ranges, some empty, that MuJoCo leaves free
-            pose = np.clip(pose, lower, upper)
+        pose[index] += 0.02 if pose[index] + 0.02 <= upper[index] else -0.02
+        pose = np.clip(pose, lower, upper)
         moved = tips(pose)
         displacement = np.linalg.norm(moved - initial, axis=1)
         finger_index = FINGERS.index(dof.finger)

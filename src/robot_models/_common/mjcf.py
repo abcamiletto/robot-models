@@ -83,6 +83,7 @@ def load(xml_path: Path) -> RigidAssets:
         parents=parents,
         local_offsets=(np.asarray(offsets) @ to_model.T).astype(np.float32),
         rest_local_rotations=(to_model @ np.asarray(rotations) @ to_model.T).astype(np.float32),
+        hinge_names=hinge_names,
         hinge_joint_indices=[joint for _, joint, _, _ in hinges],
         hinge_axes=np.asarray([to_model @ axis for _, _, axis, _ in hinges], dtype=np.float32),
         hinge_drivers=drivers,

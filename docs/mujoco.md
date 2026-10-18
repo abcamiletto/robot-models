@@ -41,6 +41,23 @@ MuJoCo uses **Z-up and wxyz quaternions**; model FK uses Y-up. With
 `M = [[0, 1, 0], [0, 0, 1], [1, 0, 0]]`, convert a model-frame translation `t`
 and rotation `R` to MuJoCo with `M.T @ t` and `M.T @ R @ M`.
 
+`to_qpos` returns a free hand's qpos block: its root, then every hinge. Its root is in
+MuJoCo's world turned from the model frame by default; pass `scene_transform`, the
+4×4 rigid transform `(A, b)` from the frame of `global_rotation` and
+`global_translation` to the scene's world, to place it anywhere: the root goes to
+`A @ t + b`, oriented `A @ R @ M`. `qpos_joint_names` names the hinges in order,
+coupled ones included, so that each one's address is found by name:
+
+```python
+mount, root = add_hand(scene, "mano", prefix="h1-", free=True)
+model = scene.compile()
+qpos = hand.to_qpos(pose, global_rotation=r, global_translation=t, scene_transform=object_to_world)
+start = model.jnt_qposadr[model.body_jntadr[model.body(root.name).id]]
+data.qpos[start : start + 7] = qpos[:7]
+for name, angle in zip(hand.qpos_joint_names, qpos[7:]):
+    data.qpos[model.joint("h1-" + name).qposadr[0]] = angle
+```
+
 ## Physics
 
 Attachment retains native meshes, collision shapes, joints, actuators, equalities

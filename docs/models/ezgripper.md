@@ -8,8 +8,8 @@ Native tendons, contacts and the actuator are retained. FK does not solve tendon
 from robot_models.hands.ezgripper.numpy import EZGripper
 
 hand = EZGripper()
-params = hand.get_rest_pose(hands="rest")
-meshes = hand.forward_meshes(**params)
+params = hand.get_rest_pose(preset="rest")
+meshes = hand.visual.pose(hand.forward_skeleton(**params))
 ```
 
 Assets download automatically. See [sources and licenses](../hand-sources.md).

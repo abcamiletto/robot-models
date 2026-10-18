@@ -1,7 +1,3 @@
-"""Jax AllegroHand."""
+from robot_models._registry import model_class
 
-from robot_models._backend import model_for_backend
-
-AllegroHand = model_for_backend("allegro", "jax", module=__name__)
-
-__all__ = ["AllegroHand"]
+AllegroHand = model_class("allegro", "jax")

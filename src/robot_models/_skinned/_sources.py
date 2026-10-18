@@ -6,6 +6,7 @@ import functools
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from importlib import import_module
+from math import inf
 from pathlib import Path
 from typing import Any, Literal
 
@@ -15,22 +16,29 @@ from jaxtyping import Float
 # Reflection of a left hand into the right one (and back): MANO's left model mirrors the right across x.
 MIRROR = np.diag([-1.0, 1.0, 1.0])
 
-# MANO's joint limits, degrees, (low, high) of bend, spread and twist per joint of a finger and of the thumb.
-# Enforced in MuJoCo: human maximal ranges widened generously, beyond any real hand; 99.9% of 237k synthesized
-# MANO grasps (six methods) lie within, the others bend a joint where no hand can (a finger folded back flat).
-_LIMITS = {
-    "finger": (
-        ((-90, 150), (-60, 60), (-60, 60)),
-        ((-60, 150), (-45, 45), (-60, 60)),
-        ((-75, 135), (-45, 45), (-60, 60)),
-    ),
-    "thumb": (
-        ((-75, 150), (-60, 90), (-75, 120)),
-        ((-90, 105), (-75, 60), (-90, 60)),
-        ((-75, 135), (-60, 90), (-60, 90)),
-    ),
+# MANO's hinges, per joint: its bend, spread and twist hinges' peak torque (N·m) and enforced limits (degrees).
+# Torques are nominal maximal voluntary torques: fingertip strength (40-50 N for the index) times each joint's lever,
+# weaker for the ring and pinky; hinges no muscle turns are unbounded, held by the joint's passive structure. Limits
+# are human maximal ranges widened generously, beyond any real hand: 99.9% of 237k synthesized MANO grasps (six
+# methods) lie within, the others bend a joint where no hand can (a finger folded back flat).
+MANO_HINGES: dict[str, tuple[tuple[float, float, float], ...]] = {
+    "index1": ((3.0, -90, 150), (0.8, -60, 60), (inf, -60, 60)),
+    "index2": ((1.5, -60, 150), (inf, -45, 45), (inf, -60, 60)),
+    "index3": ((0.7, -75, 135), (inf, -45, 45), (inf, -60, 60)),
+    "middle1": ((3.0, -90, 150), (0.8, -60, 60), (inf, -60, 60)),
+    "middle2": ((1.5, -60, 150), (inf, -45, 45), (inf, -60, 60)),
+    "middle3": ((0.7, -75, 135), (inf, -45, 45), (inf, -60, 60)),
+    "pinky1": ((1.5, -90, 150), (0.5, -60, 60), (inf, -60, 60)),
+    "pinky2": ((0.8, -60, 150), (inf, -45, 45), (inf, -60, 60)),
+    "pinky3": ((0.4, -75, 135), (inf, -45, 45), (inf, -60, 60)),
+    "ring1": ((2.0, -90, 150), (0.6, -60, 60), (inf, -60, 60)),
+    "ring2": ((1.0, -60, 150), (inf, -45, 45), (inf, -60, 60)),
+    "ring3": ((0.5, -75, 135), (inf, -45, 45), (inf, -60, 60)),
+    "thumb1": ((3.0, -75, 150), (2.0, -60, 90), (1.0, -75, 120)),
+    "thumb2": ((2.0, -90, 105), (inf, -75, 60), (inf, -90, 60)),
+    "thumb3": ((1.0, -75, 135), (inf, -60, 90), (inf, -60, 90)),
 }
-_ROLES = ("bend", "spread", "twist")
+MANO_ROLES = (("bend", "flexion"), ("spread", "abduction"), ("twist", "rotation"))
 
 
 @dataclass(frozen=True)
@@ -44,9 +52,7 @@ class Source:
     body_model: str
     pose: str  # Body Models' pose parameter of the joints below the root
     root_rotation: str  # Body Models' rotation of the root joint about itself
-    variant_key: str  # Body Models' argument choosing a variant
-    variants: tuple[str, ...]
-    base: str
+    variant_key: str  # Body Models' argument choosing a variant: its model's first variant is the build's base
     density: float
     concavity: Callable[[str], float]
     hinges: Callable[[str, Float[np.ndarray, "J 3"], list[int], list[str]], list[tuple[np.ndarray, list[str], Any]]]
@@ -88,8 +94,8 @@ def _mano_hinges(variant: str, joints: np.ndarray, parents: list[int], names: li
         axes = np.stack([bend, spread, twist]) / np.linalg.norm([bend, spread, twist], axis=1, keepdims=True)
         if variant == "left":
             axes = -axes @ MIRROR
-        limits = _LIMITS["thumb" if name.startswith("thumb") else "finger"][int(name[-1]) - 1]
-        out.append((axes, [f"{name}_{role}" for role in _ROLES], np.radians(limits)))
+        limits = np.radians([(low, high) for _, low, high in MANO_HINGES[name]])
+        out.append((axes, [f"{name}_{role}" for role, _ in MANO_ROLES], limits))
     return out
 
 
@@ -104,8 +110,6 @@ SOURCES: dict[str, Source] = {
         pose="hand_pose",
         root_rotation="wrist_rotation",
         variant_key="side",
-        variants=("right", "left"),
-        base="right",
         density=1100.0,  # soft tissue and bone
         concavity=lambda link: 0.04 if link in ("wrist", "thumb1") else 0.06,
         hinges=_mano_hinges,
@@ -118,8 +122,6 @@ SOURCES: dict[str, Source] = {
         pose="body_pose",
         root_rotation="pelvis_rotation",
         variant_key="gender",
-        variants=("neutral", "male", "female"),
-        base="neutral",
         density=1000.0,
         concavity=lambda link: 0.05,
         hinges=_smpl_hinges,
@@ -129,17 +131,7 @@ SOURCES: dict[str, Source] = {
 }
 
 
-def source_of(name: str) -> Source:
-    """The Body Models source of a locally built model."""
-    from robot_models import _catalog as catalog
-
-    body_model = catalog.model_spec(name).body_model
-    if body_model is None:
-        raise ValueError(f"{name!r} is not built from Body Models")
-    return SOURCES[body_model]
-
-
 @functools.cache
-def numpy_model(name: str, variant: str) -> Any:
-    """The NumPy Body Models model of a locally built model's variant, shared."""
-    return source_of(name).create(variant)
+def numpy_model(source: Source, variant: str) -> Any:
+    """The NumPy Body Models model of a source's variant, shared."""
+    return source.create(variant)

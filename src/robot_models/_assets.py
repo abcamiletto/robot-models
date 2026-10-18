@@ -22,7 +22,7 @@ def model_dir(name: str, model_path: Path | str | None = None) -> Path:
     Models built from Body Models files are built into that directory instead of downloaded.
     """
     model_path = model_path if model_path is not None else config.get_model_path(name)
-    if MODEL_SPECS[name].body_model is not None:
+    if MODEL_SPECS[name].source is not None:
         return build(name, Path(model_path).resolve() if model_path is not None else None)
     required_version = MODEL_SPECS[name].asset_version
     if model_path is not None:
@@ -41,7 +41,7 @@ def model_dir(name: str, model_path: Path | str | None = None) -> Path:
 
 def download(name: str, output_dir: Path | None = None) -> Path:
     """Download and extract one model's ``assets.zip`` from Hugging Face, or build it locally."""
-    if MODEL_SPECS[name].body_model is not None:
+    if MODEL_SPECS[name].source is not None:
         return build(name, output_dir)
     output_dir = output_dir if output_dir is not None else get_cache_dir() / name
     print(f"Downloading {name} model to {output_dir}...")
@@ -87,15 +87,23 @@ def extract_archive(archive_path: Path, dest: Path, *, minimum_version: int = 1)
                 f"Downloaded asset archive needs version {minimum_version}; the existing assets are intact"
             )
 
-        previous = temporary_dir / "previous"
-        if dest.exists():
-            dest.rename(previous)
-        try:
-            contents.rename(dest)
-        except OSError:
-            if previous.exists():
-                previous.rename(dest)
-            raise
+        swap(contents, dest)
+
+
+def swap(staging: Path, destination: Path) -> None:
+    """Move a complete directory to ``destination``, putting back what was there if the move fails.
+
+    ``staging`` is inside a temporary directory, which receives the replaced one.
+    """
+    previous = staging.parent / "previous"
+    if destination.exists():
+        destination.rename(previous)
+    try:
+        staging.rename(destination)
+    except OSError:
+        if previous.exists():
+            previous.rename(destination)
+        raise
 
 
 def _asset_version(directory: Path) -> int:
@@ -110,4 +118,4 @@ def _validate_paths(names: Iterable[str]) -> None:
             raise RuntimeError(f"Unsafe path in archive: {name}")
 
 
-__all__ = ["HF_MODEL_REPO_ID", "build", "download", "extract_archive", "get_cache_dir", "model_dir"]
+__all__ = ["HF_MODEL_REPO_ID", "build", "download", "extract_archive", "get_cache_dir", "model_dir", "swap"]

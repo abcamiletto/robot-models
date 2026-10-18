@@ -2,6 +2,7 @@
 
 from types import MappingProxyType
 
+from robot_models._skinned._sources import SOURCES
 from robot_models._spec import ModelSpec
 
 MODELS = {
@@ -90,7 +91,8 @@ MODELS = {
                 },
             }
         ),
-        body_model="smpl",
+        variants=("neutral", "male", "female"),
+        source=SOURCES["smpl"],
     ),
     "t1": ModelSpec(
         class_name="T1",

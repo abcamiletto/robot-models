@@ -1,23 +1,54 @@
-"""Lazy model construction from the public catalog."""
+"""Model classes and construction from the public catalog."""
 
 from __future__ import annotations
 
+import functools
 from fnmatch import fnmatchcase
-from importlib import import_module
 from typing import Any
 
 from robot_models import _catalog as catalog
 from robot_models._base import RigidBodyModel
-from robot_models._runtime import RuntimeName
+from robot_models._runtime import JaxRuntime, NumpyRuntime, RuntimeName, TorchRuntime
+from robot_models._skinned._model import SkinnedHand, SkinnedHumanoid
 from robot_models._spec import Family
+from robot_models.hands._base import Hand
+from robot_models.humanoids._base import Humanoid
+
+_RUNTIMES = {"numpy": NumpyRuntime, "torch": TorchRuntime, "jax": JaxRuntime}
+_FAMILIES = {("hands", False): Hand, ("hands", True): SkinnedHand}
+_FAMILIES |= {("humanoids", False): Humanoid, ("humanoids", True): SkinnedHumanoid}
 
 
-def create_model(
-    model_name: str,
-    *,
-    runtime: RuntimeName = "numpy",
-    **kwargs: Any,
-) -> RigidBodyModel:
+def model_class(model_name: str, runtime: RuntimeName) -> type[RigidBodyModel]:
+    """The class of a catalog model on a runtime: the one ``create_model`` builds and its import path names.
+
+    For example ``model_class("shadow", "torch")`` is ``robot_models.hands.shadow.torch.ShadowHand``.
+    """
+    return _model_class(catalog.normalize_name(model_name), runtime)
+
+
+@functools.cache
+def _model_class(name: str, runtime: RuntimeName) -> type[RigidBodyModel]:
+    spec = catalog.model_spec(name)
+    if runtime not in _RUNTIMES:
+        raise ValueError(f"Unknown runtime {runtime!r}. Expected numpy, torch, or jax.")
+    family = _FAMILIES[spec.family, spec.source is not None]
+    bases: tuple[type, ...] = (family,)
+    if runtime == "torch":
+        from torch import nn
+
+        bases = (family, nn.Module)
+    namespace = {
+        "__module__": f"{catalog.package(name)}.{runtime}",
+        "__qualname__": spec.class_name,
+        "__doc__": f"{spec.class_name} on {runtime} arrays.\n\n{family.__doc__}",
+        "_name": name,
+        "_runtime": _RUNTIMES[runtime](),
+    }
+    return type(spec.class_name, bases, namespace)
+
+
+def create_model(model_name: str, *, runtime: RuntimeName = "numpy", **kwargs: Any) -> RigidBodyModel:
     """
     Create a model from its public catalog name.
 
@@ -25,24 +56,15 @@ def create_model(
         model_name: Name returned by :func:`list_models`. Names are
             case-insensitive, and underscores are treated as hyphens.
         runtime: Array backend name.
-        **kwargs: Model-specific constructor options.
+        **kwargs: The model's constructor arguments, such as ``side``.
 
     Returns:
         The requested articulated model.
 
     Raises:
-        ValueError: If ``model_name`` is unknown.
+        ValueError: If ``model_name`` or ``runtime`` is unknown.
     """
-    return _model_class(model_name, runtime)(**kwargs)
-
-
-def _model_class(model_name: str, runtime: RuntimeName) -> type[RigidBodyModel]:
-    """Resolve the shared catalog entry without loading its assets."""
-    if runtime not in ("numpy", "torch", "jax"):
-        raise ValueError(f"Unknown runtime {runtime!r}. Expected numpy, torch, or jax.")
-    spec = catalog.model_spec(model_name)
-    module = import_module(f"{catalog.model_module(model_name)}.{runtime}")
-    return getattr(module, spec.class_name)
+    return model_class(model_name, runtime)(**kwargs)
 
 
 def list_models(*, family: Family | None = None, pattern: str | None = None) -> list[str]:
@@ -65,4 +87,4 @@ def list_models(*, family: Family | None = None, pattern: str | None = None) -> 
     return [name for name in names if fnmatchcase(name, pattern)]
 
 
-__all__ = ["create_model", "list_models"]
+__all__ = ["create_model", "list_models", "model_class"]

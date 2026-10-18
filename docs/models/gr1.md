@@ -12,7 +12,7 @@ A manual `model_path` is a directory with `gr1.xml` and its meshes.
 from robot_models.humanoids.gr1.numpy import GR1
 
 model = GR1()
-params = model.get_tpose()
+params = model.get_rest_pose(preset="t_pose")
 ```
 
 Data recorded with the robosuite GR1 variant (RoboCasa, DexMimicGen, GR00T) uses another joint order and slightly different offsets.

@@ -1,7 +1,3 @@
-"""Numpy ShadowHand."""
+from robot_models._registry import model_class
 
-from robot_models._backend import model_for_backend
-
-ShadowHand = model_for_backend("shadow", "numpy", module=__name__)
-
-__all__ = ["ShadowHand"]
+ShadowHand = model_class("shadow", "numpy")

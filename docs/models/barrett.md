@@ -8,8 +8,8 @@ URDF mimic rules. The supplied assembly uses the side tag `right`.
 from robot_models.hands.barrett.numpy import BarrettHand
 
 hand = BarrettHand()
-params = hand.get_rest_pose(hands="rest")
-meshes = hand.forward_meshes(**params)
+params = hand.get_rest_pose(preset="rest")
+meshes = hand.visual.pose(hand.forward_skeleton(**params))
 ```
 
 Assets download automatically. See [sources and licenses](../hand-sources.md).

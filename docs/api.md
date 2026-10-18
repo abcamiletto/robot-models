@@ -25,20 +25,20 @@ and `list_models(family="humanoids")` list models; `create_model` is the generic
 
 ## Model contract
 
-Both families provide local `collision_meshes` and posed
-`forward_meshes(geometry="collision", **params)`; see [geometry](collisions.md).
-
-`forward_skeleton(..., joint_indices=...)` evaluates only the requested joint
-chains. `symmetric_joints` gives left/right index pairs across the full skeleton;
+A model loads one MJCF file, `xml_path`, which MuJoCo reads as it is. Its bodies are the MJCF
+bodies (`body_names`, the frames of `forward_skeleton`), its pose coordinates the independent
+hinges (`dof_names`, `dof_limits`), and `hinge_names` every hinge, coupled ones included (the
+angles of `to_qpos`). `visual` and `collision` are
+[mesh sets](collisions.md). A humanoid's `symmetric_bodies` gives left/right body index pairs;
 swapping these indices alone does not reflect rotations or mirror a pose.
 
 ::: robot_models.RigidBodyModel
 
+::: robot_models.MeshSet
+
 ## Metadata
 
 ::: robot_models.Dof
-
-::: robot_models.ParameterSpec
 
 ::: robot_models.Joint
 

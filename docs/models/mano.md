@@ -10,10 +10,10 @@ per finger joint, about its anatomical bend, spread and twist axes.
 from robot_models.hands.mano.numpy import ManoRobot
 
 hand = ManoRobot(side="right", shape=betas)  # Body Models' 10 coefficients; the mean by default
-params = hand.get_rest_pose(hands="rest")
+params = hand.get_rest_pose(preset="rest")
 skeleton = hand.forward_skeleton(**params)
-links = hand.forward_meshes(**params)  # rigid links
-pieces = hand.forward_meshes(geometry="collision", **params)
+links = hand.visual.pose(skeleton)  # rigid links
+pieces = hand.collision.pose(skeleton)
 skin = hand.forward_vertices(**params)  # MANO's skin, exactly; faces in hand.skin_faces
 ```
 
@@ -33,11 +33,18 @@ publish the built directory: it is derived from the MANO files.
 A `ManoRobot` is one hand, fixed when it is built: its links and collision pieces are
 MANO's skin at `shape` (the mean by default), posed by `conform_to` (this model's
 `hand_pose`, flat by default) and cut per joint in its joint frames. The joint offsets
-are those of `shape`; `hand.shape` returns it. `add_hand` takes the same arguments.
+are those of `shape`; `hand.shape` returns it. `add_hand` mounts that geometry.
 
 ```python
 hand = ManoRobot(side="right", shape=betas, conform_to=grasp_pose)
-add_hand(scene, "mano", side="right", shape=betas, conform_to=grasp_pose, free=True)
+add_hand(scene, hand, free=True)
+```
+
+`ManoRobot.conformed_to` builds the hand of one grasp given as Body Models parameters,
+its shape and its pose, and returns that grasp as the model's parameters:
+
+```python
+hand, params = ManoRobot.conformed_to(side="right", **mano_params)
 ```
 
 Posed at `conform_to`, the links are the skin and the pieces follow it; elsewhere they
@@ -70,7 +77,7 @@ spread completes the frame. The three intrinsic Euler angles reach every MANO po
 exactly. The left hand's axes are the right's mirrored, so an angle means the same
 motion on either side; positive bend flexes.
 
-`actuated_joint_limits` are what MuJoCo enforces, as for every hand: human maximal ranges
+`dof_limits` are what MuJoCo enforces, as for every hand: human maximal ranges
 widened generously, beyond any real hand. 99.9% of 237k synthesized MANO grasps from six
 methods lie within; the others bend a joint where no hand can, such as a finger folded
 back flat.
@@ -78,8 +85,8 @@ back flat.
 ## Geometry
 
 Each skin face goes to the joint that skins its corners most, and each link is closed
-by a fan over its openings. `forward_meshes()` poses the rigid links, as for every
-robot, and `link_meshes` holds them. `forward_vertices()` poses the exact skin through
+by a fan over its openings. `visual` poses the rigid links, as for every
+robot, through `visual.pose(frames)`, and `visual.meshes` holds them. `forward_vertices()` poses the exact skin through
 Body Models at any pose, as Body Models' own `forward_vertices` does (differentiable,
 with `vertex_indices`); its faces are `skin_faces`.
 
@@ -91,7 +98,7 @@ weights over the link's four nearest vertices, as grasp-bench does. Links have
 
 ## Control
 
-`dofs` mark bend as closing flexion, spread as abduction and twist as rotation.
+`dofs` mark bend as flexion, which `closing` closes, spread as abduction and twist as rotation.
 `effort_limits` are nominal human maximal voluntary torques of each bend and
 spread hinge (the thumb's base: also twist), from fingertip strength times each
 joint's lever; the hinges no muscle turns are unbounded, as the joint's passive
@@ -102,9 +109,10 @@ base 45°): natural poses, well within the limits.
 ```python
 import mujoco
 from robot_models import add_hand
+from robot_models.hands.mano.numpy import ManoRobot
 
 scene = mujoco.MjSpec()
-mount, root = add_hand(scene, "mano", side="left", free=True, shape=betas)  # as ManoRobot(side="left", shape=betas)
+mount, root = add_hand(scene, ManoRobot(side="left", shape=betas), free=True)
 ```
 
 The packaged MJCF has a position actuator per hinge (kp 10 N·m/rad), and excludes

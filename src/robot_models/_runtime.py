@@ -12,9 +12,8 @@ from dataclasses import dataclass
 from typing import Any, ClassVar, Literal, TypeAlias
 
 import numpy as np
-from jaxtyping import Float, Num
+from jaxtyping import Num
 
-from robot_models import _common as common
 from robot_models import _state as state
 
 Array = Any
@@ -43,23 +42,9 @@ class ArrayRuntime(ABC):
             dtype = like.dtype
         return self.xp.asarray(value, dtype=dtype)
 
-    def zeros(
-        self,
-        shape: tuple[int, ...],
-        *,
-        like: Float[Array, "..."],
-        dtype: Any | None = None,
-    ) -> Float[Array, "..."]:
-        """Create zeros with the backend and device of ``like``."""
-        return common.zeros_as(like, shape=shape, dtype=dtype, xp=self.xp)
-
     @abstractmethod
     def _materialize(self, value: Any) -> Any:
         """Convert loaded model data into backend-managed state."""
-
-    @abstractmethod
-    def stop_gradient(self, value: Num[Array, "..."]) -> Num[Array, "..."]:
-        """Return ``value`` without gradient propagation."""
 
     @abstractmethod
     def to_numpy(self, value: Num[Array, "..."]) -> Num[np.ndarray, "..."]:
@@ -78,9 +63,6 @@ class NumpyRuntime(ArrayRuntime):
 
     def _materialize(self, value: Any) -> Any:
         return state.numpy_state(value)
-
-    def stop_gradient(self, value: Num[Array, "..."]) -> Num[Array, "..."]:
-        return value
 
     def to_numpy(self, value: Num[Array, "..."]) -> Num[np.ndarray, "..."]:
         return np.asarray(value)
@@ -111,9 +93,6 @@ class TorchRuntime(ArrayRuntime):
 
     def _materialize(self, value: Any) -> Any:
         return state.torch_state(value)
-
-    def stop_gradient(self, value: Num[Array, "..."]) -> Num[Array, "..."]:
-        return value.detach()
 
     def to_numpy(self, value: Num[Array, "..."]) -> Num[np.ndarray, "..."]:
         return value.detach().cpu().numpy()
@@ -148,11 +127,6 @@ class JaxRuntime(ArrayRuntime):
 
     def _materialize(self, value: Any) -> Any:
         return state.jax_state(value)
-
-    def stop_gradient(self, value: Num[Array, "..."]) -> Num[Array, "..."]:
-        import jax
-
-        return jax.lax.stop_gradient(value)
 
     def to_numpy(self, value: Num[Array, "..."]) -> Num[np.ndarray, "..."]:
         import jax

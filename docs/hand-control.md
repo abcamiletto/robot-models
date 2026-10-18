@@ -1,23 +1,23 @@
 # Hand control
 
-All hands expose `dofs` and `effort_limits` in `actuated_joint_names` order:
+All hands expose `dofs`, `effort_limits` and `closing` in `dof_names` order:
 
 ```python
 from robot_models.hands.shadow.numpy import ShadowHand
 
 hand = ShadowHand(side="left")
-for name, dof, torque in zip(hand.actuated_joint_names, hand.dofs, hand.effort_limits):
-    print(name, dof.finger, dof.role, dof.closing, torque)
+for name, dof, torque, closing in zip(hand.dof_names, hand.dofs, hand.effort_limits, hand.closing):
+    print(name, dof.finger, dof.role, torque, closing)
 
-params = hand.get_rest_pose(hands="open", batch_dims=(2,))
+params = hand.get_rest_pose(preset="open", batch_dims=(2,))
 params["hand_pose"] = hand.close(params["hand_pose"], 0.1)
 ```
 
 `Dof.finger` identifies a finger, palm or wrist. `role` is `flexion`, `abduction`
-or `rotation` (including thumb opposition). `closing` is the coordinate sign for
-closing, or zero. Wrist motion has zero closing. `close` adds radians to closing
-flexion coordinates and clamps them to their limits; other coordinates stay
-unchanged. A scalar angle applies to all poses; an array has the pose's batch
+or `rotation` (including thumb opposition). `closing` is 1 for the coordinates that
+close the hand, a finger's or the palm's flexion, and 0 for the others, the wrist's
+included. `close` adds radians along `closing` and clamps them to `dof_limits`; other
+coordinates stay unchanged. A scalar angle applies to all poses; an array has the pose's batch
 shape. Negative angles open. NumPy, Torch and JAX use the same interface.
 
 The `open` preset starts from the flat posture; Robotiq's distal joints use

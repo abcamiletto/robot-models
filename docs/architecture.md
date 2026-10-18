@@ -8,7 +8,8 @@ The import selects NumPy, Torch or JAX.
 | `hands/_models.py`, `humanoids/_models.py` | Names, anatomical mappings, sides, symmetry rules and asset versions |
 | `_spec.py`, `_catalog.py` | Definition schema and model catalog |
 | `hands/_base.py`, `humanoids/_base.py` | Family constructors, poses and presets |
-| `<family>/<model>/{numpy,torch,jax}.py` | Public classes, bound by `_backend.py` |
+| `_registry.py` | `create_model` and the class factory `model_class(name, runtime)` |
+| `<family>/<model>/{numpy,torch,jax}.py` | Public classes: `model_class` of the model and runtime |
 | `_base.py` | Shared model API and identity |
 | `_assets.py` | Asset paths and Hugging Face downloads |
 | `_common/mjcf.py` | MJCF parsing |
@@ -21,7 +22,7 @@ before FK. Outputs use a Y-up frame with the root at the origin.
 
 Visual and collision groups store packed vertices, faces and link indices.
 Posing creates one independent `Trimesh` per batch element; local mesh properties
-return copies. Torch stores arrays as module buffers. JAX uses pytrees with the
+return copies. Each model class is built once per runtime by `model_class`. Torch stores arrays as module buffers. JAX uses pytrees with the
 model name and side as static metadata. Arrays stay in their backend until mesh
 output converts them to host NumPy arrays.
 
@@ -32,7 +33,7 @@ output converts them to host NumPy arrays.
    meshes, original descriptions and licenses.
 2. Add a `ModelSpec` to the family's `_models.py` and presets in
    `<family>/<model>/assets/poses.npz`: `t_pose`/`a_pose` or `{side}_flat`/`{side}_rest`.
-3. Add three backend modules using `model_for_backend(name, backend, module=__name__)`.
+3. Add three backend modules, each one line: `ShadowHand = model_class("shadow", "torch")`.
 4. Document the model and check its FK, joints and geometry against the source.
 
 Keep loading, couplings and FK in the shared implementation. See

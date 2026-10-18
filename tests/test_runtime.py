@@ -6,45 +6,17 @@ import model_cases
 import numpy as np
 import pytest
 
-from robot_models._runtime import JaxRuntime, NumpyRuntime, TorchRuntime
-
-
-@pytest.mark.fast
-def test_runtime_array_creation_follows_reference_dtype() -> None:
-    reference = np.zeros((), dtype=np.float64)
-    assert NumpyRuntime().asarray([1.0], like=reference).dtype == np.float64
-    assert NumpyRuntime().zeros((2, 3), like=reference).dtype == np.float64
-
-    torch = pytest.importorskip("torch")
-    reference = torch.zeros((), dtype=torch.float64)
-    assert TorchRuntime().asarray([1.0], like=reference).dtype == torch.float64
-    assert TorchRuntime().zeros((2, 3), like=reference).dtype == torch.float64
-
-
-@pytest.mark.fast
-def test_runtime_stop_gradient() -> None:
-    numpy_value = np.ones(2, dtype=np.float32)
-    assert NumpyRuntime().stop_gradient(numpy_value) is numpy_value
-
-    torch = pytest.importorskip("torch")
-    assert not TorchRuntime().stop_gradient(torch.ones(2, requires_grad=True)).requires_grad
-
-    jax = pytest.importorskip("jax")
-    gradient = jax.grad(lambda value: JaxRuntime().stop_gradient(value).sum())(jax.numpy.ones(2))
-    np.testing.assert_array_equal(gradient, np.zeros(2, dtype=np.float32))
+from robot_models import create_model
 
 
 def test_torch_model_manages_module_state() -> None:
     torch = pytest.importorskip("torch")
-    from robot_models import create_model
-
     model = create_model("g1", runtime="torch").double()
     for geometry in ("visual", "collision"):
-        attribute = "link_meshes" if geometry == "visual" else "collision_meshes"
-        meshes = getattr(model, attribute)
+        meshes = getattr(model, geometry).meshes
         original = meshes[0].vertices[0].copy()
         meshes[0].vertices[0] += 1
-        np.testing.assert_array_equal(getattr(model, attribute)[0].vertices[0], original)
+        np.testing.assert_array_equal(getattr(model, geometry).meshes[0].vertices[0], original)
 
     params = model.get_rest_pose(dtype=torch.float64)
     expected = model.forward_skeleton(**params)
@@ -58,10 +30,10 @@ def test_torch_model_manages_module_state() -> None:
     torch.testing.assert_close(restored.forward_skeleton(**params), expected)
 
 
-@pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.RUNTIME_MODELS)
-def test_jax_model_pytree_round_trip(name, model_class, kwargs) -> None:
+@pytest.mark.parametrize(("name", "kwargs"), model_cases.RUNTIME_CASES)
+def test_jax_model_pytree_round_trip(name, kwargs) -> None:
     jax = pytest.importorskip("jax")
-    model = model_cases.backend_model_class(name, "jax")(**kwargs)
+    model = create_model(name, runtime="jax", **kwargs)
 
     leaves, tree = jax.tree_util.tree_flatten(model)
     restored = jax.tree_util.tree_unflatten(tree, leaves)
@@ -69,7 +41,7 @@ def test_jax_model_pytree_round_trip(name, model_class, kwargs) -> None:
     assert type(restored) is type(model)
     assert restored.runtime == model.runtime
     assert restored.name == name
-    assert restored.joint_names == model.joint_names
+    assert restored.body_names == model.body_names
     if hasattr(model, "side"):
         assert restored.side == model.side
     params = model.get_rest_pose()

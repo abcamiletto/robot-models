@@ -102,19 +102,20 @@ def render_lineup(group, names, args) -> None:
 
 def display_mesh(name, group):
     model = robot_models.create_model(name)
-    if model.has_hands != (group == "hands"):
+    hand = "hand_pose" in model.parameter_spec
+    if hand != (group == "hands"):
         raise ValueError(f"{name} does not belong in the {group} lineup")
-    params = model.get_rest_pose(hands="flat") if model.has_hands else model.get_tpose()
-    if not model.has_hands:
-        return model.forward_meshes(**params)[0]
+    params = model.get_rest_pose(preset="flat" if hand else "t_pose")
+    frames = model.forward_skeleton(**params)
+    if not hand:
+        return model.visual.pose(frames)[0]
     # Show the hand rather than the long forearm of the Shadow model.
-    links = model.forward_links(**params)
     parts = []
-    for local, frame, joint in zip(model.link_meshes, links, model.link_joint_indices, strict=True):
-        if model.joint_names[joint].lower().endswith("forearm"):
+    for local, body in zip(model.visual.meshes, model.visual.body_indices, strict=True):
+        if model.body_names[body].lower().endswith("forearm"):
             continue
         part = local.copy()
-        part.apply_transform(frame)
+        part.apply_transform(frames[body])
         parts.append(part)
     mesh = trimesh.util.concatenate(parts)
     mesh.vertices = np.asarray(mesh.vertices) @ palm_basis(name, model, params)
@@ -131,7 +132,7 @@ def palm_basis(name, model, params):
         tip = joints.get(Joint(f"{side}_index_pip")) or joints[Joint(f"{side}_index_dip")]
         outer = joints.get(Joint(f"{side}_pinky_mcp")) or joints[Joint(f"{side}_ring_mcp")]
         frames = model.forward_skeleton(**params)
-        positions = {joint: frame[:3, 3] for joint, frame in zip(model.joint_names, frames, strict=True)}
+        positions = {body: frame[:3, 3] for body, frame in zip(model.body_names, frames, strict=True)}
         across = positions[base] - positions[outer]
         up = positions[tip] - positions[base]
     up = up / np.linalg.norm(up)

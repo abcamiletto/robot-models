@@ -12,7 +12,7 @@ A manual `model_path` is a directory with `left.xml`, `right.xml` and their mesh
 from robot_models.hands.shadow.numpy import ShadowHand
 
 hand = ShadowHand(side="right")
-params = hand.get_rest_pose(hands="rest")
+params = hand.get_rest_pose(preset="rest")
 ```
 
 Every hinge is independent: the J1/J2 tendon coupling of the real hand is actuation, not kinematics.

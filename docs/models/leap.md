@@ -11,7 +11,7 @@ A manual `model_path` is a directory with `left.xml`, `right.xml` and their mesh
 from robot_models.hands.leap.numpy import LeapHand
 
 hand = LeapHand(side="right")
-params = hand.get_rest_pose(hands="rest")
+params = hand.get_rest_pose(preset="rest")
 ```
 
 The hand has four fingers and no coupled joints.

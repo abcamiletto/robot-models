@@ -1,27 +1,28 @@
-"""Shared model list for cross-model tests."""
+"""Models, constructor arguments and conventions shared by cross-model tests."""
 
-from robot_models._catalog import MODEL_SPECS
-from robot_models._registry import _model_class
+import numpy as np
 
+from robot_models import list_models
+from robot_models._catalog import MODEL_SPECS  # only to enumerate each model's sides or genders
 
-def backend_model_class(name: str, backend: str):
-    return _model_class(name, backend)
-
-
-MODELS = [(name, backend_model_class(name, "numpy"), {}) for name in MODEL_SPECS]
+# MuJoCo's Z-up axes expressed in the Y-up model frame.
+M = np.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]])
 
 # Shared runtime behavior: a coupled hand, an independent hand and a humanoid.
-RUNTIME_MODELS = [
-    (name, backend_model_class(name, "numpy"), kwargs)
-    for name, kwargs in (("barrett", {}), ("shadow", {"side": "left"}), ("g1", {}))
-]
+RUNTIME_CASES = [("barrett", {}), ("shadow", {"side": "left"}), ("g1", {})]
 
 
-def xml_path(name: str, kwargs: dict):
-    """The MJCF file a model of these constructor arguments loads."""
-    from robot_models import _assets as assets
-    from robot_models._skinned._sources import SOURCES
-
+def variants(name: str) -> list[dict]:
+    """The constructor arguments of each MJCF file a model offers."""
     spec = MODEL_SPECS[name]
-    default = name if spec.body_model is None else SOURCES[spec.body_model].variants[0]
-    return assets.model_dir(name) / f"{kwargs.get('side') or kwargs.get('gender') or default}.xml"
+    key = "side" if spec.family == "hands" else "gender"
+    return [{key: variant} for variant in spec.variants] or [{}]
+
+
+CASES = [(name, kwargs) for name in list_models() for kwargs in variants(name)]
+HAND_CASES = [(name, kwargs["side"]) for name, kwargs in CASES if name in list_models(family="hands")]
+
+
+def pose_name(model) -> str:
+    """The pose parameter: a hand's ``hand_pose`` or a humanoid's ``body_pose``."""
+    return "hand_pose" if "hand_pose" in model.parameter_spec else "body_pose"

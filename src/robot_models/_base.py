@@ -3,96 +3,88 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from collections.abc import Mapping
+from dataclasses import dataclass
 from functools import cache, partial
 from importlib.resources import files
 from pathlib import Path
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar, cast
 
 import numpy as np
-from jaxtyping import Float, Int
+from jaxtyping import Float
 from nanomanifold import SO3
-from trimesh import Trimesh
 
 from robot_models import _assets as assets
 from robot_models import _catalog as catalog
 from robot_models import _state as state
-from robot_models._common import eye_as, mjcf, zeros_as
+from robot_models._common import mjcf, zeros_as
 from robot_models._common import rigid as rigid_ops
+from robot_models._common.rigid import MeshSet
 from robot_models._constants import Joint
-from robot_models._rotations import RotationType, rotation_dims, rotation_ndim
 from robot_models._runtime import ArrayRuntime
-from robot_models._spec import Side
 
 Array = Any
-ParameterRole = Literal["pose", "transform"]
-GeometryKind = Literal["visual", "collision"]
-
-
-@dataclass(frozen=True)
-class ParameterSpec:
-    """Array dims, role, and numeric default of one model parameter."""
-
-    dims: tuple[int, ...]
-    role: ParameterRole
-    default: float = field(default=0.0, kw_only=True)
-    rotation_type: RotationType | None = field(default=None, kw_only=True)
-
-    @classmethod
-    def rotation(
-        cls,
-        rotation_type: RotationType,
-        *,
-        count: int | None = None,
-        role: ParameterRole = "pose",
-    ) -> ParameterSpec:
-        """Describe one rotation or a vector of rotations."""
-        leading_dims = () if count is None else (count,)
-        return cls(
-            dims=(*leading_dims, *rotation_dims(rotation_type)),
-            role=role,
-            rotation_type=rotation_type,
-        )
 
 
 @dataclass(frozen=True)
 class ModelConfig:
-    """Static identity preserved when a model is serialized or passed through JAX."""
+    """Static identity preserved when a model is serialized or passed through JAX.
+
+    ``variant`` is the MJCF file the model loads (a hand's side, SMPL's gender), ``directory``
+    holds it; ``shape`` and ``conform_to`` fix a skinned robot's geometry.
+    """
 
     name: str
-    side: Side | None = None
-    variant: str | None = None
-    shape: tuple[float, ...] | None = None  # Body Models shape coefficients, fixed at construction
-    conform_to: tuple[float, ...] | None = None  # the pose a skinned robot's links are cut at
+    variant: str | None
+    directory: Path
+    shape: tuple[float, ...] | None = None
+    conform_to: tuple[float, ...] | None = None
+
+    @property
+    def xml_path(self) -> Path:
+        return self.directory / f"{self.variant or self.name}.xml"
 
 
 class RigidBodyModel(ABC):
     """Rigid articulated model loaded from one MJCF file.
 
-    Skeleton joints are the MJCF bodies and pose coordinates are its independent
-    hinges, both in MuJoCo order. Outputs are Y-up and in meters.
+    Its bodies are the MJCF bodies and its pose coordinates, the dofs, the independent hinges, both
+    in MuJoCo order. Outputs are Y-up and in meters. Each catalog model's class is built for one
+    runtime by the class factory, which sets ``_name`` and ``_runtime``.
     """
 
+    _name: ClassVar[str]
+    _runtime: ArrayRuntime
     _POSE: ClassVar[str]
     _state_fields: ClassVar[tuple[str, ...]] = ("_assets",)
-    has_hands: ClassVar[bool] = False
     _config: ModelConfig
-    _runtime: ArrayRuntime
     _assets: rigid_ops.RigidAssets
 
-    @abstractmethod
-    def __init__(self, **kwargs: Any) -> None:
-        """Construct a canonical robot from its description."""
+    def _setup(self, variant: str | None, model_path: Path | str | None, shape: Any, conform_to: Any) -> None:
+        if self._runtime.name == "torch":
+            from torch import nn
 
-    def _load(self, xml_name: str, model_path: Path | str | None, runtime: ArrayRuntime) -> None:
-        self._set_assets(mjcf.load(assets.model_dir(self.name, model_path) / xml_name), runtime)
-
-    def _set_assets(self, rigid: rigid_ops.RigidAssets, runtime: ArrayRuntime) -> None:
-        self._runtime = runtime
-        if runtime.name == "jax":
+            nn.Module.__init__(cast(Any, self))  # the class factory's torch classes are modules
+        if self._runtime.name == "jax":
             _register_jax_model(type(self))
-        self._assets = runtime._materialize(rigid)
+        variants = catalog.model_spec(self._name).variants
+        if variant not in (variants or (None,)):
+            raise ValueError(f"{self._name!r} offers {variants}, not {variant!r}")
+        directory = assets.model_dir(self._name, model_path)
+        self._config = ModelConfig(self._name, variant, directory, _static(shape), _static(conform_to))
+        self._load()
+
+    def _load(self) -> None:
+        if self._config.shape is not None or self._config.conform_to is not None:
+            raise ValueError(f"{self.name} has no Body Models shape or conformed geometry")
+        self._assets = self._runtime._materialize(mjcf.load(self._config.xml_path))
+
+    def __setstate__(self, values: dict[str, Any]) -> None:
+        self.__dict__.update(values)
+        if self._runtime.name == "jax":
+            _register_jax_model(type(self))
+            for name in self._state_fields:
+                state.register_jax_state(getattr(self, name))
 
     @property
     def runtime(self) -> ArrayRuntime:
@@ -104,288 +96,145 @@ class RigidBodyModel(ABC):
         """Canonical model identifier."""
         return self._config.name
 
-    def __setstate__(self, values: dict[str, Any]) -> None:
-        self.__dict__.update(values)
-        if self.runtime.name != "jax":
-            return
-        _register_jax_model(type(self))
-        state.register_jax_state(tuple(getattr(self, name) for name in self._state_fields))
+    @property
+    def xml_path(self) -> Path:
+        """The MJCF file this model loads, for ``mujoco.MjModel.from_xml_path``; :func:`add_hand` mounts a hand's."""
+        return self._config.xml_path
 
     @property
     @abstractmethod
     def common_joints(self) -> Mapping[Joint, str]:
-        """Common anatomical joints mapped to this model's native joint names."""
+        """Common anatomical joints mapped to this model's body names."""
 
-    @abstractmethod
-    def forward_skeleton(self, *args, **kwargs) -> Float[Array, "*batch J 4 4"]:
-        """Compute world-space joint transforms with shape ``[*batch, J, 4, 4]``."""
-
-    @property
-    def parameter_spec(self) -> dict[str, ParameterSpec]:
-        """Machine-readable parameters accepted by this model."""
-        return {
-            self._POSE: ParameterSpec((self.num_dofs,), "pose"),
-            "global_rotation": ParameterSpec.rotation("axis_angle", role="transform"),
-            "global_translation": ParameterSpec((3,), "transform"),
-        }
-
-    @property
-    def num_joints(self) -> int:
-        """Number of joints in the skeleton."""
-        return len(self.parents)
-
-    @property
-    def num_dofs(self) -> int:
-        """Number of scalar pose degrees of freedom."""
-        return len(self.actuated_joint_names)
-
-    @property
-    def symmetric_joints(self) -> tuple[tuple[int, int], ...]:
-        """
-        Left/right joint pairs as ``(left_index, right_index)``, in joint order.
-
-        Indices address the ``J`` axis of :meth:`forward_skeleton` outputs and
-        cover the whole native skeleton. Unpaired joints lie on the midline.
-
-        Raises:
-            ValueError: If a sided joint name has no counterpart.
-        """
-        names = self.joint_names
-        fragments = catalog.model_spec(self.name).mirror
-        pairs = []
-        for index, name in enumerate(names):
-            mirrored = name
-            for left, right in fragments:
-                mirrored = mirrored.replace(left, right)
-            if mirrored != name:
-                if mirrored not in names:
-                    raise ValueError(f"{type(self).__name__} joint {name!r} has no counterpart {mirrored!r}")
-                pairs.append((index, names.index(mirrored)))
-        return tuple(pairs)
-
-    @property
-    def pose_joint_indices(self) -> Mapping[str, tuple[int, ...]]:
-        """Skeleton joints whose local transforms are driven by each pose parameter."""
-        driven = sorted(zip(self._assets.hinge_drivers, self._assets.hinge_joint_indices, strict=True))
-        return {self._POSE: tuple(dict.fromkeys(joint for _, joint in driven))}
-
-    def joint_index(self, joint: Joint) -> int:
-        """Resolve a common joint to this model's native joint index."""
-        if not isinstance(joint, Joint):
-            raise TypeError("joint_index() expects a robot_models.Joint; use joint_names.index(...) for native names.")
+    def body_index(self, joint: Joint) -> int:
+        """The index in :attr:`body_names` of a common anatomical joint's body."""
         try:
-            native_name = self.common_joints[joint]
+            return self.body_names.index(self.common_joints[joint])
         except KeyError as exc:
             raise KeyError(f"{type(self).__name__} has no common joint {joint.value!r}") from exc
-        return self.joint_names.index(native_name)
-
-    def get_rest_pose(
-        self,
-        *,
-        batch_dims: tuple[int, ...] = (),
-        dtype: Any | None = None,
-    ) -> dict[str, Float[Array, "..."]]:
-        """
-        Construct canonical parameter defaults from :attr:`parameter_spec`.
-
-        Args:
-            batch_dims: Leading batch dimensions.
-            dtype: Optional floating-point dtype.
-
-        Returns:
-            Complete model parameters at rest.
-        """
-        return {name: self._parameter_default(spec, batch_dims, dtype) for name, spec in self.parameter_spec.items()}
-
-    def _parameter_default(
-        self,
-        spec: ParameterSpec,
-        batch_dims: tuple[int, ...],
-        dtype: Any | None,
-    ) -> Float[Array, "..."]:
-        runtime = self.runtime
-        reference = self._assets.visual.vertices
-        if spec.rotation_type is not None:
-            encoded_dims = rotation_ndim(spec.rotation_type)
-            rotation_batch = spec.dims[:-encoded_dims]
-            like = runtime.zeros(batch_dims, like=reference, dtype=dtype)
-            return SO3.identity_as(
-                like,
-                batch_dims=(*batch_dims, *rotation_batch),
-                rotation_type=spec.rotation_type,
-                xp=runtime.xp,
-            )
-
-        value = runtime.zeros((*batch_dims, *spec.dims), like=reference, dtype=dtype)
-        return value if spec.default == 0.0 else value + spec.default
-
-    def _preset(self, name: str, batch_dims: tuple[int, ...], dtype: Any | None) -> dict[str, Float[Array, "..."]]:
-        params = RigidBodyModel.get_rest_pose(self, batch_dims=batch_dims, dtype=dtype)
-        pose = self._runtime.asarray(_presets(self.name)[name], like=params[self._POSE])
-        params[self._POSE] = self._runtime.xp.broadcast_to(pose, (*batch_dims, self.num_dofs))
-        return params
 
     @property
-    def faces(self) -> Int[Array, "F 3"]:
-        return self._assets.visual.faces
-
-    @property
-    def joint_names(self) -> list[str]:
-        return list(self._assets.joint_names)
+    def body_names(self) -> list[str]:
+        """MJCF bodies, in MuJoCo order: the frames of :meth:`forward_skeleton`."""
+        return list(self._assets.body_names)
 
     @property
     def parents(self) -> list[int]:
+        """Each body's parent in :attr:`body_names`, -1 for the root."""
         return list(self._assets.parents)
 
     @property
-    def actuated_joint_names(self) -> list[str]:
-        return list(self._assets.actuated_joint_names)
+    def num_bodies(self) -> int:
+        return len(self._assets.body_names)
 
     @property
-    def qpos_joint_names(self) -> list[str]:
-        """MJCF joint names of the hinge angles of :meth:`to_qpos`, in order, coupled hinges included."""
+    def dof_names(self) -> list[str]:
+        """The independent hinges, in MuJoCo order: the pose coordinates."""
+        return list(self._assets.dof_names)
+
+    @property
+    def num_dofs(self) -> int:
+        return len(self._assets.dof_names)
+
+    @property
+    def dof_limits(self) -> Float[Array, "Q 2"]:
+        """What each pose coordinate reaches in MuJoCo, in radians: its enforced range, narrowed where coupled
+        hinges stop it; ``inf`` where unlimited."""
+        return self._assets.dof_limits
+
+    @property
+    def hinge_names(self) -> list[str]:
+        """Every MJCF hinge, coupled ones included, in MuJoCo order: the angles of :meth:`to_qpos`."""
         return list(self._assets.hinge_names)
 
     @property
-    def actuated_joint_limits(self) -> Float[Array, "Q 2"]:
-        return self._assets.actuated_joint_limits
+    def visual(self) -> MeshSet:
+        """Visual meshes, each rigid in its body's frame."""
+        return MeshSet(self._assets.visual, self._runtime)
 
     @property
-    def actuated_joint_types(self) -> list[str]:
-        """Pose coordinate types in ``actuated_joint_names`` order."""
-        return ["hinge"] * self.num_dofs
+    def collision(self) -> MeshSet:
+        """Collision meshes, each rigid in its body's frame."""
+        return MeshSet(self._assets.collision, self._runtime)
 
     @property
-    def link_names(self) -> list[str]:
-        return list(self._assets.visual.names)
+    def parameter_spec(self) -> dict[str, tuple[int, ...]]:
+        """The dims of each parameter of the forward pass, axis-angle for ``global_rotation``."""
+        return {self._POSE: (self.num_dofs,), "global_rotation": (3,), "global_translation": (3,)}
 
-    @property
-    def link_joint_indices(self) -> list[int]:
-        return list(self._assets.visual.joint_indices)
+    def get_rest_pose(
+        self, *, preset: str | None = None, batch_dims: tuple[int, ...] = (), dtype: Any | None = None
+    ) -> dict[str, Float[Array, "..."]]:
+        """Parameters at rest: all zeros, or a preset pose (hands: ``flat``, ``rest``, ``open``, ``closed``;
+        humanoids: ``t_pose``, ``a_pose``) at the origin."""
+        xp, like = self._runtime.xp, self._assets.local_offsets
+        params = {
+            name: zeros_as(like, shape=(*batch_dims, *dims), dtype=dtype, xp=xp)
+            for name, dims in self.parameter_spec.items()
+        }
+        if preset is not None:
+            presets = _presets(self.name)
+            key = self._preset_key(preset)
+            if key not in presets:
+                raise KeyError(f"{self.name} has no preset {preset!r}: {sorted(presets)}")
+            pose = self._runtime.asarray(presets[key], like=params[self._POSE])
+            params[self._POSE] = self._runtime.xp.broadcast_to(pose, params[self._POSE].shape)
+        return params
 
-    @property
-    def link_meshes(self) -> Sequence[Trimesh]:
-        """Independent mesh snapshots in joint-local frames, aligned with ``forward_links()``."""
-        return rigid_ops.link_meshes(self._assets.visual, to_numpy=self._runtime.to_numpy)
+    def _preset_key(self, preset: str) -> str:
+        return preset
 
-    @property
-    def collision_names(self) -> list[str]:
-        """Collision geometry names, aligned with :attr:`collision_meshes`."""
-        return list(self._assets.collision.names)
-
-    @property
-    def collision_joint_indices(self) -> list[int]:
-        """Skeleton joint index for each collision geometry."""
-        return list(self._assets.collision.joint_indices)
-
-    @property
-    def collision_meshes(self) -> Sequence[Trimesh]:
-        """Source collision meshes in joint-local Y-up frames.
-
-        Curved primitives are triangulated for this mesh interface. The source
-        MJCF and :func:`add_hand` retain native analytic collision definitions.
-        Authored mesh triangles are returned as supplied; MuJoCo uses their
-        convex hulls for collision detection.
-        """
-        return rigid_ops.link_meshes(self._assets.collision, to_numpy=self._runtime.to_numpy)
-
-    @property
-    def num_vertices(self) -> int:
-        return self._assets.visual.vertices.shape[0]
-
-    def unpack_pose(self, pose: Float[Array, "*batch Q"]) -> dict[str, Float[Array, "*batch 1"]]:
-        """Unpack a pose ``[..., Q]`` into ``name -> [..., 1]`` arrays."""
-        if pose.shape[-1] != self.num_dofs:
-            raise ValueError(f"pose must have shape [..., {self.num_dofs}], got {tuple(pose.shape)}")
-        return {name: pose[..., index : index + 1] for index, name in enumerate(self.actuated_joint_names)}
-
-    def pack_pose(self, pose_by_joint: Mapping[str, Float[Array, "*batch 1"]]) -> Float[Array, "*batch Q"]:
-        """Pack ``name -> [..., 1]`` arrays into a pose ``[..., Q]``."""
-        if set(pose_by_joint) != set(self.actuated_joint_names):
-            raise KeyError(f"Expected exactly the actuated joints {self.actuated_joint_names}")
-        return self._runtime.xp.concat([pose_by_joint[name] for name in self.actuated_joint_names], axis=-1)
-
-    def to_qpos(
-        self,
-        pose: Float[Array, "*batch Q"],
-        *,
-        global_rotation: Float[Array, "*batch 3"] | None = None,
-        global_translation: Float[Array, "*batch 3"] | None = None,
-        scene_transform: Float[Array, "*batch 4 4"] | None = None,
-        clamp_to_limits: bool = False,
-    ) -> Float[Array, "*batch qpos"]:
-        """Build MuJoCo ``qpos`` as ``[root_xyz, root_wxyz, hinge_angles]``.
-
-        The root prefix is the free joint of the MJCF root body in the scene's world.
-        ``scene_transform`` is the rigid transform from the frame of ``global_rotation`` and
-        ``global_translation`` to the scene's world; by default, the model frame turned to
-        MuJoCo's Z-up axes (``M.T``, no offset). Hinge angles follow, coupled hinges included,
-        in MJCF order: those of :attr:`qpos_joint_names`.
-        """
-        if pose.shape[-1] != self.num_dofs:
-            raise ValueError(f"pose must have shape [..., {self.num_dofs}], got {tuple(pose.shape)}")
-        xp = self._runtime.xp
-        batch_shape = tuple(pose.shape[:-1])
-        if global_translation is None:
-            global_translation = zeros_as(pose, shape=(*batch_shape, 3), xp=xp)
-        if global_rotation is None:
-            root_rot = eye_as(zeros_as(pose, shape=(*batch_shape, 3), xp=xp), batch_dims=batch_shape, xp=xp)
-        else:
-            root_rot = SO3.convert(global_rotation, src="axis_angle", dst="rotmat", xp=xp)
-        if clamp_to_limits:
-            limits = xp.asarray(self.actuated_joint_limits, dtype=pose.dtype)
-            pose = xp.clip(pose, limits[:, 0], limits[:, 1])
-
-        to_model = xp.asarray(mjcf.MUJOCO_TO_MODEL, dtype=pose.dtype)
-        to_scene, offset = to_model.mT, zeros_as(pose, shape=(3,), xp=xp)
-        if scene_transform is not None:
-            to_scene, offset = scene_transform[..., :3, :3], scene_transform[..., :3, 3]
-        root_t = xp.squeeze(to_scene @ global_translation[..., None], axis=-1) + offset
-        root_quat = SO3.conversions.from_rotmat_to_quat(to_scene @ root_rot @ to_model, convention="wxyz", xp=xp)
-        angles = rigid_ops.hinge_angles(self._assets, pose, xp=xp)
-        return xp.concat([root_t, root_quat, angles], axis=-1)
-
-    def forward_links(
-        self, *, geometry: GeometryKind = "visual", **parameters: Float[Array, "..."]
-    ) -> Float[Array, "*batch L 4 4"]:
-        """Compute joint-frame transforms aligned with visual or collision meshes."""
-        meshes = self._geometry_assets(geometry)
-        return self.forward_skeleton(**parameters)[..., meshes.joint_indices, :, :]
-
-    def forward_meshes(self, *, geometry: GeometryKind = "visual", **parameters: Float[Array, "..."]) -> list[Trimesh]:
-        """Build one posed visual or collision mesh per batch element (visual by default)."""
-        return rigid_ops.forward_meshes_from_links(
-            self.forward_links(geometry=geometry, **parameters),
-            self._geometry_assets(geometry),
-            to_numpy=self._runtime.to_numpy,
-            xp=self._runtime.xp,
-        )
-
-    def _geometry_assets(self, geometry: GeometryKind) -> rigid_ops.MeshAssets:
-        if geometry not in ("visual", "collision"):
-            raise ValueError(f"Unknown geometry {geometry!r}; expected 'visual' or 'collision'")
-        return getattr(self._assets, geometry)
-
-    def _forward_skeleton(
+    def _placed(
         self,
         pose: Float[Array, "*batch Q"],
         global_rotation: Float[Array, "*batch 3"] | None,
         global_translation: Float[Array, "*batch 3"] | None,
-        joint_indices: Sequence[int] | None,
-    ) -> Float[Array, "*batch J 4 4"]:
-        return rigid_ops.forward_skeleton(
-            self._assets,
-            pose,
-            global_rotation=global_rotation,
-            global_translation=global_translation,
-            joint_indices=joint_indices,
-            xp=self._runtime.xp,
-        )
+    ) -> tuple[Float[Array, "*batch 3"], Float[Array, "*batch 3"]]:
+        """The root's axis-angle rotation and translation, zeros where not given, for a checked pose."""
+        self._check(pose)
+        zeros = zeros_as(pose, shape=(*pose.shape[:-1], 3), xp=self._runtime.xp)
+        rotation = zeros if global_rotation is None else global_rotation
+        translation = zeros if global_translation is None else global_translation
+        return rotation, translation
+
+    def _check(self, pose: Float[Array, "*batch Q"]) -> None:
+        if pose.shape[-1:] != (self.num_dofs,):
+            raise ValueError(f"{self._POSE} must have shape [..., {self.num_dofs}], got {tuple(pose.shape)}")
+
+    def _forward_skeleton(
+        self, pose: Float[Array, "*batch Q"], global_rotation: Array, global_translation: Array
+    ) -> Float[Array, "*batch B 4 4"]:
+        rotation, translation = self._placed(pose, global_rotation, global_translation)
+        return rigid_ops.forward_skeleton(self._assets, pose, rotation, translation, xp=self._runtime.xp)
+
+    def _to_qpos(
+        self,
+        pose: Float[Array, "*batch Q"],
+        global_rotation: Array,
+        global_translation: Array,
+        scene_transform: Float[Array, "*batch 4 4"] | None,
+    ) -> Float[Array, "*batch qpos"]:
+        xp = self._runtime.xp
+        rotation, translation = self._placed(pose, global_rotation, global_translation)
+        root = SO3.convert(rotation, src="axis_angle", dst="rotmat", xp=xp)
+        if scene_transform is not None:
+            root = scene_transform[..., :3, :3] @ root
+            translation = xp.squeeze(scene_transform[..., :3, :3] @ translation[..., None], axis=-1)
+            translation = translation + scene_transform[..., :3, 3]
+        to_model = xp.asarray(mjcf.MUJOCO_TO_MODEL, dtype=root.dtype)
+        quaternion = SO3.conversions.from_rotmat_to_quat(root @ to_model, convention="wxyz", xp=xp)
+        angles = rigid_ops.hinge_angles(self._assets, pose, xp=xp)
+        return xp.concat([translation, quaternion, angles], axis=-1)
+
+
+def _static(values: Any) -> tuple[float, ...] | None:
+    """Shape coefficients or a pose as static model identity."""
+    return None if values is None else tuple(float(value) for value in np.ravel(values))
 
 
 @cache
 def _presets(name: str) -> dict[str, Float[np.ndarray, "Q"]]:
-    with (files(catalog.model_module(name)) / "assets" / "poses.npz").open("rb") as file:
+    with (files(catalog.package(name)) / "assets" / "poses.npz").open("rb") as file:
         return dict(np.load(file))
 
 
@@ -397,11 +246,7 @@ def _register_jax_model(model_type: type) -> None:
         return
     import jax
 
-    jax.tree_util.register_pytree_node(
-        model_type,
-        _flatten_model,
-        partial(_unflatten_model, model_type),
-    )
+    jax.tree_util.register_pytree_node(model_type, _flatten_model, partial(_unflatten_model, model_type))
     _JAX_MODELS.add(model_type)
 
 
@@ -411,9 +256,7 @@ def _flatten_model(model: RigidBodyModel) -> tuple[tuple[Any, ...], tuple[Any, A
 
 
 def _unflatten_model(
-    model_type: type[RigidBodyModel],
-    auxiliary: tuple[Any, ArrayRuntime],
-    children: tuple[Any, ...],
+    model_type: type[RigidBodyModel], auxiliary: tuple[Any, ArrayRuntime], children: tuple[Any, ...]
 ) -> RigidBodyModel:
     config, runtime = auxiliary
     model = model_type.__new__(model_type)

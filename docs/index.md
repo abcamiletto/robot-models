@@ -57,9 +57,9 @@ from robot_models.humanoids.g1.numpy import G1
 
 model = G1()
 params = model.get_rest_pose(batch_dims=(2,))
-links = model.forward_links(**params)
-collision = model.forward_meshes(geometry="collision", **params)
+frames = model.forward_skeleton(**params)  # [2, num_bodies, 4, 4]
+collision = model.collision.pose(frames)
 ```
 
 Use `.torch` or `.jax` for other backends. Arrays support any leading batch dimensions.
-See the [API reference](api.md) for poses, transforms and joint metadata.
+See the [API reference](api.md) for poses, transforms and body, dof and hinge metadata.

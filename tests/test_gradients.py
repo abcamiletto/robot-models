@@ -2,23 +2,25 @@ import model_cases
 import numpy as np
 import pytest
 
+from robot_models import create_model
+
 
 def link_loss(model, params):
-    positions = model.forward_links(**params)[..., :3, 3]
+    positions = model.forward_skeleton(**params)[..., :3, 3]
     return (positions**2).sum()
 
 
-@pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.RUNTIME_MODELS)
-def test_torch_and_jax_gradients_match_finite_difference(name, model_class, kwargs) -> None:
+@pytest.mark.parametrize(("name", "kwargs"), model_cases.RUNTIME_CASES)
+def test_torch_and_jax_gradients_match_finite_difference(name, kwargs) -> None:
     torch = pytest.importorskip("torch")
-    torch_model = model_cases.backend_model_class(name, "torch")(**kwargs).double()
+    torch_model = create_model(name, runtime="torch", **kwargs).double()
     torch_rest = {key: value + 0.03 for key, value in torch_model.get_rest_pose(dtype=torch.float64).items()}
 
     jax = pytest.importorskip("jax")
     jax.config.update("jax_enable_x64", True)
     import jax.numpy as jnp
 
-    jax_model = model_cases.backend_model_class(name, "jax")(**kwargs)
+    jax_model = create_model(name, runtime="jax", **kwargs)
     jax_rest = {key: value + 0.03 for key, value in jax_model.get_rest_pose(dtype=jnp.float64).items()}
 
     for key in torch_rest:

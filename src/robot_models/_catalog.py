@@ -21,6 +21,6 @@ def model_spec(name: str) -> ModelSpec:
         raise ValueError(f"Unknown model {name!r}. Available models: {', '.join(MODEL_SPECS)}") from exc
 
 
-def model_module(name: str) -> str:
-    """Package for a canonical robot's backend bindings and presets."""
+def package(name: str) -> str:
+    """The package of a canonical robot's import paths and presets."""
     return f"robot_models.{model_spec(name).family}.{normalize_name(name).replace('-', '_')}"

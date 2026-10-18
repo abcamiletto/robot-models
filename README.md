@@ -24,9 +24,9 @@ hand = ShadowHand(side="right")
 humanoid = G1()
 params = hand.get_rest_pose(batch_dims=(2,))
 
-skeleton = hand.forward_skeleton(**params)
-visual = hand.forward_meshes(**params)
-collision = hand.forward_meshes(geometry="collision", **params)
+frames = hand.forward_skeleton(**params)  # one 4×4 transform per body
+visual = hand.visual.pose(frames)
+collision = hand.collision.pose(frames)
 ```
 
 Choose the backend with `.numpy`, `.torch` or `.jax` in the import.
@@ -58,10 +58,10 @@ uv add "robot-models[mujoco]"
 
 ```python
 import mujoco
-from robot_models import add_hand
+from robot_models import add_hand, create_model
 
 scene = mujoco.MjSpec()
-mount, root = add_hand(scene, "shadow", side="right")
+mount, root = add_hand(scene, create_model("shadow", side="right"))
 mount.pos = [0, 0, 0.4]
 model = scene.compile()
 ```

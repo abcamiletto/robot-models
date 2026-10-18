@@ -12,7 +12,7 @@ A manual `model_path` is a directory with `left.xml`, `right.xml` and their mesh
 from robot_models.hands.brainco.numpy import BrainCoHand
 
 hand = BrainCoHand(side="right")
-params = hand.get_rest_pose(hands="rest")
+params = hand.get_rest_pose(preset="rest")
 ```
 
 Each distal hinge follows its proximal hinge, as the BrainCo actuators drive the proximal joints. The hosted XML states these equalities in MuJoCo's `joint1 = poly(joint2)` order and keeps the fingertips rigid.

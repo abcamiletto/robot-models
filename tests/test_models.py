@@ -133,6 +133,28 @@ def test_collision_meshes_match_mujoco_geoms(case) -> None:
     np.testing.assert_allclose(posed.vertices, np.concatenate(vertices), atol=2e-6)
 
 
+def test_limits_are_what_each_coordinate_reaches_in_mujoco(case) -> None:
+    """Every reported bound is enforced, and reached: at the coordinate's own range or where a coupled hinge stops it."""
+    _, model, mj_model, *_ = case
+    assets = model._assets
+    for index, (name, (lo, hi)) in enumerate(zip(model.actuated_joint_names, np.asarray(model.actuated_joint_limits))):
+        joint = mj_model.joint(name).id
+        assert mj_model.jnt_limited[joint] == (np.isfinite(lo) or np.isfinite(hi)), name
+        coupled = [
+            h for h, driver in enumerate(assets.hinge_drivers) if driver == index and assets.hinge_names[h] != name
+        ]
+        for bound in (lo, hi):
+            if not np.isfinite(bound):
+                continue
+            stops = [np.isclose(bound, mj_model.jnt_range[joint], atol=1e-5).any()]
+            for h in coupled:
+                angle = np.polynomial.polynomial.polyval(bound, assets.hinge_polycoef[h])
+                ranged = mj_model.jnt_range[mj_model.joint(assets.hinge_names[h]).id]
+                assert ranged[0] - 1e-5 <= angle <= ranged[1] + 1e-5, assets.hinge_names[h]
+                stops.append(np.isclose(angle, ranged, atol=1e-5).any())
+            assert any(stops), f"{name} bound {bound} is reached by nothing"
+
+
 def test_common_joints_and_presets_resolve(case) -> None:
     _, model, *_ = case
     for joint in model.common_joints:

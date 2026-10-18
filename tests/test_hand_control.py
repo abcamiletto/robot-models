@@ -47,8 +47,10 @@ def test_closing_semantics_match_native_finger_motion(name, side):
     opened = hand.get_rest_pose(hands="open")["hand_pose"]
     closed = hand.get_rest_pose(hands="closed")["hand_pose"]
     fully_closed = hand.close(opened, 1000)
-    if name == "mano":  # its presets are natural: closed flexes to the anatomical limits, close to the enforced ones
-        fully_closed = np.clip(fully_closed, *np.asarray(hand.anatomical_limits).T)
+    if name == "mano":  # its presets are natural: closed bends to manotorch's anatomical maxima, within the limits
+        fully_closed = np.minimum(
+            fully_closed, np.radians([45 if n == "thumb1_bend" else 90 for n in hand.actuated_joint_names])
+        )
     np.testing.assert_allclose(fully_closed, closed)
     np.testing.assert_array_equal(hand.close(opened, 0), opened)
 

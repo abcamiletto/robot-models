@@ -192,18 +192,6 @@ def _static(values: Any) -> tuple[float, ...] | None:
 class SkinnedHand(Skinned, Hand):
     """A skinned hand of a fixed ``shape``, posed by ``hand_pose``."""
 
-    @property
-    def anatomical_limits(self) -> Float[Array, "Q 2"]:
-        """Natural ranges of the pose coordinates, after manotorch, in radians.
-
-        Narrower than :attr:`actuated_joint_limits`, which MuJoCo enforces and which reach beyond any
-        real hand; a pose outside them is possible but unnatural. Some are empty: a finger's twist.
-        """
-        anatomy = self._source.anatomy
-        return self.runtime.asarray(
-            [anatomy[name] for name in self.actuated_joint_names], like=self.actuated_joint_limits
-        )
-
     def __init__(
         self,
         name: str,

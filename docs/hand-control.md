@@ -22,9 +22,10 @@ shape. Negative angles open. NumPy, Torch and JAX use the same interface.
 
 The `open` preset starts from the flat posture; Robotiq's distal joints use
 −0.52 radians to straighten the tips against their source mesh rest rotation.
-`closed` uses flexion limits and keeps the other coordinates; MANO's flexes to its
-narrower `anatomical_limits`, so that its presets stay natural hand poses. These are kinematic poses; they do not check contacts. Fingertip
-distance need not decrease through an entire joint range.
+`closed` uses flexion limits and keeps the other coordinates; MANO's, whose limits reach
+beyond any real hand, bends to a natural hand's maximum instead. These are kinematic
+poses; they do not check contacts. Fingertip distance need not decrease through an
+entire joint range.
 
 Gripper finger labels follow these conventions: Barrett finger 3 is `thumb`,
 1 is `index`, 2 is `middle`; Robotiq's middle finger is `thumb`, 1 is `index`,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import functools
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
 from typing import Any, Literal
@@ -30,18 +30,7 @@ _LIMITS = {
         ((-75, 135), (-60, 90), (-60, 90)),
     ),
 }
-# Anatomical, after manotorch (AnatomyConstraintLossEE.setup): how far a pose lies from a natural hand's.
-_ANATOMY = {
-    "finger": (((0, 90), (-5, 5), (0, 0)), ((0, 90), (0, 0), (0, 0)), ((0, 90), (0, 0), (0, 0))),
-    "thumb": (((0, 45), (-15, 45), (-45, 45)), ((0, 90), (-10, 10), (0, 0)), ((0, 90), (0, 0), (0, 0))),
-}
-ROLES = ("bend", "spread", "twist")
-MANO_ANATOMY = {
-    f"{finger}{joint}_{role}": np.radians(_ANATOMY["thumb" if finger == "thumb" else "finger"][joint - 1][axis])
-    for finger in ("index", "middle", "pinky", "ring", "thumb")
-    for joint in (1, 2, 3)
-    for axis, role in enumerate(ROLES)
-}
+_ROLES = ("bend", "spread", "twist")
 
 
 @dataclass(frozen=True)
@@ -63,7 +52,6 @@ class Source:
     hinges: Callable[[str, Float[np.ndarray, "J 3"], list[int], list[str]], list[tuple[np.ndarray, list[str], Any]]]
     options: Callable[[str], Mapping[str, Any]]
     mirrored: tuple[str, ...] = ()  # variants whose pieces mirror the base's
-    anatomy: Mapping[str, np.ndarray] = field(default_factory=dict)  # natural ranges by hinge name, radians
     free: bool = False
     actuated: bool = False
 
@@ -101,7 +89,7 @@ def _mano_hinges(variant: str, joints: np.ndarray, parents: list[int], names: li
         if variant == "left":
             axes = -axes @ MIRROR
         limits = _LIMITS["thumb" if name.startswith("thumb") else "finger"][int(name[-1]) - 1]
-        out.append((axes, [f"{name}_{role}" for role in ROLES], np.radians(limits)))
+        out.append((axes, [f"{name}_{role}" for role in _ROLES], np.radians(limits)))
     return out
 
 
@@ -123,7 +111,6 @@ SOURCES: dict[str, Source] = {
         hinges=_mano_hinges,
         options=lambda side: {"side": side, "flat_hand_mean": True, "flip_shapedirs": side == "left"},
         mirrored=("left",),
-        anatomy=MANO_ANATOMY,
         actuated=True,
     ),
     "smpl": Source(

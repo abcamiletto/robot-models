@@ -193,7 +193,7 @@ def test_shaped_models_match_across_backends_and_skin_is_differentiable(name):
 
 
 @pytest.mark.parametrize("side", ("right", "left"))
-def test_mano_enforces_wide_limits_and_reports_anatomical_ones(side):
+def test_mano_limits_are_enforced(side):
     mujoco = pytest.importorskip("mujoco")
     from robot_models import _assets
 
@@ -201,9 +201,3 @@ def test_mano_enforces_wide_limits_and_reports_anatomical_ones(side):
     model = mujoco.MjModel.from_xml_path(str(_assets.model_dir("mano") / f"{side}.xml"))
     assert model.jnt_limited.all()
     np.testing.assert_allclose(model.jnt_range, hand.actuated_joint_limits, atol=1e-6)
-    lower, upper = np.asarray(hand.anatomical_limits).T
-    enforced_lower, enforced_upper = np.asarray(hand.actuated_joint_limits).T
-    assert np.all((enforced_lower < lower) & (upper < enforced_upper))
-    for preset in ("flat", "rest", "open", "closed"):
-        pose = hand.get_rest_pose(hands=preset)["hand_pose"]
-        assert np.all((lower - 1e-6 <= pose) & (pose <= upper + 1e-6)), preset

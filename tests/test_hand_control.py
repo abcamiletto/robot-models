@@ -84,10 +84,15 @@ def test_closing_semantics_match_native_finger_motion(name, side):
         pose = opened.copy()
         pose[index] += 0.02 if pose[index] + 0.02 <= upper[index] else -0.02
         pose = np.clip(pose, lower, upper)
-        displacement = np.linalg.norm(tips(pose) - initial, axis=1)
+        moved = tips(pose)
+        displacement = np.linalg.norm(moved - initial, axis=1)
         finger_index = FINGERS.index(dof.finger)
         assert displacement[finger_index] > 1e-7, hand.actuated_joint_names[index]
         np.testing.assert_allclose(np.delete(displacement, finger_index), 0, atol=1e-7)
+        if dof.role == "flexion" and dof.closing:
+            before = np.linalg.norm(initial[finger_index] - palm_world)
+            after = np.linalg.norm(moved[finger_index] - palm_world)
+            assert after < before, hand.actuated_joint_names[index]
 
 
 @pytest.mark.parametrize("name,side", [("shadow", "left"), ("robotiq-3finger", "right")])

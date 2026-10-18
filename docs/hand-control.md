@@ -20,8 +20,8 @@ flexion coordinates and clamps them to their limits; other coordinates stay
 unchanged. A scalar angle applies to all poses; an array has the pose's batch
 shape. Negative angles open. NumPy, Torch and JAX use the same interface.
 
-The `open` preset starts from the flat posture; Robotiq's distal joints use their
-lower bounds to account for the source rest frames. `closed` uses flexion limits
+The `open` preset starts from the flat posture; Robotiq's distal joints use
+−0.52 radians to straighten the tips against their source mesh rest rotation. `closed` uses flexion limits
 and keeps the other coordinates. Existing presets are unchanged. These are
 kinematic poses; they do not check contacts. Fingertip distance need not decrease
 through an entire joint range.

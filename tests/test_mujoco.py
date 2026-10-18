@@ -124,6 +124,23 @@ def test_mujoco_is_an_optional_lazy_import():
     subprocess.run([sys.executable, "-c", code], check=True)
 
 
+@pytest.mark.fast
+@pytest.mark.parametrize("by_name", [False, True])
+def test_free_mount_rejects_body_frame_before_resolving_assets(by_name, monkeypatch):
+    def unexpected_download(*args, **kwargs):
+        pytest.fail("Invalid mount must fail before resolving assets")
+
+    monkeypatch.setattr(assets, "model_dir", unexpected_download)
+    scene = mujoco.MjSpec()
+    arm = scene.worldbody.add_body(name="arm")
+    frame = arm.add_frame(name="wrist")
+    with pytest.raises(ValueError, match="world-level"):
+        add_hand(scene, "shadow", free=True, frame="wrist" if by_name else frame)
+    assert [body.name for body in scene.bodies] == ["world", "arm"]
+    assert not arm.bodies
+    assert not arm.joints
+
+
 @pytest.mark.parametrize("name,side", CASES)
 def test_free_mount_is_quiet_and_starts_with_root_coordinates(name, side, tmp_path, monkeypatch):
     import warnings

@@ -223,8 +223,9 @@ tests/assets/
 
 # Local README render artifacts
 README_render*.png
-scripts/.readme_meshes/
-scripts/teaser/.meshes/
 
 # Prepared source asset bundles and upstream fidelity reports
 /results/
+
+# Native MuJoCo diagnostics generated during validation
+MUJOCO_LOG.TXT

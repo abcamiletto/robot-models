@@ -1,37 +1,38 @@
 # Architecture
 
-Models use MuJoCo MJCF files read by one loader. Public assets are hosted on Hugging Face. Each hand has one canonical upstream description:
+Each robot is a data definition bound to one shared family implementation.
+The import selects NumPy, Torch or JAX.
 
-| Module | Responsibility |
+| Module | Purpose |
 | --- | --- |
-| `_assets.py` | Resolve a model's asset directory: explicit path, config, cache, or download. |
-| `_common/mjcf.py` | Parse an MJCF file into a skeleton, hinges, couplings, and visual meshes. |
-| `_common/rigid.py` | Backend-independent kinematics and mesh posing. |
-| `_base.py` | `RigidBodyModel` and its two families, `Humanoid` and `Hand`. |
-| `<name>/_model.py` | One model: its asset name and common-joint map. |
-| `<name>/numpy.py`, `torch.py`, `jax.py` | Bind the model to an array runtime. |
+| `hands/_models.py`, `humanoids/_models.py` | Names, anatomical mappings, sides, symmetry rules and asset versions |
+| `_spec.py`, `_catalog.py` | Definition schema and model catalog |
+| `hands/_base.py`, `humanoids/_base.py` | Family constructors, poses and presets |
+| `<family>/<model>/{numpy,torch,jax}.py` | Public classes, bound by `_backend.py` |
+| `_base.py` | Shared model API and identity |
+| `_assets.py` | Asset paths and Hugging Face downloads |
+| `_common/mjcf.py` | MJCF parsing |
+| `_common/rigid.py` | Kinematics and mesh assembly |
 
-The loader follows MuJoCo's reading of the file. Skeleton joints are the MJCF
-bodies, in body order, and the root body sits at the origin as under a free
-joint. Visual meshes are mesh geoms with `contype` and `conaffinity` set to
-zero. A hinge named as `joint1` of an `<equality><joint>` follows
-`joint1 = polycoef(joint2)`; every other hinge is a pose coordinate, in `qpos`
-order. Every hinge angle is therefore one polynomial of one pose coordinate,
-so coupled and independent hinges share a single kinematic path.
+Skeleton joints follow MJCF body order. Pose coordinates follow independent
+hinges in MuJoCo `qpos` order. Coupled hinges use `joint1 = polycoef(joint2)`
+before FK. Outputs use a Y-up frame with the root at the origin.
 
-`ArrayRuntime` owns array construction and model-state materialization. Model
-math receives an explicit array namespace, while Torch and JAX wrappers provide
-their native module and pytree behavior. Renderer-facing `Trimesh` objects are
-created only after array-valued link transforms have been evaluated.
+Visual and collision groups store packed vertices, faces and link indices.
+Posing creates one independent `Trimesh` per batch element; local mesh properties
+return copies. Torch stores arrays as module buffers. JAX uses pytrees with the
+model name and side as static metadata. Arrays stay in their backend until mesh
+output converts them to host NumPy arrays.
 
-## Adding a model
+## Add a model
 
-1. Upload `<name>/assets.zip` and `<name>/LICENSE.md` to the Hugging Face repo.
-   The archive holds `<name>.xml` for a humanoid, or `left.xml` and `right.xml`
-   for a hand, plus binary or ASCII STL meshes.
-2. Add `robot_models/<name>/` with `_model.py`, the three backend modules, and
-   `assets/poses.npz` (`t_pose`/`a_pose`, or `{side}_flat`/`{side}_rest`).
-3. Register it in `_catalog.py` and add a docs page.
+1. Publish `<name>/assets.zip` and `<name>/LICENSE.md` on Hugging Face. Include
+   `<name>.xml` for a humanoid or `left.xml`/`right.xml` for the supplied hand sides,
+   meshes, original descriptions and licenses.
+2. Add a `ModelSpec` to the family's `_models.py` and presets in
+   `<family>/<model>/assets/poses.npz`: `t_pose`/`a_pose` or `{side}_flat`/`{side}_rest`.
+3. Add three backend modules using `model_for_backend(name, backend, module=__name__)`.
+4. Document the model and check its FK, joints and geometry against the source.
 
-Canonical hand preparation retains original source files and license notices in
-the asset bundle. See [hand sources and validation](hand-sources.md).
+Keep loading, couplings and FK in the shared implementation. See
+[hand sources](hand-sources.md) and [collision geometry](collisions.md).

@@ -8,12 +8,12 @@ import numpy as np
 import pytest
 
 from robot_models import _assets as assets
+from robot_models import _catalog as catalog
 from robot_models import add_hand
-from robot_models._base import Hand
 from robot_models._common.mjcf import MUJOCO_TO_MODEL
 
 mujoco = pytest.importorskip("mujoco")
-CASES = [(name, side) for name, cls, _ in model_cases.MODELS if issubclass(cls, Hand) for side in cls.supported_sides]
+CASES = [(name, side) for name, spec in catalog.MODEL_SPECS.items() for side in spec.sides]
 
 
 @pytest.mark.parametrize("name,side", CASES)
@@ -77,6 +77,25 @@ def test_multiple_hands_use_separate_namespaces():
     model = scene.compile()
     for prefix in ("allegro_left_", "allegro_right_", "extra_"):
         assert model.body(prefix + "palm").id > 0
+
+
+@pytest.mark.parametrize("name", ["barrett", "robotiq-3finger", "ezgripper"])
+def test_mounted_hand_filters_self_contacts_and_keeps_object_contacts(name):
+    scene = mujoco.MjSpec()
+    add_hand(scene, name)
+    model = scene.compile()
+    data = mujoco.MjData(model)
+    mujoco.mj_forward(model, data)
+    assert data.ncon == 0
+    (collider,) = np.flatnonzero(model.geom_contype | model.geom_conaffinity)[:1]
+    object_body = scene.worldbody.add_body(pos=data.geom_xpos[collider])
+    object_body.add_freejoint()
+    object_body.add_geom(name="object", type=mujoco.mjtGeom.mjGEOM_SPHERE, size=[0.1, 0, 0])
+    model = scene.compile()
+    data = mujoco.MjData(model)
+    mujoco.mj_forward(model, data)
+    object_id = model.geom("object").id
+    assert any(object_id in (contact.geom1, contact.geom2) for contact in data.contact)
 
 
 @pytest.mark.fast

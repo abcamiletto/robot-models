@@ -6,9 +6,10 @@ from fnmatch import fnmatchcase
 from importlib import import_module
 from typing import Any
 
+from robot_models import _catalog as catalog
 from robot_models._base import RigidBodyModel
-from robot_models._catalog import MODEL_SPECS
 from robot_models._runtime import RuntimeName
+from robot_models._spec import Family
 
 
 def create_model(
@@ -37,37 +38,31 @@ def create_model(
 
 def _model_class(model_name: str, runtime: RuntimeName) -> type[RigidBodyModel]:
     """Resolve the shared catalog entry without loading its assets."""
-    name = _normalize_name(model_name)
     if runtime not in ("numpy", "torch", "jax"):
         raise ValueError(f"Unknown runtime {runtime!r}. Expected numpy, torch, or jax.")
-    try:
-        spec = MODEL_SPECS[name]
-    except KeyError as exc:
-        available = ", ".join(list_models())
-        raise ValueError(f"Unknown model {model_name!r}. Available models: {available}") from exc
-    module = import_module(f"{spec.module}.{runtime}")
+    spec = catalog.model_spec(model_name)
+    module = import_module(f"{catalog.model_module(model_name)}.{runtime}")
     return getattr(module, spec.class_name)
 
 
-def list_models(*, pattern: str | None = None) -> list[str]:
+def list_models(*, family: Family | None = None, pattern: str | None = None) -> list[str]:
     """
     List public model factory names.
 
     Args:
+        family: Optional ``"hands"`` or ``"humanoids"`` filter.
         pattern: Optional case-insensitive shell-style pattern such as ``"brainco*"``.
 
     Returns:
         Sorted matching model names.
     """
-    names = sorted(MODEL_SPECS)
+    if family not in (None, "hands", "humanoids"):
+        raise ValueError(f"Unknown model family {family!r}")
+    names = [name for name, spec in catalog.MODEL_SPECS.items() if family is None or spec.family == family]
     if pattern is None:
         return names
-    pattern = _normalize_name(pattern)
+    pattern = catalog.normalize_name(pattern)
     return [name for name in names if fnmatchcase(name, pattern)]
-
-
-def _normalize_name(name: str) -> str:
-    return name.strip().lower().replace("_", "-")
 
 
 __all__ = ["create_model", "list_models"]

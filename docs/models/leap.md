@@ -1,32 +1,21 @@
 # LEAP Hand
 
-LEAP Hand is LEAP Hand v1. Its skeleton has 17 joints, one per MJCF body, and `hand_pose` has 16 hinge coordinates.
+LEAP Hand v1 has 17 skeleton joints and 16 independent `hand_pose` coordinates.
 
-## Setup
-
-The assets come from MuJoCo Menagerie `leap_hand` (MIT). They download on first use from the
-[`abcamiletto/robot-models`](https://huggingface.co/abcamiletto/robot-models)
-Hugging Face repository, with the upstream license and a list of changes. To prefetch them:
-
-```bash
-robot-models download leap
-```
+Source: MuJoCo Menagerie `leap_hand` (MIT).
+Assets download automatically; see [asset setup](../index.md#assets).
 
 A manual `model_path` is a directory with `left.xml`, `right.xml` and their meshes.
 
-## Usage
-
 ```python
-from robot_models.leap.numpy import LeapHand
+from robot_models.hands.leap.numpy import LeapHand
 
 hand = LeapHand(side="right")
 params = hand.get_rest_pose(hands="rest")
 ```
 
-## Notes
-
 The hand has four fingers and no coupled joints.
 
 ## API
 
-::: robot_models.leap.numpy.LeapHand
+::: robot_models.hands.leap.numpy.LeapHand

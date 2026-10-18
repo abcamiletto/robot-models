@@ -8,7 +8,7 @@ def link_loss(model, params):
     return (positions**2).sum()
 
 
-@pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.MODELS)
+@pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.RUNTIME_MODELS)
 def test_torch_and_jax_gradients_match_finite_difference(name, model_class, kwargs) -> None:
     torch = pytest.importorskip("torch")
     torch_model = model_cases.backend_model_class(name, "torch")(**kwargs).double()
@@ -26,12 +26,16 @@ def test_torch_and_jax_gradients_match_finite_difference(name, model_class, kwar
         torch_value = torch_params[key].clone().requires_grad_(True)
         torch_params[key] = torch_value
         link_loss(torch_model, torch_params).backward()
-        torch_auto = torch_value.grad.reshape(-1)[0].item()
+        torch_auto = torch_value.grad.detach().numpy()
 
         def jax_loss(value, parameter=key):
             params = jax_rest | {parameter: value}
             return link_loss(jax_model, params)
 
         jax_value = jax_rest[key]
-        jax_auto = np.asarray(jax.grad(jax_loss)(jax_value)).reshape(-1)[0]
+        jax_auto = np.asarray(jax.grad(jax_loss)(jax_value))
         np.testing.assert_allclose(jax_auto, torch_auto, rtol=1e-3, atol=1e-3, err_msg=f"{name}.{key}")
+        delta = np.zeros_like(jax_auto)
+        delta.flat[0] = 1e-5
+        finite_difference = (jax_loss(jax_value + delta) - jax_loss(jax_value - delta)) / 2e-5
+        np.testing.assert_allclose(jax_auto.flat[0], finite_difference, rtol=1e-3, atol=1e-3, err_msg=f"{name}.{key}")

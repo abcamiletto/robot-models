@@ -30,8 +30,11 @@ def test_canonical_hands_match_upstream_reference(name):
         np.testing.assert_allclose(hand.actuated_joint_limits, reference["limits"], atol=1e-7)
         poses = reference["poses"]
         np.testing.assert_allclose(hand.forward_skeleton(poses), reference["transforms"], atol=2e-6)
-        triangles = hand._assets.vertices[reference["point_triangles"]]
-        local = np.einsum("pi,pij->pj", reference["point_weights"], triangles)
-        frames = hand.forward_links(hand_pose=poses)[:, reference["point_links"]]
-        actual = np.einsum("bpij,pj->bpi", frames[..., :3, :3], local) + frames[..., :3, 3]
-        np.testing.assert_allclose(actual, reference["points"], atol=2e-6)
+        for geometry in ("visual", "collision"):
+            prefix = "" if geometry == "visual" else "collision_"
+            mesh_assets = getattr(hand._assets, geometry)
+            triangles = mesh_assets.vertices[reference[f"{prefix}point_triangles"]]
+            local = np.einsum("pi,pij->pj", reference[f"{prefix}point_weights"], triangles)
+            frames = hand.forward_links(geometry=geometry, hand_pose=poses)[:, reference[f"{prefix}point_links"]]
+            actual = np.einsum("bpij,pj->bpi", frames[..., :3, :3], local) + frames[..., :3, 3]
+            np.testing.assert_allclose(actual, reference[f"{prefix}points"], atol=2e-6)

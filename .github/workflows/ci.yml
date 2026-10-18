@@ -26,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - run: uv run --group dev --group asset-preparation --all-extras ty check
+      - run: uv run --group dev --all-extras ty check
 
   fast-tests:
     runs-on: ubuntu-latest

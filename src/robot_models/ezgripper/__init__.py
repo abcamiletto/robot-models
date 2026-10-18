@@ -1,1 +1,0 @@
-"""EZGripper model family."""

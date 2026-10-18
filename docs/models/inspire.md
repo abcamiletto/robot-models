@@ -1,32 +1,22 @@
 # Inspire
 
-Inspire is the Inspire RH56 hand as mounted on the Unitree G1. Its skeleton has 13 joints, one per MJCF body, and `hand_pose` has 6 hinge coordinates; 6 more hinges are coupled to them.
+The Inspire RH56, as mounted on the Unitree G1, has 13 skeleton joints.
+`hand_pose` has 6 independent hinge coordinates and drives 6 coupled hinges.
 
-## Setup
-
-The assets come from Unitree's `unitree_ros` description, converted from URDF to MJCF (BSD-3-Clause). They download on first use from the
-[`abcamiletto/robot-models`](https://huggingface.co/abcamiletto/robot-models)
-Hugging Face repository, with the upstream license and a list of changes. To prefetch them:
-
-```bash
-robot-models download inspire
-```
+Source: Unitree's `unitree_ros` description, converted from URDF to MJCF (BSD-3-Clause).
+Assets download automatically; see [asset setup](../index.md#assets).
 
 A manual `model_path` is a directory with `left.xml`, `right.xml` and their meshes.
 
-## Usage
-
 ```python
-from robot_models.inspire.numpy import InspireHand
+from robot_models.hands.inspire.numpy import InspireHand
 
 hand = InspireHand(side="right")
 params = hand.get_rest_pose(hands="rest")
 ```
 
-## Notes
-
 Intermediate and distal hinges follow their drivers through the URDF mimic ratios. The root is the hand base; on a G1 it sits 0.0415 m along the `*_wrist_yaw_link` x axis.
 
 ## API
 
-::: robot_models.inspire.numpy.InspireHand
+::: robot_models.hands.inspire.numpy.InspireHand

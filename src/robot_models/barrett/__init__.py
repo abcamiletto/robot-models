@@ -1,1 +1,0 @@
-"""BarrettHand model family."""

@@ -2,56 +2,44 @@
 
 ## Model creation
 
+Choose the array backend through the import:
+
+```python
+from robot_models.hands.shadow.torch import ShadowHand
+from robot_models.humanoids.g1.torch import G1
+
+hand = ShadowHand(side="right")
+humanoid = G1()
+```
+
+Use `.numpy` or `.jax` for the other backends. `list_models(family="hands")`
+and `list_models(family="humanoids")` list models; `create_model` is the generic factory.
+
 ::: robot_models.create_model
-    options:
-      show_source: false
 
 ::: robot_models.list_models
-    options:
-      show_source: false
 
 ## MuJoCo attachment
 
 ::: robot_models.add_hand
-    options:
-      show_source: false
 
 ## Model contract
 
-`forward_skeleton(..., joint_indices=...)` returns only the requested joints and
-evaluates only their kinematic chains, so a few end effectors cost less than the
-full skeleton.
+Both families provide local `collision_meshes` and posed
+`forward_meshes(geometry="collision", **params)`; see [geometry](collisions.md).
 
-`symmetric_joints` lists `(left, right)` index pairs over the whole native
-skeleton, including joints outside `Joint`; unpaired joints lie on the midline.
-Use it for symmetry losses or left/right swaps:
-
-```python
-order = list(range(model.num_joints))
-for left, right in model.symmetric_joints:
-    order[left], order[right] = right, left
-swapped = model.forward_skeleton(**params)[..., order, :, :]
-```
-
-Swapping indices does not mirror a pose: the rotations must also be reflected in
-the model's frame and parameterization.
+`forward_skeleton(..., joint_indices=...)` evaluates only the requested joint
+chains. `symmetric_joints` gives left/right index pairs across the full skeleton;
+swapping these indices alone does not reflect rotations or mirror a pose.
 
 ::: robot_models.RigidBodyModel
-    options:
-      show_source: false
 
 ## Metadata
 
 ::: robot_models.ParameterSpec
-    options:
-      show_source: false
 
 ::: robot_models.Joint
-    options:
-      show_source: false
 
 ## Runtimes
 
 ::: robot_models.ArrayRuntime
-    options:
-      show_source: false

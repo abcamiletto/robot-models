@@ -35,6 +35,7 @@ nav:
   - Home: index.md
   - API Reference: api.md
   - Visual and collision geometry: collisions.md
+  - Hand control: hand-control.md
   - MuJoCo integration: mujoco.md
   - Architecture: architecture.md
   - Teaser rendering: teasers.md

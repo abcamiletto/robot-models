@@ -36,6 +36,8 @@ swapping these indices alone does not reflect rotations or mirror a pose.
 
 ## Metadata
 
+::: robot_models.Dof
+
 ::: robot_models.ParameterSpec
 
 ::: robot_models.Joint

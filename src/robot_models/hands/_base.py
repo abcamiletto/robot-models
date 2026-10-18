@@ -12,7 +12,7 @@ from robot_models import _catalog as catalog
 from robot_models._base import ModelConfig, RigidBodyModel
 from robot_models._constants import Joint
 from robot_models._runtime import ArrayRuntime
-from robot_models._spec import Side
+from robot_models._spec import Dof, Side
 
 Array = Any
 
@@ -50,6 +50,34 @@ class Hand(RigidBodyModel):
         return catalog.model_spec(self.name).sides
 
     @property
+    def dofs(self) -> tuple[Dof, ...]:
+        """Coordinate semantics, aligned with ``actuated_joint_names``."""
+        definitions = catalog.model_spec(self.name).dofs
+        by_name = {name.format(side=self.side, s=self.side[0]): dof for name, dof in definitions.items()}
+        return tuple(by_name[name] for name in self.actuated_joint_names)
+
+    @property
+    def effort_limits(self) -> Float[Array, "Q"]:
+        """Peak joint torques in N·m; ``inf`` means no verified coordinate limit."""
+        return self.runtime.asarray([dof.effort_limit for dof in self.dofs], like=self.actuated_joint_limits)
+
+    def close(self, hand_pose: Float[Array, "*batch Q"], angle: float | Array) -> Float[Array, "*batch Q"]:
+        """Add radians toward flexion, clamped to joint limits. Negative angles open.
+
+        ``angle`` is scalar or has batch dimensions. Non-closing coordinates stay unchanged.
+        """
+        if hand_pose.shape[-1] != self.num_dofs:
+            raise ValueError(f"hand_pose must have shape [..., {self.num_dofs}]")
+        xp = self.runtime.xp
+        direction = self.runtime.asarray(
+            [dof.closing if dof.role == "flexion" else 0 for dof in self.dofs], like=hand_pose
+        )
+        amount = self.runtime.asarray(angle, like=hand_pose)
+        lower, upper = self.actuated_joint_limits.T
+        closed = xp.clip(hand_pose + amount[..., None] * direction, lower, upper)
+        return xp.where(direction != 0, closed, hand_pose)
+
+    @property
     def common_joints(self) -> Mapping[Joint, str]:
         side = self.side
         return {
@@ -73,9 +101,9 @@ class Hand(RigidBodyModel):
         *,
         batch_dims: tuple[int, ...] = (),
         dtype: Any | None = None,
-        hands: Literal["default", "flat", "rest"] = "default",
+        hands: Literal["default", "flat", "rest", "open", "closed"] = "default",
     ) -> dict[str, Float[Array, "..."]]:
-        """Return the zero pose (``"default"``) or the ``"flat"`` or ``"rest"`` hand preset."""
+        """Return defaults or a flat, rest, open or fully flexed closed preset."""
         if hands == "default":
             return super().get_rest_pose(batch_dims=batch_dims, dtype=dtype)
         return self._preset(f"{self.side}_{hands}", batch_dims, dtype)

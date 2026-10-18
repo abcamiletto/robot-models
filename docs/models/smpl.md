@@ -11,7 +11,8 @@ from robot_models.humanoids.smpl.numpy import SmplRobot
 body = SmplRobot(gender="neutral")
 params = body.from_body_models(**smpl_params)
 skeleton = body.forward_skeleton(**params)
-skin = body.forward_meshes(**params)  # SMPL's skin, exactly
+links = body.forward_meshes(**params)  # rigid links
+skin = body.forward_vertices(**params)  # SMPL's skin, exactly; faces in body.skin_faces
 ```
 
 SMPL is built like [MANO](mano.md): locally, from your own files as Body Models

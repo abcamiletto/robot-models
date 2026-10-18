@@ -13,8 +13,9 @@ hand = ManoRobot(side="right")
 params = hand.get_rest_pose(hands="rest")
 params["shape"] = betas  # Body Models' 10 shape coefficients; the mean shape by default
 skeleton = hand.forward_skeleton(**params)
-skin = hand.forward_meshes(**params)  # MANO's skin, exactly
+links = hand.forward_meshes(**params)  # rigid links
 pieces = hand.forward_meshes(geometry="collision", **params)
+skin = hand.forward_vertices(**params)  # MANO's skin, exactly; faces in hand.skin_faces
 ```
 
 ## Assets are built locally
@@ -59,8 +60,11 @@ The links are the flat, rest skin cut by joint: each face goes to the joint that
 skins its corners most, and each opening is closed by a fan to its centroid.
 At rest they are the skin. Posed, they move rigidly, so they depart from MANO's skin
 where it blends between joints and where its pose correctives act, by about 1 cm
-at the palm and thumb base in a relaxed grasp; `forward_meshes()` returns the
-exact skin from Body Models, `link_meshes` the rigid links at the mean shape.
+at the palm and thumb base in a relaxed grasp. `forward_meshes()` poses the rigid
+links of any shape, as for every robot, and `link_meshes` holds them at the mean
+shape. `forward_vertices()` poses the exact skin through Body Models, as Body Models'
+own `forward_vertices` does (differentiable, with `vertex_indices`); its faces are
+`skin_faces`.
 
 The collision geometry is a CoACD convex decomposition (Wei et al., SIGGRAPH 2022)
 of the right mean-shape links, about 380 pieces; the left hand's are mirrored.

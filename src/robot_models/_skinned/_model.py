@@ -49,9 +49,9 @@ class Skinned(RigidBodyModel):
     """A Body Models skin as a rigid robot: its links cut from the rest skin, three hinges per joint.
 
     ``shape`` takes Body Models' shape coefficients and moves the joints, links and collision
-    pieces as the skin's rest shape moves them. The visual geometry posed by
-    :meth:`forward_meshes` is the exact skin from Body Models; :attr:`link_meshes` are its
-    rigid links at the mean shape.
+    pieces as the skin's rest shape moves them; :attr:`link_meshes` and
+    :attr:`collision_meshes` are those of the mean shape. ``forward_vertices`` poses the exact
+    skin of Body Models, whose faces are :attr:`skin_faces`.
     """
 
     _state_fields = ("_assets", "_shape", "_skin")
@@ -93,13 +93,9 @@ class Skinned(RigidBodyModel):
         return self._shape.offset_dirs.shape[0]
 
     @property
-    def faces(self) -> Int[Array, "F 3"]:
-        """Faces of the skin posed by ``forward_meshes()``."""
+    def skin_faces(self) -> Int[Array, "F 3"]:
+        """Faces of the skin posed by ``forward_vertices()``."""
         return self._skin.faces
-
-    @property
-    def num_vertices(self) -> int:
-        return self._skin.num_vertices
 
     def _forward_skeleton(
         self,
@@ -120,20 +116,23 @@ class Skinned(RigidBodyModel):
         )
 
     def forward_meshes(self, *, geometry: GeometryKind = "visual", **parameters: Float[Array, "..."]) -> list[Trimesh]:
-        """Pose the exact skin (``"visual"``) or the rigid collision pieces, one mesh per batch element."""
-        if geometry == "visual":
-            vertices = self._runtime.to_numpy(self._skin.forward_vertices(**self.to_body_models(**parameters)))
-            faces = self._runtime.to_numpy(self._skin.faces)
-            return [Trimesh(v, faces.copy(), process=False) for v in vertices.reshape(-1, *vertices.shape[-2:])]
+        """Pose the rigid links or collision pieces of ``shape``, one mesh per batch element."""
         meshes = self._geometry_assets(geometry)
-        shape = parameters.get("shape")
+        dirs = self._shape.visual_dirs if geometry == "visual" else self._shape.collision_dirs
         return rigid_ops.forward_meshes_from_links(
             self.forward_links(geometry=geometry, **parameters),
             meshes,
-            vertices=self._shaped(shape, meshes.vertices, self._shape.collision_dirs),
+            vertices=self._shaped(parameters.get("shape"), meshes.vertices, dirs),
             to_numpy=self._runtime.to_numpy,
             xp=self._runtime.xp,
         )
+
+    def _forward_vertices(
+        self, parameters: dict[str, Float[Array, "..."]], vertex_indices: Sequence[int] | None
+    ) -> Float[Array, "*batch V 3"]:
+        """The skin of Body Models posed by this model's parameters (those not ``None``)."""
+        given = {key: value for key, value in parameters.items() if value is not None}
+        return self._skin.forward_vertices(**self.to_body_models(**given), vertex_indices=vertex_indices)
 
     def _shaped(
         self, shape: Float[Array, "*batch S"] | None, rest: Float[Array, "N 3"], dirs: Float[Array, "S N 3"]
@@ -254,6 +253,24 @@ class SkinnedHand(Skinned, Hand):
         """Compute posed joint transforms of a hand of ``shape`` (the mean shape by default)."""
         return self._forward_skeleton(hand_pose, global_rotation, global_translation, joint_indices, shape)
 
+    def forward_vertices(
+        self,
+        hand_pose: Float[Array, "*batch Q"],
+        *,
+        shape: Float[Array, "*batch S"] | None = None,
+        global_rotation: Float[Array, "*batch 3"] | None = None,
+        global_translation: Float[Array, "*batch 3"] | None = None,
+        vertex_indices: Sequence[int] | None = None,
+    ) -> Float[Array, "*batch V 3"]:
+        """Compute the exact skin vertices of Body Models, posed by this model's parameters.
+
+        Differentiable in Torch and JAX, as Body Models' ``forward_vertices``; ``vertex_indices``
+        selects vertices.
+        """
+        parameters = {"hand_pose": hand_pose, "shape": shape, "global_rotation": global_rotation}
+        parameters["global_translation"] = global_translation
+        return self._forward_vertices(parameters, vertex_indices)
+
 
 class SkinnedHumanoid(Skinned, Humanoid):
     """A skinned humanoid posed by ``body_pose``, with Body Models' ``shape``."""
@@ -280,3 +297,21 @@ class SkinnedHumanoid(Skinned, Humanoid):
     ) -> Float[Array, "*batch J 4 4"]:
         """Compute posed joint transforms of a body of ``shape`` (the mean shape by default)."""
         return self._forward_skeleton(body_pose, global_rotation, global_translation, joint_indices, shape)
+
+    def forward_vertices(
+        self,
+        body_pose: Float[Array, "*batch Q"],
+        *,
+        shape: Float[Array, "*batch S"] | None = None,
+        global_rotation: Float[Array, "*batch 3"] | None = None,
+        global_translation: Float[Array, "*batch 3"] | None = None,
+        vertex_indices: Sequence[int] | None = None,
+    ) -> Float[Array, "*batch V 3"]:
+        """Compute the exact skin vertices of Body Models, posed by this model's parameters.
+
+        Differentiable in Torch and JAX, as Body Models' ``forward_vertices``; ``vertex_indices``
+        selects vertices.
+        """
+        parameters = {"body_pose": body_pose, "shape": shape, "global_rotation": global_rotation}
+        parameters["global_translation"] = global_translation
+        return self._forward_vertices(parameters, vertex_indices)

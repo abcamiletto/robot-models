@@ -48,9 +48,11 @@ def test_joint_frames_and_skin_match_body_models(name, kwargs):
 
     back = model.to_body_models(**ours)
     np.testing.assert_allclose(np.asarray(body.forward_skeleton(**back))[:, native(body, model)], expected, atol=2e-6)
-    skins = model.forward_meshes(**ours)
-    np.testing.assert_allclose(np.stack([skin.vertices for skin in skins]), body.forward_vertices(**params), atol=2e-6)
-    np.testing.assert_array_equal(skins[0].faces, body.faces)
+    vertices = body.forward_vertices(**params)
+    np.testing.assert_allclose(model.forward_vertices(**ours), vertices, atol=2e-6)
+    selected = model.forward_vertices(**ours, vertex_indices=[5, 0, 5])
+    np.testing.assert_allclose(selected, vertices[:, [5, 0, 5]], atol=2e-6)
+    np.testing.assert_array_equal(model.skin_faces, body.faces)
 
 
 @pytest.mark.parametrize(("name", "kwargs"), VARIANTS, ids=IDS)
@@ -58,16 +60,16 @@ def test_rest_links_are_the_rest_skin(name, kwargs):
     """At rest, every link vertex but the fan centers closing its openings is a skin vertex, for any shape."""
     from scipy.spatial import cKDTree
 
-    model, body = create_model(name, **kwargs), reference(name, kwargs)
-    visual = model._geometry_assets("visual")
+    model = create_model(name, **kwargs)
+    offsets = model._geometry_assets("visual").vertex_offsets
     for shape in (np.zeros(model.num_shapes), np.random.default_rng(1).normal(0, 2, model.num_shapes)):
         params = model.get_rest_pose() | {"shape": shape.astype(np.float32)}
-        skin = cKDTree(np.asarray(body.forward_vertices(**model.to_body_models(**params))))
-        vertices = model._shaped(params["shape"], visual.vertices, model._shape.visual_dirs)
-        for index, frame in enumerate(model.forward_links(**params)):
-            start, end = visual.vertex_offsets[index : index + 2]
-            distance, _ = skin.query(vertices[start:end] @ frame[:3, :3].T + frame[:3, 3])
-            assert np.mean(distance < 1e-6) > 0.85, model.link_names[index]
+        skin = cKDTree(model.forward_vertices(**params))
+        links = model.forward_meshes(**params)[0]
+        np.testing.assert_array_equal(links.faces, model.faces)
+        distance, _ = skin.query(links.vertices)
+        for link, start, end in zip(model.link_names, offsets[:-1], offsets[1:], strict=True):
+            assert np.mean(distance[start:end] < 1e-6) > 0.85, link
 
 
 @pytest.mark.parametrize(("name", "kwargs"), VARIANTS, ids=IDS)
@@ -240,3 +242,34 @@ def test_jax_conversion_with_two_batch_dimensions(name):
         return model.forward_skeleton(**model.from_body_models(**model.to_body_models(**params)))
 
     np.testing.assert_allclose(roundtrip(model, params), model.forward_skeleton(**params), atol=1e-6)
+
+
+@pytest.mark.parametrize("name", ["mano", "smpl"])
+def test_skin_vertices_are_differentiable_in_torch_and_jax(name):
+    torch = pytest.importorskip("torch")
+    jax = pytest.importorskip("jax")
+    numpy_model = create_model(name)
+    rng = np.random.default_rng(6)
+    params = numpy_model.get_rest_pose(batch_dims=(2,))
+    params[numpy_model._POSE] = rng.normal(0, 0.3, params[numpy_model._POSE].shape).astype(np.float32)
+    params["shape"] = rng.normal(0, 1, (2, numpy_model.num_shapes)).astype(np.float32)
+    expected = numpy_model.forward_vertices(**params)
+
+    torch_model = create_model(name, runtime="torch")
+    torch_params = {key: torch.tensor(value, requires_grad=True) for key, value in params.items()}
+    vertices = torch_model.forward_vertices(**torch_params)
+    np.testing.assert_allclose(vertices.detach().numpy(), expected, atol=1e-5)
+    vertices.square().sum().backward()
+    for key in (numpy_model._POSE, "shape", "global_rotation", "global_translation"):
+        gradient = torch_params[key].grad
+        assert gradient is not None and torch.isfinite(gradient).all() and gradient.abs().sum() > 0, key
+
+    jax_model = create_model(name, runtime="jax")
+    jax_params = {key: jax.numpy.asarray(value) for key, value in params.items()}
+
+    @jax.jit
+    def energy(model, shape):
+        return model.forward_vertices(**(jax_params | {"shape": shape})).__pow__(2).sum()
+
+    gradient = jax.grad(energy, argnums=1)(jax_model, jax_params["shape"])
+    np.testing.assert_allclose(gradient, torch_params["shape"].grad.numpy(), rtol=1e-3, atol=1e-5)

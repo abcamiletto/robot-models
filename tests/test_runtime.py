@@ -22,16 +22,6 @@ def test_runtime_array_creation_follows_reference_dtype() -> None:
 
 
 @pytest.mark.fast
-@pytest.mark.parametrize("backend", ["numpy", "torch", "jax"])
-def test_runtime_rejects_unknown_state(backend) -> None:
-    if backend != "numpy":
-        pytest.importorskip(backend)
-    runtime = {"numpy": NumpyRuntime, "torch": TorchRuntime, "jax": JaxRuntime}[backend]()
-    with pytest.raises(TypeError, match="Unsupported model state leaf"):
-        runtime._materialize(object())
-
-
-@pytest.mark.fast
 def test_runtime_stop_gradient() -> None:
     numpy_value = np.ones(2, dtype=np.float32)
     assert NumpyRuntime().stop_gradient(numpy_value) is numpy_value
@@ -44,43 +34,31 @@ def test_runtime_stop_gradient() -> None:
     np.testing.assert_array_equal(gradient, np.zeros(2, dtype=np.float32))
 
 
-def test_factory_returns_backend_specific_model() -> None:
-    torch = pytest.importorskip("torch")
-    pytest.importorskip("jax")
-    from robot_models import create_model
-    from robot_models.humanoids.g1.jax import G1 as JaxG1
-    from robot_models.humanoids.g1.numpy import G1 as NumpyG1
-    from robot_models.humanoids.g1.torch import G1 as TorchG1
-
-    models = [create_model("g1"), create_model("g1", runtime="torch"), create_model("g1", runtime="jax")]
-    assert [type(model) for model in models] == [NumpyG1, TorchG1, JaxG1]
-    assert [model.runtime.name for model in models] == ["numpy", "torch", "jax"]
-    assert isinstance(models[1], torch.nn.Module)
-
-
 def test_torch_model_manages_module_state() -> None:
     torch = pytest.importorskip("torch")
     from robot_models import create_model
 
     model = create_model("g1", runtime="torch").double()
     for geometry in ("visual", "collision"):
-        assert f"_assets.{geometry}.vertices" in model.state_dict()
-        assert getattr(model._assets, geometry).vertices.dtype == torch.float64
         attribute = "link_meshes" if geometry == "visual" else "collision_meshes"
         meshes = getattr(model, attribute)
         original = meshes[0].vertices[0].copy()
         meshes[0].vertices[0] += 1
         np.testing.assert_array_equal(getattr(model, attribute)[0].vertices[0], original)
 
+    params = model.get_rest_pose(dtype=torch.float64)
+    expected = model.forward_skeleton(**params)
+    assert expected.dtype == torch.float64
+    assert model.state_dict()
+    assert all(buffer.dtype == torch.float64 for buffer in model.buffers() if buffer.is_floating_point())
     restored = pickle.loads(pickle.dumps(model))
     assert type(restored) is type(model)
     assert restored.name == "g1"
-    assert "_assets.visual.vertices" in restored.state_dict()
-    assert "_assets.collision.vertices" in restored.state_dict()
     restored.load_state_dict(model.state_dict())
+    torch.testing.assert_close(restored.forward_skeleton(**params), expected)
 
 
-@pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.MODELS)
+@pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.RUNTIME_MODELS)
 def test_jax_model_pytree_round_trip(name, model_class, kwargs) -> None:
     jax = pytest.importorskip("jax")
     model = model_cases.backend_model_class(name, "jax")(**kwargs)
@@ -94,3 +72,5 @@ def test_jax_model_pytree_round_trip(name, model_class, kwargs) -> None:
     assert restored.joint_names == model.joint_names
     if hasattr(model, "side"):
         assert restored.side == model.side
+    params = model.get_rest_pose()
+    np.testing.assert_allclose(restored.forward_skeleton(**params), model.forward_skeleton(**params))

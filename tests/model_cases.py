@@ -9,3 +9,9 @@ def backend_model_class(name: str, backend: str):
 
 
 MODELS = [(name, backend_model_class(name, "numpy"), {}) for name in MODEL_SPECS]
+
+# Shared runtime behavior: a coupled hand, an independent hand and a humanoid.
+RUNTIME_MODELS = [
+    (name, backend_model_class(name, "numpy"), kwargs)
+    for name, kwargs in (("barrett", {}), ("shadow", {"side": "left"}), ("g1", {}))
+]

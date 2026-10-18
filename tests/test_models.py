@@ -48,6 +48,14 @@ def test_skeleton_matches_mujoco_bodies(case) -> None:
     np.testing.assert_allclose(skeleton[:, :3, 3], positions, atol=2e-5)
     np.testing.assert_allclose(skeleton[:, :3, :3], rotations, atol=2e-5)
 
+    for eq in range(mj_model.neq):
+        if mj_model.eq_type[eq] != mujoco.mjtEq.mjEQ_JOINT:
+            continue  # Tendon equalities describe simulation rather than hinge pose coordinates.
+        coupled = data.qpos[mj_model.jnt_qposadr[mj_model.eq_obj1id[eq]]]
+        driver = data.qpos[mj_model.jnt_qposadr[mj_model.eq_obj2id[eq]]]
+        expected = np.polynomial.polynomial.polyval(driver, mj_model.eq_data[eq, :5])
+        np.testing.assert_allclose(coupled, expected, atol=1e-5)
+
 
 def test_link_meshes_match_mujoco_visual_geoms(case) -> None:
     mujoco, model, mj_model, data, pose = case
@@ -69,17 +77,6 @@ def test_link_meshes_match_mujoco_visual_geoms(case) -> None:
         actual = np.asarray(mesh.vertices) @ link[:3, :3].T + link[:3, 3]
         np.testing.assert_allclose(actual.min(0), expected.min(0), atol=1e-4)
         np.testing.assert_allclose(actual.max(0), expected.max(0), atol=1e-4)
-
-
-def test_coupled_hinges_satisfy_mujoco_equalities(case) -> None:
-    mujoco, _, mj_model, data, _ = case
-    for eq in range(mj_model.neq):
-        if mj_model.eq_type[eq] != mujoco.mjtEq.mjEQ_JOINT:
-            continue  # Tendon equalities describe simulation rather than hinge pose coordinates.
-        coupled = data.qpos[mj_model.jnt_qposadr[mj_model.eq_obj1id[eq]]]
-        driver = data.qpos[mj_model.jnt_qposadr[mj_model.eq_obj2id[eq]]]
-        expected = np.polynomial.polynomial.polyval(driver, mj_model.eq_data[eq, :5])
-        np.testing.assert_allclose(coupled, expected, atol=1e-5)
 
 
 def test_collision_meshes_match_mujoco_geoms(case) -> None:

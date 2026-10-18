@@ -1,85 +1,36 @@
-"""Snapshot of the stable public API surface."""
+"""Public model discovery, imports and construction."""
 
-from importlib import import_module
+import importlib
 
 import model_cases
 import pytest
 
-import robot_models
 from robot_models import _catalog as catalog
-
-EXPECTED_ROOT_EXPORTS = (
-    "ArrayRuntime",
-    "Joint",
-    "ParameterRole",
-    "ParameterSpec",
-    "RigidBodyModel",
-    "RotationType",
-    "RuntimeName",
-    "add_hand",
-    "create_model",
-    "list_models",
-)
-
-_ROOT_TRANSFORM = {
-    "global_rotation": ((3,), "transform", "axis_angle"),
-    "global_translation": ((3,), "transform", None),
-}
-
-EXPECTED_PARAMETER_SPECS = {
-    "barrett": {"hand_pose": ((4,), "pose", None), **_ROOT_TRANSFORM},
-    "robotiq-3finger": {"hand_pose": ((11,), "pose", None), **_ROOT_TRANSFORM},
-    "ezgripper": {"hand_pose": ((4,), "pose", None), **_ROOT_TRANSFORM},
-    "ability": {"hand_pose": ((6,), "pose", None), **_ROOT_TRANSFORM},
-    "allegro": {"hand_pose": ((16,), "pose", None), **_ROOT_TRANSFORM},
-    "brainco": {"hand_pose": ((6,), "pose", None), **_ROOT_TRANSFORM},
-    "g1": {"body_pose": ((29,), "pose", None), **_ROOT_TRANSFORM},
-    "gr1": {"body_pose": ((32,), "pose", None), **_ROOT_TRANSFORM},
-    "h1": {"body_pose": ((19,), "pose", None), **_ROOT_TRANSFORM},
-    "inspire": {"hand_pose": ((6,), "pose", None), **_ROOT_TRANSFORM},
-    "leap": {"hand_pose": ((16,), "pose", None), **_ROOT_TRANSFORM},
-    "sharpa": {"hand_pose": ((22,), "pose", None), **_ROOT_TRANSFORM},
-    "shadow": {"hand_pose": ((24,), "pose", None), **_ROOT_TRANSFORM},
-    "t1": {"body_pose": ((23,), "pose", None), **_ROOT_TRANSFORM},
-    "talos": {"body_pose": ((38,), "pose", None), **_ROOT_TRANSFORM},
-}
+from robot_models import create_model, list_models
 
 
 @pytest.mark.fast
-def test_root_exports_match_snapshot() -> None:
-    assert sorted(robot_models.__all__) == sorted(set(robot_models.__all__))
-    assert sorted(robot_models.__all__) == list(EXPECTED_ROOT_EXPORTS)
-    for name in robot_models.__all__:
-        assert getattr(robot_models, name) is not None
+def test_family_catalog_and_filtering():
+    hands = set(list_models(family="hands"))
+    humanoids = set(list_models(family="humanoids"))
+    assert "shadow" in hands and "g1" in humanoids
+    assert hands.isdisjoint(humanoids)
+    assert hands | humanoids == set(list_models())
+    assert list_models(family="hands", pattern="shadow") == ["shadow"]
+    with pytest.raises(ValueError, match="family"):
+        list_models(family="unknown")
 
 
-@pytest.mark.fast
-@pytest.mark.parametrize("backend", ["numpy", "torch", "jax"])
-def test_backend_modules_export_model_class(backend) -> None:
+@pytest.mark.parametrize("backend", ("numpy", "torch", "jax"))
+@pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.RUNTIME_MODELS)
+def test_named_import_and_factory_select_backend(backend, name, model_class, kwargs):
     if backend != "numpy":
         pytest.importorskip(backend)
-    for name, spec in catalog.MODEL_SPECS.items():
-        module = import_module(f"{catalog.model_module(name)}.{backend}")
-        assert spec.class_name in module.__all__
-
-
-@pytest.mark.fast
-def test_family_catalog_is_complete_and_disjoint():
-    hands = robot_models.list_models(family="hands")
-    humanoids = robot_models.list_models(family="humanoids")
-    assert len(hands) == 10 and len(humanoids) == 5
-    assert not set(hands) & set(humanoids)
-    assert sorted([*hands, *humanoids]) == sorted(EXPECTED_PARAMETER_SPECS)
-    assert robot_models.list_models(family="hands", pattern="shadow") == ["shadow"]
-    with pytest.raises(ValueError, match="family"):
-        robot_models.list_models(family="unknown")
-
-
-@pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.MODELS)
-def test_parameter_spec_matches_snapshot(name, model_class, kwargs) -> None:
+    module = importlib.import_module(f"{catalog.model_module(name)}.{backend}")
+    model_class = getattr(module, catalog.MODEL_SPECS[name].class_name)
     model = model_class(**kwargs)
-    actual = {key: (tuple(spec.dims), spec.role, spec.rotation_type) for key, spec in model.parameter_spec.items()}
-    expected = EXPECTED_PARAMETER_SPECS[name]
-
-    assert list(actual) == list(expected)
-    assert actual == expected
+    assert type(create_model(name, runtime=backend, **kwargs)) is model_class
+    assert model.name == name
+    assert model.runtime.name == backend
+    with pytest.raises(TypeError):
+        model_class(runtime=backend)

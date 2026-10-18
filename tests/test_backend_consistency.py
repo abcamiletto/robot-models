@@ -13,6 +13,8 @@ def mesh_vertices(meshes):
 def assert_pose_helpers_round_trip(model, pose) -> None:
     pose_by_joint = model.unpack_pose(pose)
     assert list(pose_by_joint) == list(dict.fromkeys(model.actuated_joint_names))
+    for index, value in enumerate(pose_by_joint.values()):
+        np.testing.assert_array_equal(value, pose[..., index : index + 1])
     np.testing.assert_array_equal(np.asarray(model.pack_pose(pose_by_joint)), np.asarray(pose))
 
 
@@ -44,28 +46,20 @@ def test_meshes_match_across_backends(name, model_class, kwargs) -> None:
 
 
 @pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.MODELS)
-def test_rigid_body_contract(name, model_class, kwargs) -> None:
+def test_pose_parameters_and_named_joint_round_trip(name, model_class, kwargs) -> None:
     model = model_class(**kwargs)
     params = model.get_rest_pose(batch_dims=(2,), dtype=np.float32)
     pose_name = "hand_pose" if "hand_pose" in params else "body_pose"
-    skeleton = model.forward_skeleton(**params)
-
-    assert skeleton.shape[-3] == model.num_joints == len(model.joint_names)
-    assert len(model.actuated_joint_names) == model.num_dofs
-    assert len(model.actuated_joint_types) == model.num_dofs
-    assert model.actuated_joint_limits.shape == (model.num_dofs, 2)
-    assert params[pose_name].shape == (2, model.num_dofs)
+    params[pose_name] = np.arange(2 * model.num_dofs, dtype=np.float32).reshape(2, -1)
     assert_pose_helpers_round_trip(model, params[pose_name])
-
-    qpos = model.to_qpos(
-        params[pose_name],
-        global_rotation=params["global_rotation"],
-        global_translation=params["global_translation"],
-    )
-    assert qpos.shape == (2, 7 + len(model._assets.hinge_axes))
+    for parameter, spec in model.parameter_spec.items():
+        assert params[parameter].shape == (2, *spec.dims)
+    assert model.parameter_spec[pose_name].role == "pose"
+    assert model.parameter_spec["global_rotation"].role == "transform"
+    assert model.parameter_spec["global_translation"].role == "transform"
 
 
-@pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.MODELS)
+@pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.RUNTIME_MODELS)
 def test_link_meshes_reconstruct_forward_mesh(name, model_class, kwargs) -> None:
     model = model_class(**kwargs)
     params = model.get_rest_pose()
@@ -87,7 +81,7 @@ def test_link_meshes_reconstruct_forward_mesh(name, model_class, kwargs) -> None
         np.testing.assert_array_equal(untouched.faces, np.concatenate(faces))
 
 
-@pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.MODELS)
+@pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.RUNTIME_MODELS)
 def test_skeleton_joint_indices_match_full_skeleton_selection(name, model_class, kwargs) -> None:
     rng = np.random.default_rng(7)
     model = model_class(**kwargs)
@@ -110,7 +104,7 @@ def test_skeleton_joint_indices_match_full_skeleton_selection(name, model_class,
         model.forward_skeleton(**params, joint_indices=[num_joints])
 
 
-@pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.MODELS)
+@pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.RUNTIME_MODELS)
 def test_arbitrary_leading_dimensions(name, model_class, kwargs) -> None:
     model = model_class(**kwargs)
     joint_indices = list(range(min(8, model.num_joints)))

@@ -13,6 +13,11 @@ IDS = [f"{name}-{next(iter(kwargs.values()))}" for name, kwargs in VARIANTS]
 SHAPE = np.random.default_rng(1).normal(0, 2, 10).astype(np.float32)
 
 
+def random_pose(name, seed=2):
+    count = 45 if name == "mano" else 69
+    return np.random.default_rng(seed).normal(0, 0.4, count).astype(np.float32)
+
+
 def reference(name, kwargs):
     from body_models import create_model as body_model
 
@@ -59,13 +64,17 @@ def test_joint_frames_and_skin_match_body_models(name, kwargs, shape):
 
 
 @pytest.mark.parametrize(("name", "kwargs"), VARIANTS, ids=IDS)
-@pytest.mark.parametrize("shape", [None, SHAPE], ids=["mean", "shaped"])
-def test_rest_links_are_the_rest_skin(name, kwargs, shape):
-    """At rest, every link vertex but the fan centers closing its openings is a skin vertex."""
+@pytest.mark.parametrize(
+    ("shape", "conformed"), [(None, False), (SHAPE, False), (SHAPE, True)], ids=["mean", "shaped", "conformed"]
+)
+def test_links_are_the_skin_at_their_pose(name, kwargs, shape, conformed):
+    """Posed at the pose its links are cut at (flat by default), every link vertex but the fan centers
+    closing its openings is a skin vertex."""
     from scipy.spatial import cKDTree
 
-    model = create_model(name, shape=shape, **kwargs)
-    params = model.get_rest_pose()
+    pose = random_pose(name) if conformed else None
+    model = create_model(name, shape=shape, conform_to=pose, **kwargs)
+    params = model.get_rest_pose() | ({} if pose is None else {model._POSE: pose})
     skin = cKDTree(model.forward_vertices(**params))
     distance, _ = skin.query(model.forward_meshes(**params)[0].vertices)
     offsets = model._geometry_assets("visual").vertex_offsets
@@ -85,33 +94,38 @@ def test_extreme_shape_joint_positions_match_body_models(name, kwargs, value):
 
 
 @pytest.mark.parametrize(("name", "kwargs"), VARIANTS, ids=IDS)
-def test_collision_pieces_follow_the_shaped_links(name, kwargs):
-    """At another shape, the piece vertices keep their distances to their link's surface."""
+def test_collision_pieces_follow_the_links(name, kwargs):
+    """At another shape and pose, the piece vertices keep their distances to their link's surface."""
     from scipy.spatial import cKDTree
 
+    flat = create_model(name, conform_to=np.zeros_like(random_pose(name)), **kwargs)
+    np.testing.assert_array_equal(
+        flat.collision_meshes[0].vertices, create_model(name, **kwargs).collision_meshes[0].vertices
+    )
     distances = []
-    for shape in (None, SHAPE):
-        model = create_model(name, shape=shape, **kwargs)
+    for shape, pose in ((None, None), (SHAPE, random_pose(name))):
+        model = create_model(name, shape=shape, conform_to=pose, **kwargs)
         surfaces = [cKDTree(trimesh.sample.sample_surface(mesh, 50000, seed=0)[0]) for mesh in model.link_meshes]
         owners = [model.link_joint_indices.index(joint) for joint in model.collision_joint_indices]
         pieces = zip(model.collision_meshes, owners, strict=True)
         distances.append(np.concatenate([surfaces[owner].query(piece.vertices)[0] for piece, owner in pieces]))
     change = np.abs(distances[1] - distances[0])
-    assert np.percentile(change, 99) < (0.003 if name == "mano" else 0.008)
+    assert np.percentile(change, 99) < (0.003 if name == "mano" else 0.015)  # a body bends more than a hand
 
 
 @pytest.mark.parametrize("side", ("right", "left"))
-def test_shaped_mujoco_hand_matches_the_shaped_model(side):
+def test_mujoco_hand_matches_the_model_of_its_geometry(side):
     mujoco = pytest.importorskip("mujoco")
     rng = np.random.default_rng(3)
-    for shape in (-2 * np.ones(10, np.float32), SHAPE):
-        hand = create_model("mano", side=side, shape=shape)
+    for shape, conform_to in ((-2 * np.ones(10, np.float32), None), (SHAPE, random_pose("mano"))):
+        hand = create_model("mano", side=side, shape=shape, conform_to=conform_to)
         scene = mujoco.MjSpec()
-        _, root = add_hand(scene, "mano", side=side, free=True, shape=shape)
+        _, root = add_hand(scene, "mano", side=side, free=True, shape=shape, conform_to=conform_to)
         model = scene.compile()
         data = mujoco.MjData(model)
         mujoco.mj_forward(model, data)
-        assert data.ncon == 0  # quiet at rest, whatever the shape
+        if conform_to is None:
+            assert data.ncon == 0  # quiet at rest, whatever the shape
         volume = sum(mesh.volume for mesh in hand.link_meshes)
         np.testing.assert_allclose(model.body_subtreemass[model.body(root.name).id], 1100 * volume, rtol=1e-6)
 

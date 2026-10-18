@@ -64,6 +64,7 @@ class ModelConfig:
     side: Side | None = None
     variant: str | None = None
     shape: tuple[float, ...] | None = None  # Body Models shape coefficients, fixed at construction
+    conform_to: tuple[float, ...] | None = None  # the pose a skinned robot's links are cut at
 
 
 class RigidBodyModel(ABC):

@@ -33,11 +33,13 @@ def model_for_backend(name: str, backend: RuntimeName, *, module: str) -> type[A
                 *,
                 side: Side = "right",
                 shape: Sequence[float] | None = None,
+                conform_to: Sequence[float] | None = None,
                 model_path: Path | str | None = None,
             ) -> None:
                 if backend == "torch":
                     module_base.__init__(self)
-                super().__init__(name, side=side, shape=shape, model_path=model_path, runtime=runtime())
+                geometry = {"shape": shape, "conform_to": conform_to}
+                super().__init__(name, side=side, **geometry, model_path=model_path, runtime=runtime())
 
     elif definition.family == "hands":
 
@@ -55,11 +57,13 @@ def model_for_backend(name: str, backend: RuntimeName, *, module: str) -> type[A
                 *,
                 gender: Gender = "neutral",
                 shape: Sequence[float] | None = None,
+                conform_to: Sequence[float] | None = None,
                 model_path: Path | str | None = None,
             ) -> None:
                 if backend == "torch":
                     module_base.__init__(self)
-                super().__init__(name, gender=gender, shape=shape, model_path=model_path, runtime=runtime())
+                geometry = {"shape": shape, "conform_to": conform_to}
+                super().__init__(name, gender=gender, **geometry, model_path=model_path, runtime=runtime())
 
     else:
 

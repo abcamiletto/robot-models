@@ -28,12 +28,25 @@ the asset cache, or into a configured `model_path`. Building needs
 triggers a rebuild. `robot-models download mano` builds ahead of time. Never
 publish the built directory: it is derived from the MANO files.
 
-## Shape
+## Shape and geometry pose
 
-The shape is fixed when the model is built: a `ManoRobot` is one hand. Its joint
-offsets, links, collision pieces and `add_hand` masses are those of `shape`, and
-`hand.shape` returns it. Every rest quantity is linear in the shape coefficients,
-so a model of any shape loads as fast as the mean one; use one model per shape.
+A `ManoRobot` is one hand, fixed when it is built: its links and collision pieces are
+MANO's skin at `shape` (the mean by default), posed by `conform_to` (this model's
+`hand_pose`, flat by default) and cut per joint in its joint frames. The joint offsets
+are those of `shape`; `hand.shape` returns it. `add_hand` takes the same arguments.
+
+```python
+hand = ManoRobot(side="right", shape=betas, conform_to=grasp_pose)
+add_hand(scene, "mano", side="right", shape=betas, conform_to=grasp_pose, free=True)
+```
+
+Posed at `conform_to`, the links are the skin and the pieces follow it; elsewhere they
+move rigidly. A rigid hand cut at the flat pose departs from the skin by up to about
+2 cm at the palm and thumb base in a grasp, which matters for simulation: on 500 MANO
+grasps, its pieces touched the object about 12% less than pieces conformed to each
+grasp, whose overlap with the object stayed within 1 mm of the skin's. So build one
+model per grasp, conformed to it, to simulate grasps; a model loads in a few
+milliseconds.
 
 ## Kinematics
 
@@ -63,19 +76,17 @@ and the PIP and DIP spread, have empty ranges.
 
 ## Geometry
 
-The links are the flat, rest skin cut by joint: each face goes to the joint that
-skins its corners most, and each opening is closed by a fan to its centroid.
-At rest they are the skin. Posed, they move rigidly, so they depart from MANO's skin
-where it blends between joints and where its pose correctives act, by about 1 cm
-at the palm and thumb base in a relaxed grasp. `forward_meshes()` poses the rigid
-links, as for every robot, and `link_meshes` holds them. `forward_vertices()` poses the exact skin through Body Models, as Body Models'
-own `forward_vertices` does (differentiable, with `vertex_indices`); its faces are
-`skin_faces`.
+Each skin face goes to the joint that skins its corners most, and each link is closed
+by a fan over its openings. `forward_meshes()` poses the rigid links, as for every
+robot, and `link_meshes` holds them. `forward_vertices()` poses the exact skin through
+Body Models at any pose, as Body Models' own `forward_vertices` does (differentiable,
+with `vertex_indices`); its faces are `skin_faces`.
 
 The collision geometry is a CoACD convex decomposition (Wei et al., SIGGRAPH 2022)
-of the right mean-shape links, about 380 pieces; the left hand's are mirrored.
-At other shapes, piece vertices follow the rest skin by inverse-distance weights
-over their link's four nearest vertices. Links have 1100 kg/m³ tissue density.
+of the flat, mean-shape right links, about 380 pieces; the left hand's are mirrored.
+At another shape or `conform_to`, each piece vertex follows its link by inverse-distance
+weights over the link's four nearest vertices, as grasp-bench does. Links have
+1100 kg/m³ tissue density.
 
 ## Control
 
@@ -91,7 +102,7 @@ import mujoco
 from robot_models import add_hand
 
 scene = mujoco.MjSpec()
-mount, root = add_hand(scene, "mano", side="left", free=True, shape=betas)  # as ManoRobot(shape=betas)
+mount, root = add_hand(scene, "mano", side="left", free=True, shape=betas)  # as ManoRobot(side="left", shape=betas)
 ```
 
 The packaged MJCF has a position actuator per hinge (kp 10 N·m/rad), and excludes

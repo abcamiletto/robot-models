@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from importlib import import_module
@@ -28,6 +29,7 @@ class Source:
     """
 
     body_model: str
+    pose: str  # Body Models' pose parameter of the joints below the root
     root_rotation: str  # Body Models' rotation of the root joint about itself
     variant_key: str  # Body Models' argument choosing a variant
     variants: tuple[str, ...]
@@ -87,6 +89,7 @@ def _smpl_hinges(variant: str, joints: np.ndarray, parents: list[int], names: li
 SOURCES: dict[str, Source] = {
     "mano": Source(
         body_model="mano",
+        pose="hand_pose",
         root_rotation="wrist_rotation",
         variant_key="side",
         variants=("right", "left"),
@@ -100,6 +103,7 @@ SOURCES: dict[str, Source] = {
     ),
     "smpl": Source(
         body_model="smpl",
+        pose="body_pose",
         root_rotation="pelvis_rotation",
         variant_key="gender",
         variants=("neutral", "male", "female"),
@@ -111,3 +115,19 @@ SOURCES: dict[str, Source] = {
         free=True,
     ),
 }
+
+
+def source_of(name: str) -> Source:
+    """The Body Models source of a locally built model."""
+    from robot_models import _catalog as catalog
+
+    body_model = catalog.model_spec(name).body_model
+    if body_model is None:
+        raise ValueError(f"{name!r} is not built from Body Models")
+    return SOURCES[body_model]
+
+
+@functools.cache
+def numpy_model(name: str, variant: str) -> Any:
+    """The NumPy Body Models model of a locally built model's variant, shared."""
+    return source_of(name).create(variant)

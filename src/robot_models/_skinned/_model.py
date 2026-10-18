@@ -18,8 +18,8 @@ from robot_models._base import ModelConfig, RigidBodyModel
 from robot_models._common import eye_as, zeros_as
 from robot_models._common import rigid as rigid_ops
 from robot_models._runtime import ArrayRuntime
-from robot_models._skinned import _shape
-from robot_models._skinned._sources import SOURCES, Source
+from robot_models._skinned._geometry import geometry
+from robot_models._skinned._sources import Source, source_of
 from robot_models._spec import Side
 from robot_models.hands._base import Hand
 from robot_models.humanoids._base import Humanoid
@@ -46,11 +46,12 @@ class Conversion:
 
 
 class Skinned(RigidBodyModel):
-    """A Body Models skin of one shape as a rigid robot: its links cut from the rest skin, three hinges per joint.
+    """A Body Models skin as a rigid robot, three hinges per joint, of a shape and geometry fixed at construction.
 
-    The shape, Body Models' coefficients fixed at construction (the mean by default), moves the
-    joints, links and collision pieces as it moves the rest skin. ``forward_vertices`` poses the
-    exact skin of Body Models, whose faces are :attr:`skin_faces`.
+    Its links are the skin at ``shape`` (the mean by default), posed by ``conform_to`` (this model's
+    hinge angles, flat by default), cut per joint in its joint frames; its collision pieces follow
+    them. Posed at ``conform_to``, the visual links are the skin. ``forward_vertices`` poses the
+    exact skin of Body Models at any pose, whose faces are :attr:`skin_faces`.
     """
 
     _state_fields = ("_assets", "_conversion", "_skin")
@@ -68,15 +69,12 @@ class Skinned(RigidBodyModel):
                 f"{self.name} {self._source.variant_key} {xml_path.stem!r} is not built in {xml_path.parent}: "
                 f"configure its Body Models file with `body-models set {self._source.body_model}-{xml_path.stem} PATH`."
             )
-        shaped = _shape.shaped(xml_path, self._config.shape)
-        self._set_assets(shaped.assets, runtime)
-        axes = shaped.assets.hinge_axes.reshape(-1, 3, 3)
-        frames = np.swapaxes(axes, 1, 2).copy()
+        built = geometry(self.name, xml_path, self._config.shape, self._config.conform_to)
+        self._set_assets(built.assets, runtime)
+        frames = np.swapaxes(built.assets.hinge_axes.reshape(-1, 3, 3), 1, 2).copy()
         signs = np.sign(np.linalg.det(frames)).astype(np.float32)
         frames[..., 2] *= signs[:, None]
-        with np.load(xml_path.with_suffix(".npz")) as data:
-            pose_rows = data["pose_rows"].tolist()
-        conversion = Conversion(pose_rows, frames, signs, shaped.root, shaped.shape)
+        conversion = Conversion(built.pose_rows, frames, signs, built.root, built.shape)
         self._conversion = runtime._materialize(conversion)
         self._skin = self._source.create(xml_path.stem, runtime.name)
 
@@ -180,23 +178,15 @@ class Skinned(RigidBodyModel):
         return SO3.convert(value, src="axis_angle", dst="rotmat", xp=xp)
 
 
-def source_of(name: str) -> Source:
-    """The Body Models source of a locally built model."""
-    body_model = catalog.model_spec(name).body_model
-    if body_model is None:
-        raise ValueError(f"{name!r} is not built from Body Models")
-    return SOURCES[body_model]
-
-
 def _traced(value: Any) -> bool:
     """Whether a value is traced by JAX, so that its numbers are unknown."""
     jax = sys.modules.get("jax")
     return jax is not None and isinstance(value, jax.core.Tracer)
 
 
-def _coefficients(shape: Any) -> tuple[float, ...] | None:
-    """Shape coefficients as static model identity."""
-    return None if shape is None else tuple(float(value) for value in np.ravel(shape))
+def _static(values: Any) -> tuple[float, ...] | None:
+    """Shape coefficients or a pose as static model identity."""
+    return None if values is None else tuple(float(value) for value in np.ravel(values))
 
 
 class SkinnedHand(Skinned, Hand):
@@ -208,6 +198,7 @@ class SkinnedHand(Skinned, Hand):
         *,
         side: Side = "right",
         shape: Sequence[float] | None = None,
+        conform_to: Sequence[float] | None = None,
         model_path: Path | str | None = None,
         runtime: ArrayRuntime,
     ) -> None:
@@ -215,7 +206,7 @@ class SkinnedHand(Skinned, Hand):
         sides = catalog.model_spec(name).sides
         if side not in sides:
             raise ValueError(f"{name!r} supports side(s): {sides}")
-        self._config = ModelConfig(name, side, shape=_coefficients(shape))
+        self._config = ModelConfig(name, side, shape=_static(shape), conform_to=_static(conform_to))
         self._load(f"{side}.xml", model_path, runtime)
 
     def forward_vertices(
@@ -245,6 +236,7 @@ class SkinnedHumanoid(Skinned, Humanoid):
         *,
         gender: Gender = "neutral",
         shape: Sequence[float] | None = None,
+        conform_to: Sequence[float] | None = None,
         model_path: Path | str | None = None,
         runtime: ArrayRuntime,
     ) -> None:
@@ -252,7 +244,7 @@ class SkinnedHumanoid(Skinned, Humanoid):
         genders = source_of(name).variants
         if gender not in genders:
             raise ValueError(f"{name!r} supports genders: {genders}")
-        self._config = ModelConfig(name, variant=gender, shape=_coefficients(shape))
+        self._config = ModelConfig(name, variant=gender, shape=_static(shape), conform_to=_static(conform_to))
         self._load(f"{gender}.xml", model_path, runtime)
 
     @property

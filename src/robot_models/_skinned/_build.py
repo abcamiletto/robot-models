@@ -3,11 +3,11 @@
 The links are the rest skin cut by joint: each face goes to the joint that skins its corners
 most, and each link is closed by a fan over every opening. The collision pieces are a CoACD
 convex decomposition (Wei et al., SIGGRAPH 2022) of the base variant's mean-shape links; other
-variants and shapes carry each piece vertex with its link's skin, by inverse squared distance
-over its ``NEAREST`` rest link vertices. Every rest quantity is linear in the shape
-coefficients, so each variant stores its mean-shape geometry in its MJCF and the shape
-directions of its joint offsets and vertices in ``{variant}.npz``. Nothing built here may be
-redistributed: it is derived from the MANO or SMPL model files.
+variants carry each piece vertex with its link's skin, by inverse squared distance over its
+``NEAREST`` rest link vertices. Each variant's MJCF holds its flat, mean-shape geometry, and
+``{variant}.npz`` how that geometry follows any other skin (``_geometry``): each link vertex as
+weights over skin vertices, each piece vertex's nearest link vertices and weights. Nothing built
+here may be redistributed: it is derived from the MANO or SMPL model files.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ import trimesh
 from robot_models._common.mjcf import MUJOCO_TO_MODEL
 from robot_models._skinned._sources import MIRROR, SOURCES, Source
 
-ASSET_VERSION = 2
+ASSET_VERSION = 3
 NEAREST = 4  # rest link vertices each piece vertex follows
 STIFFNESS = 10.0  # N·m/rad of the packaged position actuators
 DAMPING = 0.003  # N·m·s/rad per hinge
@@ -86,16 +86,14 @@ def build(name: str, directory: Path, sources: dict[str, Path]) -> None:
 
 @dataclass(frozen=True)
 class Skin:
-    """A variant's rest skin and joints, linear in shape: ``x(shape) = x + shape @ x_dirs``."""
+    """A variant's flat, mean-shape rest skin and joints."""
 
     names: list[str]
     parents: list[int]
     faces: np.ndarray
     weights: np.ndarray
     vertices: np.ndarray  # (V, 3)
-    vertex_dirs: np.ndarray  # (S, V, 3)
     joints: np.ndarray  # (J, 3)
-    joint_dirs: np.ndarray  # (S, J, 3)
 
 
 @dataclass(frozen=True)
@@ -112,24 +110,23 @@ class Cut:
         centers = [own[..., loop, :].mean(-2, keepdims=True) for loop in self.loops]
         return np.concatenate([own, *centers], axis=-2)
 
+    def rows(self) -> list[tuple[np.ndarray, np.ndarray]]:
+        """Each link vertex as skin vertex indices and weights."""
+        own = [(np.array([index]), np.ones(1)) for index in self.used]
+        return own + [(self.used[loop], np.full(len(loop), 1 / len(loop))) for loop in self.loops]
+
 
 def skin(source: Source, variant: str) -> Skin:
-    """A variant's flat rest skin and joints at the mean shape, and their shape directions."""
+    """A variant's flat rest skin and joints at the mean shape."""
     model = source.create(variant)
-    shapes = model.parameter_spec["shape"].dims[0]
-    params = {k: np.asarray(v) for k, v in model.get_rest_pose(batch_dims=(shapes + 1,), dtype=np.float64).items()}
-    params["shape"] = np.concatenate([np.zeros((1, shapes)), np.eye(shapes)]).astype(params["shape"].dtype)
-    vertices = np.asarray(model.forward_vertices(**params), np.float64)
-    joints = np.asarray(model.forward_skeleton(**params), np.float64)[..., :3, 3]
+    params = model.get_rest_pose(dtype=np.float64)
     return Skin(
         names=list(model.joint_names),
         parents=[int(p) for p in model.parents],
         faces=np.asarray(model.faces, np.int64),
         weights=np.asarray(model.skin_weights, np.float64),
-        vertices=vertices[0],
-        vertex_dirs=vertices[1:] - vertices[0],
-        joints=joints[0],
-        joint_dirs=joints[1:] - joints[0],
+        vertices=np.asarray(model.forward_vertices(**params), np.float64),
+        joints=np.asarray(model.forward_skeleton(**params), np.float64)[:, :3, 3],
     )
 
 
@@ -215,38 +212,39 @@ def _write_variant(source: Source, variant: str, pieces: dict[str, np.ndarray], 
     moving = [name for name, parent in zip(own.names, own.parents) if parent >= 0]
     hinges = dict(zip(moving, source.hinges(variant, own.joints, own.parents, own.names), strict=True))
 
-    # Links and their shape directions, in their joint's rest frame.
+    # Links in their joint's rest frame, and their vertices as weights over skin vertices, in model order.
     links = [own_cuts[j].apply(own.vertices) - own.joints[j] for j in range(len(own.names))]
-    link_dirs = [own_cuts[j].apply(own.vertex_dirs) - own.joint_dirs[:, None, j] for j in range(len(own.names))]
+    rows = [row for j in order for row in own_cuts[j].rows()]
+    width = max(len(index) for index, _ in rows)
+    skin_index = np.array([np.pad(index, (0, width - len(index))) for index, _ in rows], np.int64)
+    skin_weight = np.array([np.pad(weight, (0, width - len(weight))) for _, weight in rows])
+    first = dict(zip(order, np.cumsum([0] + [len(links[j]) for j in order]).tolist()))
 
-    # Pieces carried from the (mirrored) base links to this variant's skin, by the base cut's vertices.
+    # Pieces carried from the (mirrored) base links to this variant's skin; then each follows its own link.
     split = np.split(pieces["vertices"], np.flatnonzero(np.diff(pieces["piece"])) + 1)
     piece_vertices: list[list[np.ndarray]] = [[] for _ in own.names]
-    piece_dirs: list[list[np.ndarray]] = [[] for _ in own.names]
+    nearest_index, nearest_weight = [], []
     for vertices, joint in zip(split, pieces["link"], strict=True):
-        link_cut = base_cuts[joint]
-        rest = link_cut.apply(base.vertices) @ sign
+        rest = base_cuts[joint].apply(base.vertices) @ sign
         world = (vertices + base.joints[joint]) @ sign
-        distance, nearest = _nearest(rest, world)
-        weights = 1.0 / np.maximum(distance, 1e-6) ** 2
-        weights /= weights.sum(1, keepdims=True)
-        carried = world + _follow(weights, nearest, link_cut.apply(own.vertices) - rest)
-        piece_vertices[joint].append(carried - own.joints[joint])
-        moved = _follow(weights, nearest, link_cut.apply(own.vertex_dirs))
-        piece_dirs[joint].append(moved - own.joint_dirs[:, None, joint])
+        weights, nearest = _weights(rest, world)
+        local = world + _follow(weights, nearest, base_cuts[joint].apply(own.vertices) - rest) - own.joints[joint]
+        piece_vertices[joint].append(local)
+        weights, nearest = _weights(links[joint], local)
+        nearest_index.append((joint, nearest + first[joint]))
+        nearest_weight.append((joint, weights))
 
-    root = order[0]
+    def by_link(values: list) -> np.ndarray:
+        return np.concatenate([value for j in order for joint, value in values if joint == j])
+
     offsets = [np.zeros(3) if own.parents[j] < 0 else own.joints[j] - own.joints[own.parents[j]] for j in order]
-    parent_dirs = [own.joint_dirs[:, j if own.parents[j] < 0 else own.parents[j]] for j in order]
-    offset_dirs = np.stack([own.joint_dirs[:, j] - parent for j, parent in zip(order, parent_dirs)], axis=1)
     np.savez_compressed(
         staging / f"{variant}.npz",
         pose_rows=np.array([joint - 1 for joint in order[1:]], np.int64),
-        offset_dirs=offset_dirs,
-        visual_dirs=np.concatenate([link_dirs[j] for j in order], axis=1),
-        collision_dirs=np.concatenate([d for j in order for d in piece_dirs[j]], axis=1),
-        root=own.joints[root],
-        root_dirs=own.joint_dirs[:, root],
+        skin_index=skin_index,
+        skin_weight=skin_weight,
+        piece_index=by_link(nearest_index),
+        piece_weight=by_link(nearest_weight),
         density=np.float64(source.density),
     )
     xml = _mjcf(source, variant, own, order, offsets, hinges, links, own_cuts, piece_vertices)
@@ -259,10 +257,12 @@ def _follow(weights: np.ndarray, nearest: np.ndarray, x: np.ndarray) -> np.ndarr
     return (weights[..., None] * x[..., nearest, :]).sum(-2)
 
 
-def _nearest(points: np.ndarray, queries: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def _weights(points: np.ndarray, queries: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Each query's inverse squared distance weights over its ``NEAREST`` points, and their indices."""
     distance = np.linalg.norm(queries[:, None] - points[None], axis=-1)
     nearest = np.argsort(distance, axis=1)[:, :NEAREST]
-    return np.take_along_axis(distance, nearest, 1), nearest
+    weights = 1.0 / np.maximum(np.take_along_axis(distance, nearest, 1), 1e-6) ** 2
+    return weights / weights.sum(1, keepdims=True), nearest
 
 
 def _depth_first(parents: list[int]) -> list[int]:

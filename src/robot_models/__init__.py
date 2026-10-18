@@ -13,9 +13,11 @@ from robot_models._runtime import (
     ArrayRuntime,
     RuntimeName,
 )
+from robot_models._spec import Dof
 
 __all__ = [
     "ArrayRuntime",
+    "Dof",
     "Joint",
     "ParameterRole",
     "ParameterSpec",

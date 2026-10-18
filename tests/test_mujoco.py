@@ -27,11 +27,12 @@ def test_mounted_hand_matches_fk_and_preserves_definitions(name, side):
     arm.add_joint(name="arm_rotation", axis=[0, 0, 1])
     arm.add_geom(type=mujoco.mjtGeom.mjGEOM_SPHERE, size=[0.02, 0, 0], mass=1)
     frame = arm.add_frame(name="wrist", pos=[0.1, 0.2, 0.3], quat=[0.5, 0.5, -0.5, 0.5])
-    attachment = add_hand(scene, name, side=side, frame=frame, model_path=directory)
+    attachment, root = add_hand(scene, name, side=side, frame=frame, model_path=directory)
     attachment.pos = [0.04, 0.03, -0.02]
     model = scene.compile()
     data = mujoco.MjData(model)
     prefix = f"{name}_{side}_"
+    assert root.name == prefix + hand.joint_names[0]
     indices = [model.body(prefix + joint).id for joint in hand.joint_names]
     for attribute in ("body_mass", "body_inertia", "body_ipos", "body_iquat"):
         np.testing.assert_allclose(getattr(model, attribute)[indices], getattr(original, attribute)[1:], atol=1e-12)
@@ -45,6 +46,9 @@ def test_mounted_hand_matches_fk_and_preserves_definitions(name, side):
     assert model.ngeom == original.ngeom + 1
     assert model.nv == len(hand.to_qpos(np.zeros(hand.num_dofs))[7:]) + 1
     assert model.opt.timestep == 0.003
+    if not np.isfinite(hand.effort_limits).any():
+        np.testing.assert_array_equal(model.actuator_forcerange, original.actuator_forcerange)
+        np.testing.assert_array_equal(model.actuator_forcelimited, original.actuator_forcelimited)
 
     lo, hi = np.asarray(hand.actuated_joint_limits).T
     for fraction in (0.0, 0.37, 1.0):
@@ -118,3 +122,70 @@ def test_invalid_hand_does_not_change_scene(name, side, error, monkeypatch):
 def test_mujoco_is_an_optional_lazy_import():
     code = "import sys; import robot_models; assert 'mujoco' not in sys.modules"
     subprocess.run([sys.executable, "-c", code], check=True)
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize(
+    "frame_name,free,match",
+    [
+        (None, True, "world-level"),
+        ("wrist", True, "world-level"),
+        ("missing", False, "not found"),
+        ("missing", True, "not found"),
+    ],
+)
+def test_invalid_mount_fails_before_resolving_assets(frame_name, free, match, monkeypatch):
+    def unexpected_download(*args, **kwargs):
+        pytest.fail("Invalid mount must fail before resolving assets")
+
+    monkeypatch.setattr(assets, "model_dir", unexpected_download)
+    scene = mujoco.MjSpec()
+    arm = scene.worldbody.add_body(name="arm")
+    frame = arm.add_frame(name="wrist")
+    with pytest.raises(ValueError, match=match):
+        add_hand(scene, "shadow", free=free, frame=frame if frame_name is None else frame_name)
+    assert [body.name for body in scene.bodies] == ["world", "arm"]
+    assert not arm.bodies
+    assert not arm.joints
+
+
+@pytest.mark.parametrize("name,side", CASES)
+def test_free_mount_is_quiet_and_starts_with_root_coordinates(name, side, tmp_path, monkeypatch):
+    import warnings
+
+    monkeypatch.chdir(tmp_path)
+    scene = mujoco.MjSpec()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        frame, root = add_hand(scene, name, side=side, free=True)
+        frame.pos = [0.1, -0.2, 0.4]
+        frame.quat = [0.5, 0.5, 0.5, 0.5]
+        model = scene.compile()
+    assert not (tmp_path / "MUJOCO_LOG.TXT").exists()
+    assert model.jnt_type[0] == mujoco.mjtJoint.mjJNT_FREE
+    assert model.jnt_bodyid[0] == model.body(root.name).id
+    assert model.jnt_qposadr[0] == 0
+    np.testing.assert_allclose(model.qpos0[:7], [0.1, -0.2, 0.4, 0.5, 0.5, 0.5, 0.5])
+    if name in ("allegro", "leap"):
+        limit = 0.7 if name == "allegro" else 0.93
+        assert model.actuator_forcelimited.all()
+        np.testing.assert_allclose(model.actuator_forcerange, np.tile([-limit, limit], (model.nu, 1)))
+        data = mujoco.MjData(model)
+        data.ctrl[:] = 1e6
+        mujoco.mj_forward(model, data)
+        assert np.all(np.abs(data.actuator_force) <= limit + 1e-6)
+
+
+def test_effort_limits_account_for_gear_and_preserve_stricter_bounds(tmp_path):
+    xml = """<mujoco><worldbody><body name="palm">
+      <joint name="ffj1" type="hinge"/>
+      <geom type="sphere" size="0.01" mass="1"/>
+      </body></worldbody><actuator>
+      <motor name="geared" joint="ffj1" gear="2"/>
+      <motor name="stricter" joint="ffj1" gear="-2" forcerange="-0.1 0.2"/>
+      </actuator></mujoco>"""
+    (tmp_path / "right.xml").write_text(xml)
+    scene = mujoco.MjSpec()
+    add_hand(scene, "allegro", model_path=tmp_path)
+    model = scene.compile()
+    np.testing.assert_allclose(model.actuator_forcerange, [[-0.35, 0.35], [-0.1, 0.2]])

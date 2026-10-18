@@ -43,6 +43,7 @@ Torch models are `torch.nn.Module` instances. Both families provide
 Use `list_models(family="hands")` or `list_models(family="humanoids")` to list models.
 Each hand uses one manufacturer, Menagerie or established ROS description.
 See [sources and licenses](docs/hand-sources.md).
+Use [joint semantics, closing presets and torque limits](docs/hand-control.md) for hand-independent control.
 
 ## MuJoCo
 
@@ -55,7 +56,7 @@ import mujoco
 from robot_models import add_hand
 
 scene = mujoco.MjSpec()
-mount = add_hand(scene, "shadow", side="right")
+mount, root = add_hand(scene, "shadow", side="right")
 mount.pos = [0, 0, 0.4]
 model = scene.compile()
 ```

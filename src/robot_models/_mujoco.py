@@ -1,6 +1,7 @@
 """Attach canonical hand assets through MuJoCo's native model-editing API."""
 
 from importlib import import_module
+from math import isfinite
 from pathlib import Path
 from typing import Any, cast
 
@@ -17,8 +18,9 @@ def add_hand(
     frame: Any | None = None,
     prefix: str | None = None,
     model_path: Path | str | None = None,
-) -> Any:
-    """Attach one canonical hand to a MuJoCo scene and return its attachment frame.
+    free: bool = False,
+) -> tuple[Any, Any]:
+    """Attach a canonical hand and return ``(frame, root_body)``.
 
     Args:
         spec (mujoco.MjSpec): Scene to modify, before compilation.
@@ -27,13 +29,14 @@ def add_hand(
         frame (mujoco.MjsFrame | str | None): Existing scene frame, or the world origin.
         prefix: Namespace for attached elements; defaults to ``"{name}_{side}_"``.
         model_path: Optional canonical asset directory, as in ``create_model``.
+        free: Add a free joint at the hand root, before its hinge coordinates.
 
     Returns:
-        mujoco.MjsFrame: Attachment frame; its ``pos`` and ``quat`` place the hand
-        in native MuJoCo coordinates (Z-up, quaternion order wxyz).
+        tuple[mujoco.MjsFrame, mujoco.MjsBody]: Mount frame and attached root body.
+        Placement uses native MuJoCo coordinates (Z-up, quaternion order wxyz).
 
-    The hand root is fixed to the frame at its origin, matching robot-models'
-    root convention. The scene's options are unchanged. Packaged actuators,
+    The hand root is fixed unless ``free=True``. Free roots require a world-level mount.
+    The scene's options are unchanged. Packaged actuators,
     equalities and collision definitions are retained; none are synthesized.
     Barrett/Robotiq assets have placeholder inertias for their visual geometry;
     source collisions are supplied; configure appropriate dynamics and actuation.
@@ -45,6 +48,13 @@ def add_hand(
         raise TypeError(f"{name!r} is not a hand")
     if side not in definition.sides:
         raise ValueError(f"{name!r} supports side(s): {definition.sides}")
+    if isinstance(frame, str):
+        found = spec.frame(frame)
+        if found is None:
+            raise ValueError(f"Frame {frame!r} not found")
+        frame = found
+    if free and frame is not None and frame.parent != spec.worldbody:
+        raise ValueError("free=True requires a world-level mount frame")
     mujoco = cast(Any, import_module("mujoco"))  # Native bindings do not provide type stubs.
     directory = assets.model_dir(name, model_path)
     hand = mujoco.MjSpec.from_file(str(directory / f"{side}.xml"))
@@ -59,12 +69,34 @@ def add_hand(
             body.iquat = compiled.body_iquat[index]
             body.explicitinertial = True
         hand.compiler.settotalmass = -1
+    hand.option = spec.option
+    hand.njmax = spec.njmax
+    hand.nconmax = spec.nconmax
     (root,) = hand.worldbody.bodies
     root.pos = [0, 0, 0]
     root.quat = [1, 0, 0, 0]
     for joint in list(root.joints):
         if joint.type == mujoco.mjtJoint.mjJNT_FREE:
             hand.delete(joint)
+    if free:
+        root.add_freejoint()
+    efforts = {name.format(side=side, s=side[0]): dof.effort_limit for name, dof in definition.dofs.items()}
+    for actuator in hand.actuators:
+        limit = efforts.get(actuator.target, float("inf"))
+        gear = abs(actuator.gear[0])
+        if actuator.trntype == mujoco.mjtTrn.mjTRN_JOINT and isfinite(limit) and gear:
+            force = limit / gear
+            lower, upper = -force, force
+            if (
+                actuator.forcelimited != mujoco.mjtLimited.mjLIMITED_FALSE
+                and actuator.forcerange[0] < actuator.forcerange[1]
+            ):
+                lower = max(lower, actuator.forcerange[0])
+                upper = min(upper, actuator.forcerange[1])
+            actuator.forcerange = [lower, upper]
+            actuator.forcelimited = mujoco.mjtLimited.mjLIMITED_TRUE
     frame = spec.worldbody.add_frame() if frame is None else frame
     prefix = f"{name}_{side}_" if prefix is None else prefix
-    return spec.attach(hand, frame=frame, prefix=prefix)
+    root_name = prefix + root.name
+    attachment = spec.attach(hand, frame=frame, prefix=prefix)
+    return attachment, spec.body(root_name)

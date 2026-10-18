@@ -147,7 +147,7 @@ def test_common_joints_and_presets_resolve(case) -> None:
                 assert pair in model.symmetric_joints
 
     if isinstance(model, Hand):
-        presets = [model.get_rest_pose(hands="flat"), model.get_rest_pose(hands="rest")]
+        presets = [model.get_rest_pose(hands=preset) for preset in ("flat", "rest", "open", "closed")]
     else:
         presets = [model.get_tpose(), model.get_apose()]
     lo, hi = np.asarray(model.actuated_joint_limits).T

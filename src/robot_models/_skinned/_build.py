@@ -26,7 +26,7 @@ import trimesh
 from robot_models._common.mjcf import MUJOCO_TO_MODEL
 from robot_models._skinned._sources import MIRROR, SOURCES, Source
 
-ASSET_VERSION = 1
+ASSET_VERSION = 2
 NEAREST = 4  # rest link vertices each piece vertex follows
 STIFFNESS = 10.0  # N·m/rad of the packaged position actuators
 DAMPING = 0.003  # N·m·s/rad per hinge
@@ -117,7 +117,7 @@ def skin(source: Source, variant: str) -> Skin:
     """A variant's flat rest skin and joints at the mean shape, and their shape directions."""
     model = source.create(variant)
     shapes = model.parameter_spec["shape"].dims[0]
-    params = {k: np.asarray(v) for k, v in model.get_rest_pose(batch_dims=(shapes + 1,)).items()}
+    params = {k: np.asarray(v) for k, v in model.get_rest_pose(batch_dims=(shapes + 1,), dtype=np.float64).items()}
     params["shape"] = np.concatenate([np.zeros((1, shapes)), np.eye(shapes)]).astype(params["shape"].dtype)
     vertices = np.asarray(model.forward_vertices(**params), np.float64)
     joints = np.asarray(model.forward_skeleton(**params), np.float64)[..., :3, 3]

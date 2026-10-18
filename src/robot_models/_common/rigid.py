@@ -2,6 +2,7 @@
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from itertools import pairwise
 from math import prod
 from typing import Any
 
@@ -126,7 +127,13 @@ def forward_skeleton_from_local_transforms(
 
     With ``joint_indices``, only the selected joints and their ancestors are evaluated.
     """
-    batch_shape = tuple(local_rotations.shape[:-3])
+    batch_shape = np.broadcast_shapes(
+        local_rotations.shape[:-3],
+        local_offsets.shape[:-2],
+        () if global_rotation is None else global_rotation.shape[:-1],
+        () if global_translation is None else global_translation.shape[:-1],
+    )
+    local_rotations = xp.broadcast_to(local_rotations, (*batch_shape, *local_rotations.shape[-3:]))
     dtype = local_rotations.dtype
     outputs = range(len(parents)) if joint_indices is None else tuple(int(joint) for joint in joint_indices)
     chains = select_joint_chains(parents, outputs)
@@ -135,9 +142,10 @@ def forward_skeleton_from_local_transforms(
     if global_translation is None:
         global_translation = zeros_as(local_rotations, shape=(*batch_shape, 3), xp=xp)
 
-    # Offsets of the right dtype pass as they are, keeping their gradients (torch.asarray drops them).
+    # Preserve gradients through dtype conversions (torch.asarray drops them).
     same = getattr(local_offsets, "dtype", None) == dtype
-    local_t = local_offsets if same else xp.asarray(local_offsets, dtype=dtype)
+    asarray = xp.as_tensor if xp.__name__ == "torch" else xp.asarray
+    local_t = local_offsets if same else asarray(local_offsets, dtype=dtype)
 
     rot_world: dict[int, Float[Array, "*batch 3 3"]] = {}
     pos_world: dict[int, Float[Array, "*batch 3"]] = {}
@@ -178,7 +186,11 @@ def forward_meshes_from_links(
     link_pos = links[..., :3, 3]
     source_vertices = xp.asarray(assets.vertices if vertices is None else vertices, dtype=links.dtype)
     chunks = []
-    for index, (start, end) in enumerate(zip(assets.vertex_offsets[:-1], assets.vertex_offsets[1:], strict=True)):
+    # Consecutive pieces of one joint share a transform; pose their vertices together.
+    joints = assets.joint_indices
+    boundaries = [i for i, joint in enumerate(joints) if i == 0 or joint != joints[i - 1]] + [len(joints)]
+    for index, after in pairwise(boundaries):
+        start, end = assets.vertex_offsets[index], assets.vertex_offsets[after]
         rotated = source_vertices[..., start:end, :] @ link_rot[..., index, :, :].mT
         chunks.append(rotated + link_pos[..., index, None, :])
     vertices = xp.concat(chunks, axis=-2) if chunks else zeros_as(links, shape=(*links.shape[:-3], 0, 3), xp=xp)

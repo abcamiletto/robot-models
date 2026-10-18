@@ -228,8 +228,8 @@ def _meshes(root: ET.Element, mesh_dir: Path, defaults: Defaults) -> dict[str, M
         attrs = _attrs(mesh, "main", defaults)
         scale = _vec(attrs.get("scale", "1 1 1"), 3)
         if "vertex" in attrs:
-            vertices = _vec(attrs["vertex"]).reshape(-1, 3)
-            faces = _vec(attrs["face"]).astype(np.int64).reshape(-1, 3)
+            vertices = np.fromstring(attrs["vertex"], sep=" ").reshape(-1, 3)
+            faces = np.fromstring(attrs["face"], dtype=np.int64, sep=" ").reshape(-1, 3)
             meshes[attrs["name"]] = (vertices * scale, faces[:, ::-1] if np.prod(scale) < 0 else faces)
             continue
         file = Path(attrs["file"])

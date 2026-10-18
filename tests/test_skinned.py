@@ -71,6 +71,16 @@ def test_rest_links_are_the_rest_skin(name, kwargs):
 
 
 @pytest.mark.parametrize(("name", "kwargs"), VARIANTS, ids=IDS)
+def test_extreme_shape_joint_positions_match_body_models(name, kwargs):
+    model, body = create_model(name, **kwargs), reference(name, kwargs)
+    params = body.get_rest_pose(batch_dims=(2,), dtype=np.float64)
+    params["shape"] = np.array([[-5.0] * model.num_shapes, [5.0] * model.num_shapes])
+    actual = model.forward_skeleton(**model.from_body_models(**params))
+    expected = body.forward_skeleton(**params)[:, native(body, model)]
+    np.testing.assert_allclose(actual[..., :3, 3], expected[..., :3, 3], atol=1e-6, rtol=0)
+
+
+@pytest.mark.parametrize(("name", "kwargs"), VARIANTS, ids=IDS)
 def test_collision_pieces_follow_the_shaped_links(name, kwargs):
     """Carried to another shape, the piece vertices keep their distances to their link's surface."""
     import trimesh
@@ -165,3 +175,68 @@ def test_shape_is_differentiable_in_torch_and_jax(name):
     np.testing.assert_allclose(gradient, torch_params["shape"].grad.numpy(), rtol=1e-4, atol=1e-6)
     back = jax_model.from_body_models(**jax_model.to_body_models(**jax_params))
     np.testing.assert_allclose(back["hand_pose"], params["hand_pose"], atol=1e-5)
+
+
+@pytest.mark.parametrize(("name", "kwargs"), [VARIANTS[0], VARIANTS[2]], ids=[IDS[0], IDS[2]])
+@pytest.mark.parametrize(("pose_batch", "shape_batch"), [((), (2, 3)), ((2, 3), ()), ((2, 1), (1, 3))])
+def test_shape_and_pose_batches_broadcast(name, kwargs, pose_batch, shape_batch):
+    model = create_model(name, **kwargs)
+    rng = np.random.default_rng(5)
+    pose = rng.normal(0, 0.3, (*pose_batch, model.num_dofs)).astype(np.float32)
+    shape = rng.normal(size=(*shape_batch, model.num_shapes)).astype(np.float32)
+    batch = np.broadcast_shapes(pose_batch, shape_batch)
+    params = {model._POSE: pose, "shape": shape}
+    expanded = {
+        model._POSE: np.broadcast_to(pose, (*batch, model.num_dofs)),
+        "shape": np.broadcast_to(shape, (*batch, model.num_shapes)),
+    }
+    expected = model.forward_skeleton(**expanded)
+    np.testing.assert_allclose(model.forward_skeleton(**params), expected, atol=1e-7)
+    for indices in ([], [0], [3, 0, 3]):
+        np.testing.assert_allclose(
+            model.forward_skeleton(**params, joint_indices=indices), expected[..., indices, :, :], atol=1e-7
+        )
+    back = model.from_body_models(**model.to_body_models(**params))
+    np.testing.assert_allclose(model.forward_skeleton(**back), expected, atol=1e-6)
+    for geometry in ("visual", "collision"):
+        actual = model.forward_meshes(**params, geometry=geometry)
+        target = model.forward_meshes(**expanded, geometry=geometry)
+        assert len(actual) == len(target) == np.prod(batch)
+        for mesh, reference in zip(actual, target, strict=True):
+            np.testing.assert_allclose(mesh.vertices, reference.vertices, atol=1e-7)
+
+
+@pytest.mark.parametrize(("name", "kwargs"), VARIANTS, ids=IDS)
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_body_models_conversion_near_gimbal_lock(name, kwargs, dtype):
+    model = create_model(name, **kwargs)
+    pose = np.zeros((14, model.num_dofs), dtype=dtype)
+    pose[:, 0], pose[:, 2] = 0.7, -0.4
+    pose[:, 1] = np.repeat([np.pi / 2, -np.pi / 2], 7) + np.tile([0, 1e-9, -1e-9, 1e-7, -1e-7, 1e-4, -1e-4], 2)
+    back = model.from_body_models(**model.to_body_models(**{model._POSE: pose}))
+    np.testing.assert_allclose(model.forward_skeleton(**back), model.forward_skeleton(pose), atol=2e-6)
+
+
+@pytest.mark.parametrize("name", ["mano", "smpl"])
+def test_torch_shape_gradient_survives_dtype_conversion(name):
+    torch = pytest.importorskip("torch")
+    model = create_model(name, runtime="torch")
+    pose = torch.zeros(model.num_dofs, dtype=torch.float64, requires_grad=True)
+    shape = torch.ones(model.num_shapes, dtype=torch.float32, requires_grad=True)
+    model.forward_skeleton(pose, shape=shape)[..., :3, 3].square().sum().backward()
+    assert shape.grad is not None and torch.isfinite(shape.grad).all() and shape.grad.abs().sum() > 0
+
+
+@pytest.mark.parametrize("name", ["mano", "smpl"])
+def test_jax_conversion_with_two_batch_dimensions(name):
+    jax = pytest.importorskip("jax")
+    model = create_model(name, runtime="jax")
+    params = model.get_rest_pose(batch_dims=(2, 3))
+    params[model._POSE] = params[model._POSE] + 0.2
+    params["shape"] = params["shape"] + 0.3
+
+    @jax.jit
+    def roundtrip(model, params):
+        return model.forward_skeleton(**model.from_body_models(**model.to_body_models(**params)))
+
+    np.testing.assert_allclose(roundtrip(model, params), model.forward_skeleton(**params), atol=1e-6)

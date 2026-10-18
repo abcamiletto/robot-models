@@ -156,14 +156,24 @@ class Skinned(RigidBodyModel):
         xp = self._runtime.xp
         pose_name, root_name = self._POSE, self._source.root_rotation
         pose = parameters[pose_name]
-        batch = tuple(pose.shape[:-2])
+        batch = np.broadcast_shapes(
+            pose.shape[:-2], *(value.shape[:-1] for key, value in parameters.items() if key != pose_name)
+        )
+        pose = xp.broadcast_to(pose, (*batch, *pose.shape[-2:]))
         local = SO3.convert(pose[..., self._shape.pose_rows, :], src="axis_angle", dst="rotmat", xp=xp)
         frames = xp.asarray(self._shape.hinge_frames, dtype=pose.dtype)
         m = frames.mT @ local @ frames  # intrinsic rotations about the frame's x, y and z axes
         signs = xp.asarray(self._shape.hinge_signs, dtype=pose.dtype)
-        first = xp.arctan2(-m[..., 1, 2], m[..., 2, 2])
-        second = xp.arctan2(m[..., 0, 2], xp.sqrt(m[..., 0, 0] ** 2 + m[..., 0, 1] ** 2))
-        third = xp.arctan2(-m[..., 0, 1], m[..., 0, 0]) * signs
+        cosine = xp.sqrt(m[..., 0, 0] ** 2 + m[..., 0, 1] ** 2)
+        singular = cosine < 1e-6  # the hinge frames are stored in float32
+        first = xp.arctan2(
+            xp.where(singular, m[..., 2, 1], -m[..., 1, 2]),
+            xp.where(singular, m[..., 1, 1], m[..., 2, 2]),
+        )
+        second = xp.arctan2(m[..., 0, 2], cosine)
+        # Recover the third angle from Rx(-first) @ m, stable even close to gimbal lock.
+        c, s = xp.cos(first), xp.sin(first)
+        third = xp.arctan2(c * m[..., 1, 0] + s * m[..., 2, 0], c * m[..., 1, 1] + s * m[..., 2, 1]) * signs
         angles = xp.stack([first, second, third], axis=-1)
         shape = parameters.get("shape")
         if shape is None:
@@ -183,11 +193,13 @@ class Skinned(RigidBodyModel):
         """Convert this model's parameters to Body Models' (axis-angle), the root rotation global."""
         xp = self._runtime.xp
         pose = parameters[self._POSE]
-        batch = tuple(pose.shape[:-1])
+        batch = np.broadcast_shapes(*(value.shape[:-1] for value in parameters.values()))
+        pose = xp.broadcast_to(pose, (*batch, pose.shape[-1]))
         angles = rigid_ops.hinge_angles(self._assets, pose, xp=xp)
         axes = xp.asarray(self._assets.hinge_axes, dtype=pose.dtype)
         hinges = SO3.convert(angles[..., None], src="hinge", dst="rotmat", src_kwargs={"axes": axes}, xp=xp)
-        local = hinges[..., 0::3, :, :] @ hinges[..., 1::3, :, :] @ hinges[..., 2::3, :, :]
+        hinges = xp.reshape(hinges, (*batch, -1, 3, 3, 3))
+        local = hinges[..., 0, :, :] @ hinges[..., 1, :, :] @ hinges[..., 2, :, :]
         order = np.argsort(self._shape.pose_rows)  # Body Models' joint order
         body_pose = SO3.convert(local[..., order, :, :], src="rotmat", dst="axis_angle", xp=xp)
         shape = parameters.get("shape")

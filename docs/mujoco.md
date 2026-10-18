@@ -13,9 +13,11 @@ mount.pos = [0, 0, 0.4]
 model = scene.compile()
 ```
 
-All ten [hands](hand-sources.md) are supported. Barrett, Robotiq and EZGripper use
+All eleven [hands](hand-sources.md) are supported. Barrett, Robotiq and EZGripper use
 only the `right` assembly tag; the others provide both sides. Assets download
-automatically. Pass `model_path` to use a local bundle.
+automatically; MANO's are built locally. Pass `model_path` to use a local bundle.
+For MANO, `shape` takes Body Models' shape coefficients and moves the joints, meshes
+and link inertias before attachment.
 
 ## Mount on a robot
 

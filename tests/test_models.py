@@ -5,7 +5,6 @@ import numpy as np
 import pytest
 
 from robot_models import Joint
-from robot_models import _assets as assets
 from robot_models import _catalog as catalog
 from robot_models._common.mjcf import MUJOCO_TO_MODEL
 from robot_models.hands._base import Hand
@@ -25,7 +24,7 @@ def case(request):
     mujoco = pytest.importorskip("mujoco")
     name, kwargs = request.param
     model = model_cases.backend_model_class(name, "numpy")(**kwargs)
-    xml_path = assets.model_dir(name) / f"{kwargs.get('side', name)}.xml"
+    xml_path = model_cases.xml_path(name, kwargs)
     mj_model = mujoco.MjModel.from_xml_path(str(xml_path))
     data = mujoco.MjData(mj_model)
 

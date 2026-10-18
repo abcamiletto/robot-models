@@ -26,7 +26,7 @@ from robot_models._runtime import ArrayRuntime
 from robot_models._spec import Side
 
 Array = Any
-ParameterRole = Literal["pose", "transform"]
+ParameterRole = Literal["pose", "transform", "identity"]
 GeometryKind = Literal["visual", "collision"]
 
 
@@ -62,6 +62,7 @@ class ModelConfig:
 
     name: str
     side: Side | None = None
+    variant: str | None = None
 
 
 class RigidBodyModel(ABC):

@@ -1,8 +1,30 @@
 """Canonical model data; geometry and kinematics come from the source assets."""
 
+from math import inf
 from types import MappingProxyType
 
-from robot_models._spec import Dof, ModelSpec
+from robot_models._spec import Dof, Finger, ModelSpec
+
+# Nominal maximal voluntary torques (N·m) of MANO's bend and spread hinges (thumb CMC: and twist), per finger
+# joint: fingertip strength (40-50 N for the index) times each joint's lever, weaker for the ring and pinky.
+# Hinges no muscle turns are held by the joint's passive structure: unbounded.
+_MANO_EFFORT: dict[Finger, tuple[tuple[float, ...], ...]] = {
+    "index": ((3.0, 0.8), (1.5,), (0.7,)),
+    "middle": ((3.0, 0.8), (1.5,), (0.7,)),
+    "pinky": ((1.5, 0.5), (0.8,), (0.4,)),
+    "ring": ((2.0, 0.6), (1.0,), (0.5,)),
+    "thumb": ((3.0, 2.0, 1.0), (2.0,), (1.0,)),
+}
+
+
+def _mano_dofs(finger: Finger, joint: int, bend: float, spread: float = inf, twist: float = inf) -> dict[str, Dof]:
+    """A MANO joint's three hinges: bend flexes, spread abducts, twist rotates the finger."""
+    return {
+        f"{finger}{joint}_bend": Dof(finger, "flexion", 1, bend),
+        f"{finger}{joint}_spread": Dof(finger, "abduction", 0, spread),
+        f"{finger}{joint}_twist": Dof(finger, "rotation", 0, twist),
+    }
+
 
 MODELS = {
     "ability": ModelSpec(
@@ -199,6 +221,32 @@ MODELS = {
             }
         ),
         sides=("right", "left"),
+    ),
+    # Built locally from the user's MANO files (Body Models); three hinges per joint: bend, spread, twist.
+    "mano": ModelSpec(
+        class_name="ManoRobot",
+        dofs=MappingProxyType(
+            {
+                name: dof
+                for finger, joints in _MANO_EFFORT.items()
+                for joint, efforts in enumerate(joints, 1)
+                for name, dof in _mano_dofs(finger, joint, *efforts).items()
+            }
+        ),
+        family="hands",
+        joints=MappingProxyType(
+            {
+                "wrist": "wrist",
+                **{
+                    f"{finger}_{joint}": f"{finger}{index + 1}"
+                    for finger in ("index", "middle", "ring", "pinky")
+                    for index, joint in enumerate(("mcp", "pip", "dip"))
+                },
+                **{f"thumb_{joint}": f"thumb{index + 1}" for index, joint in enumerate(("cmc", "mcp", "ip"))},
+            }
+        ),
+        sides=("right", "left"),
+        body_model="mano",
     ),
     "robotiq-3finger": ModelSpec(
         class_name="Robotiq3Finger",

@@ -56,6 +56,26 @@ wheels = [
 ]
 
 [[package]]
+name = "body-models"
+version = "0.26.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "huggingface-hub" },
+    { name = "jaxtyping" },
+    { name = "nanomanifold" },
+    { name = "numpy" },
+    { name = "platformdirs" },
+    { name = "ptloader" },
+    { name = "scipy" },
+    { name = "trimesh" },
+    { name = "typer" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4b/78/8e3f642cc4b606f5e1897a8526486ab0468736eafeae30541118e2014b29/body_models-0.26.2.tar.gz", hash = "sha256:818cb5eaff3d1a8d2ebd3fdfc68acd65adae442bf0ee96d158afce59917e8434", size = 142501, upload-time = "2026-10-11T07:03:48.237Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/76/ea/a78afbd85ec470342d7fef226251cac44ed592463b6ab2fb11b3b33cbafc/body_models-0.26.2-py3-none-any.whl", hash = "sha256:d26fe826ba9b206873af872312c1b9bf31c2195fe5ada95ebca1f14103a6d424", size = 184946, upload-time = "2026-10-11T07:03:47.181Z" },
+]
+
+[[package]]
 name = "certifi"
 version = "2026.1.4"
 source = { registry = "https://pypi.org/simple" }
@@ -147,6 +167,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/3d/fa/656b739db8587d7b5dfa22e22ed02566950fbfbcdc20311993483657a5c0/click-8.3.1.tar.gz", hash = "sha256:12ff4785d337a1bb490bb7e9c2b1ee5da3112e94a8622f26a6c77f5d2fc6842a", size = 295065, upload-time = "2025-11-15T20:45:42.706Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/98/78/01c019cdb5d6498122777c1a43056ebb3ebfeef2076d9d026bfe15583b2b/click-8.3.1-py3-none-any.whl", hash = "sha256:981153a64e25f12d547d3426c367a4857371575ee7ad18df2a6183ab0545b2a6", size = 108274, upload-time = "2025-11-15T20:45:41.139Z" },
+]
+
+[[package]]
+name = "coacd"
+version = "1.0.14"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3d/94/622a380a5c4cac78c1f19379b1d3fa193903f848311c200924309797abf8/coacd-1.0.14-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:4cd9e1f327af766f6364e79e384ebfe152780a3d8dbbd09ce0756ec14f9e1256", size = 3426003, upload-time = "2026-08-28T21:53:32.005Z" },
+    { url = "https://files.pythonhosted.org/packages/d6/3e/e930a366ec69a966f1a55307b52d036d266314e2f6c58e72e212fdc09182/coacd-1.0.14-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:1242941fc9d49ebcb0368c68f31c86e278b9a6f1a255d11da2f1668797e2626e", size = 2584591, upload-time = "2026-08-28T21:53:33.537Z" },
+    { url = "https://files.pythonhosted.org/packages/88/7c/ec7edfc77c48fe97434ae813eca7614103289105bb546952ed9a0a266ce8/coacd-1.0.14-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6c135b717af096523bbebf1fd8d326e8950c024237fe9806ad46dedd8b4c31f0", size = 2651838, upload-time = "2026-08-28T21:53:34.776Z" },
+    { url = "https://files.pythonhosted.org/packages/5f/28/edbc4d6766fb3504bf15dabe7340e5686c72b9e3be030b3c8c40469e7af6/coacd-1.0.14-cp39-abi3-win_amd64.whl", hash = "sha256:6b548f44d9a4694cde594dc8cc8fefa678fb7c88153583be4e8b2c707de8fbbd", size = 1487726, upload-time = "2026-08-28T21:53:36.6Z" },
 ]
 
 [[package]]
@@ -1102,6 +1136,18 @@ wheels = [
 ]
 
 [[package]]
+name = "ptloader"
+version = "0.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a6/e6/7be97b01d4fb7c4989d42f8229f8546f69730ea05ceea56015c86530602b/ptloader-0.3.0.tar.gz", hash = "sha256:4d97502aea650c0f9b2ec6f8c0563f9483829aedcbc1951392bd58a6c79e0bfd", size = 4539, upload-time = "2026-03-01T08:31:48.672Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e0/a8/cd541220b579ebc8b8a3f490882c7329c81932c1a30004991ecdfc4d3a0e/ptloader-0.3.0-py3-none-any.whl", hash = "sha256:08bceef691a5c5fa8e7dd21563e0c8d2e0e3b5bfc0169570a0fe8bd6295300b8", size = 5428, upload-time = "2026-03-01T08:31:47.792Z" },
+]
+
+[[package]]
 name = "pygments"
 version = "2.19.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1270,6 +1316,11 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+body-models = [
+    { name = "body-models" },
+    { name = "coacd" },
+    { name = "mujoco" },
+]
 jax = [
     { name = "jax" },
 ]
@@ -1283,6 +1334,8 @@ torch = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "body-models" },
+    { name = "coacd" },
     { name = "jax" },
     { name = "mujoco" },
     { name = "pytest" },
@@ -1299,9 +1352,12 @@ docs = [
 
 [package.metadata]
 requires-dist = [
+    { name = "body-models", marker = "extra == 'body-models'", specifier = ">=0.26.1" },
+    { name = "coacd", marker = "extra == 'body-models'", specifier = ">=1.0.14" },
     { name = "huggingface-hub", specifier = ">=1.11.0" },
     { name = "jax", marker = "extra == 'jax'", specifier = ">=0.4.33" },
     { name = "jaxtyping", specifier = ">=0.2.28" },
+    { name = "mujoco", marker = "extra == 'body-models'", specifier = ">=3.3.7" },
     { name = "mujoco", marker = "extra == 'mujoco'", specifier = ">=3.3.7" },
     { name = "nanomanifold", specifier = ">=0.8.0" },
     { name = "numpy", specifier = ">=2.0.0" },
@@ -1311,10 +1367,12 @@ requires-dist = [
     { name = "trimesh", specifier = ">=4.0.0" },
     { name = "typer", specifier = ">=0.9.0" },
 ]
-provides-extras = ["torch", "jax", "mujoco"]
+provides-extras = ["torch", "jax", "mujoco", "body-models"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "body-models", specifier = ">=0.26.1" },
+    { name = "coacd", specifier = ">=1.0.14" },
     { name = "jax", specifier = ">=0.4.33" },
     { name = "mujoco", specifier = ">=3.3.7" },
     { name = "pytest", specifier = ">=9.0.2" },

@@ -18,7 +18,7 @@ MODEL_NAMES = tuple(MODEL_SPECS)
 
 @app.callback(invoke_without_command=True)
 def show_config(ctx: typer.Context) -> None:
-    """Configure and download robot-model assets."""
+    """Configure, download and build robot-model assets."""
     if ctx.invoked_subcommand is not None:
         return
     typer.echo(f"Config file: {config.CONFIG_FILE}\n")
@@ -52,12 +52,18 @@ def download(
         typer.Option("--output-dir", "-o", help="Exact destination for one model, or parent directory for all models."),
     ] = None,
 ) -> None:
-    """Download one model family, or every supported family."""
+    """Download one model family, or every supported family; MANO and SMPL are built locally."""
     _require_choice(model, (*MODEL_NAMES, "all"), "model")
     names = MODEL_NAMES if model == "all" else (model,)
     for name in names:
         destination = output_dir / name if output_dir is not None and model == "all" else output_dir
-        path = assets.download(name, destination)
+        try:
+            path = assets.download(name, destination)
+        except FileNotFoundError as error:
+            if model != "all":
+                raise typer.BadParameter(str(error)) from None
+            typer.echo(f"Skipped {name}: {error}")
+            continue
         config.set_model_path(name, path)
         typer.echo(f"Set {name} = {path}")
 

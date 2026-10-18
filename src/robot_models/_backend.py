@@ -5,6 +5,7 @@ from typing import Any, cast
 
 from robot_models import _catalog as catalog
 from robot_models._runtime import JaxRuntime, NumpyRuntime, RuntimeName, TorchRuntime
+from robot_models._skinned._model import Gender, SkinnedHand, SkinnedHumanoid
 from robot_models._spec import Side
 from robot_models.hands._base import Hand
 from robot_models.humanoids._base import Humanoid
@@ -22,13 +23,23 @@ def model_for_backend(name: str, backend: RuntimeName, *, module: str) -> type[A
 
         module_base = nn.Module
     adapter_base = cast(Any, module_base)
+    skinned = definition.body_model is not None
     if definition.family == "hands":
+        hand_base = cast(Any, SkinnedHand if skinned else Hand)
 
-        class Model(Hand, adapter_base):
+        class Model(hand_base, adapter_base):
             def __init__(self, *, side: Side = "right", model_path: Path | str | None = None) -> None:
                 if backend == "torch":
                     module_base.__init__(self)
                 super().__init__(name, side=side, model_path=model_path, runtime=runtime())
+
+    elif skinned:
+
+        class Model(SkinnedHumanoid, adapter_base):
+            def __init__(self, *, gender: Gender = "neutral", model_path: Path | str | None = None) -> None:
+                if backend == "torch":
+                    module_base.__init__(self)
+                super().__init__(name, gender=gender, model_path=model_path, runtime=runtime())
 
     else:
 

@@ -75,6 +75,23 @@ MODELS = {
             }
         ),
     ),
+    # Built locally from the user's SMPL files (Body Models); three hinges per joint, about x, y and z.
+    "smpl": ModelSpec(
+        class_name="SmplRobot",
+        family="humanoids",
+        mirror=(("left", "right"),),
+        joints=MappingProxyType(
+            {
+                **{joint: joint for joint in ("pelvis", "neck", "head")},
+                **{
+                    f"{side}_{joint}": f"{side}_{joint}"
+                    for side in ("left", "right")
+                    for joint in ("shoulder", "elbow", "wrist", "hip", "knee", "ankle", "foot")
+                },
+            }
+        ),
+        body_model="smpl",
+    ),
     "t1": ModelSpec(
         class_name="T1",
         family="humanoids",

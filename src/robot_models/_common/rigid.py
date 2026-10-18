@@ -66,9 +66,14 @@ def forward_skeleton(
     global_rotation: Float[Array, "... 3"] | None,
     global_translation: Float[Array, "... 3"] | None,
     joint_indices: Sequence[int] | None,
+    local_offsets: Float[Array, "... J 3"] | None = None,
     xp: Any,
 ) -> Float[Array, "... J 4 4"]:
-    """Compute world-space joint transforms from pose coordinates."""
+    """Compute world-space joint transforms from pose coordinates.
+
+    A body's hinges rotate in MJCF order, each about its axis after the previous ones, as in MuJoCo.
+    ``local_offsets`` replaces the asset offsets, for instance with batched shape-dependent ones.
+    """
     num_dofs = len(assets.actuated_joint_names)
     if pose.ndim < 1 or pose.shape[-1] != num_dofs:
         raise ValueError(f"pose must have shape [..., {num_dofs}], got {tuple(pose.shape)}")
@@ -78,12 +83,14 @@ def forward_skeleton(
     angles = hinge_angles(assets, pose, xp=xp)
     hinge_rot = SO3.convert(angles[..., None], src="hinge", dst="rotmat", src_kwargs={"axes": axes}, xp=xp)
 
-    local_rot = eye_as(hinge_rot, batch_dims=(*batch_shape, num_joints), xp=xp)
-    local_rot = at_set(local_rot, (..., assets.hinge_joint_indices, slice(None), slice(None)), hinge_rot, xp=xp)
-    rest_rot = xp.asarray(assets.rest_local_rotations, dtype=pose.dtype)
+    local_rot = xp.asarray(assets.rest_local_rotations, dtype=pose.dtype)
+    identity = eye_as(hinge_rot, batch_dims=(*batch_shape, num_joints), xp=xp)
+    for hinges, joints in _hinge_slots(assets.hinge_joint_indices):
+        slot = at_set(identity, (..., joints, slice(None), slice(None)), hinge_rot[..., hinges, :, :], xp=xp)
+        local_rot = local_rot @ slot
     return forward_skeleton_from_local_transforms(
-        rest_rot @ local_rot,
-        local_offsets=assets.local_offsets,
+        local_rot,
+        local_offsets=assets.local_offsets if local_offsets is None else local_offsets,
         parents=assets.parents,
         global_translation=global_translation,
         global_rotation=global_rotation,
@@ -92,10 +99,23 @@ def forward_skeleton(
     )
 
 
+def _hinge_slots(hinge_joints: Sequence[int]) -> list[tuple[list[int], list[int]]]:
+    """Group hinges by their rank within their body: the k-th group holds every body's k-th hinge."""
+    ranks: dict[int, int] = {}
+    slots: list[tuple[list[int], list[int]]] = []
+    for hinge, joint in enumerate(hinge_joints):
+        rank = ranks[joint] = ranks.get(joint, -1) + 1
+        if rank == len(slots):
+            slots.append(([], []))
+        slots[rank][0].append(hinge)
+        slots[rank][1].append(joint)
+    return slots
+
+
 def forward_skeleton_from_local_transforms(
     local_rotations: Float[Array, "... J 3 3"],
     *,
-    local_offsets: Float[Array, "J 3"],
+    local_offsets: Float[Array, "*batch J 3"],
     parents: list[int],
     global_translation: Float[Array, "... 3"] | None = None,
     global_rotation: Float[Array, "... 3"] | None = None,
@@ -115,7 +135,9 @@ def forward_skeleton_from_local_transforms(
     if global_translation is None:
         global_translation = zeros_as(local_rotations, shape=(*batch_shape, 3), xp=xp)
 
-    local_t = xp.asarray(local_offsets, dtype=dtype)
+    # Offsets of the right dtype pass as they are, keeping their gradients (torch.asarray drops them).
+    same = getattr(local_offsets, "dtype", None) == dtype
+    local_t = local_offsets if same else xp.asarray(local_offsets, dtype=dtype)
 
     rot_world: dict[int, Float[Array, "*batch 3 3"]] = {}
     pos_world: dict[int, Float[Array, "*batch 3"]] = {}
@@ -127,7 +149,7 @@ def forward_skeleton_from_local_transforms(
             continue
         parent_rot = rot_world[parent]
         rot_world[joint] = parent_rot @ local_rotations[..., joint, :, :]
-        local_pos = xp.squeeze(parent_rot @ local_t[joint][..., None], axis=-1)
+        local_pos = xp.squeeze(parent_rot @ local_t[..., joint, :, None], axis=-1)
         pos_world[joint] = pos_world[parent] + local_pos
 
     rot = xp.stack([rot_world[joint] for joint in outputs], axis=-3)
@@ -144,19 +166,23 @@ def forward_meshes_from_links(
     links: Float[Array, "... L 4 4"],
     assets: MeshAssets,
     *,
+    vertices: Float[Array, "... V 3"] | None = None,
     to_numpy: _ToNumpy,
     xp: Any,
 ) -> list[Trimesh]:
-    """Build one concatenated ``Trimesh`` per batch element."""
+    """Build one concatenated ``Trimesh`` per batch element.
+
+    ``vertices`` replaces the link-local asset vertices, for instance with batched shape-dependent ones.
+    """
     link_rot = links[..., :3, :3]
     link_pos = links[..., :3, 3]
-    source_vertices = xp.asarray(assets.vertices, dtype=links.dtype)
+    source_vertices = xp.asarray(assets.vertices if vertices is None else vertices, dtype=links.dtype)
     chunks = []
     for index, (start, end) in enumerate(zip(assets.vertex_offsets[:-1], assets.vertex_offsets[1:], strict=True)):
-        rotated = source_vertices[start:end] @ link_rot[..., index, :, :].mT
+        rotated = source_vertices[..., start:end, :] @ link_rot[..., index, :, :].mT
         chunks.append(rotated + link_pos[..., index, None, :])
     vertices = xp.concat(chunks, axis=-2) if chunks else zeros_as(links, shape=(*links.shape[:-3], 0, 3), xp=xp)
-    batched = to_numpy(vertices).reshape(prod(links.shape[:-3]), len(source_vertices), 3)
+    batched = to_numpy(vertices).reshape(prod(links.shape[:-3]), assets.vertex_offsets[-1], 3)
     faces = to_numpy(assets.faces)
     return [Trimesh(vertices=batch_vertices, faces=faces.copy(), process=False) for batch_vertices in batched]
 

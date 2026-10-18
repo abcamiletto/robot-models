@@ -45,6 +45,7 @@ Peak ratings do not establish continuous holding capacity or thermal limits.
 | BrainCo Revo 2 | `inf` | [Manufacturer parameters](https://brainco.tech/docs/revolimb-hand/en/revo2/parameters.html): grip force and current, no joint-torque figures. |
 | EZGripper | `inf` | [SAKE specifications](https://sakerobotics.com/): MX-64AR servo and grip force; no torque mapping for the independent tendon-driven coordinates. |
 | Inspire RH56 | `inf` | [Manufacturer selection guide](https://en.inspire-robots.com/wp-content/uploads/2023/11/Inspire-Robots-Products-Selection-Guide-1-2.pdf): fingertip force, no joint-torque figures. |
+| MANO | 0.4–3.0 bend, 0.5–2.0 spread; `inf` passive hinges | Nominal human maximal voluntary torques: fingertip strength (40–50 N for the index) times each joint's lever, weaker for the ring and pinky; the thumb's base also twists (1.0). Hinges no muscle turns are unbounded, held by the joint's passive structure. |
 | LEAP V1 | 0.93 | [LEAP parts list](https://v1.leaphand.com/parts) uses 16 XC330-M288-T servos at 5 V; [ROBOTIS](https://emanual.robotis.com/docs/en/dxl/x/xc330-m288/#specifications) gives 0.93 N·m **stall** torque at 5 V. |
 | Shadow E3M5 | `inf` | [Shadow technical specification](https://www.shadowrobot.com/wp-content/uploads/2022/03/shadow_dexterous_hand_e_technical_specification.pdf): no per-coordinate N·m limits. Existing MJCF actuator bounds remain active, including coupled tendons. |
 | Sharpa Wave | `inf` | [W01 specifications](https://www.sharpa.com/pages/w01): no per-coordinate N·m figures. |

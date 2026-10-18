@@ -68,7 +68,10 @@ def forward_skeleton(
     joint_indices: Sequence[int] | None,
     xp: Any,
 ) -> Float[Array, "... J 4 4"]:
-    """Compute world-space joint transforms from pose coordinates."""
+    """Compute world-space joint transforms from pose coordinates.
+
+    A body's hinges rotate in MJCF order, each about its axis after the previous ones, as in MuJoCo.
+    """
     num_dofs = len(assets.actuated_joint_names)
     if pose.ndim < 1 or pose.shape[-1] != num_dofs:
         raise ValueError(f"pose must have shape [..., {num_dofs}], got {tuple(pose.shape)}")
@@ -78,11 +81,13 @@ def forward_skeleton(
     angles = hinge_angles(assets, pose, xp=xp)
     hinge_rot = SO3.convert(angles[..., None], src="hinge", dst="rotmat", src_kwargs={"axes": axes}, xp=xp)
 
-    local_rot = eye_as(hinge_rot, batch_dims=(*batch_shape, num_joints), xp=xp)
-    local_rot = at_set(local_rot, (..., assets.hinge_joint_indices, slice(None), slice(None)), hinge_rot, xp=xp)
-    rest_rot = xp.asarray(assets.rest_local_rotations, dtype=pose.dtype)
+    local_rot = xp.asarray(assets.rest_local_rotations, dtype=pose.dtype)
+    identity = eye_as(hinge_rot, batch_dims=(*batch_shape, num_joints), xp=xp)
+    for hinges, joints in _hinge_slots(assets.hinge_joint_indices):
+        slot = at_set(identity, (..., joints, slice(None), slice(None)), hinge_rot[..., hinges, :, :], xp=xp)
+        local_rot = local_rot @ slot
     return forward_skeleton_from_local_transforms(
-        rest_rot @ local_rot,
+        local_rot,
         local_offsets=assets.local_offsets,
         parents=assets.parents,
         global_translation=global_translation,
@@ -90,6 +95,19 @@ def forward_skeleton(
         joint_indices=joint_indices,
         xp=xp,
     )
+
+
+def _hinge_slots(hinge_joints: Sequence[int]) -> list[tuple[list[int], list[int]]]:
+    """Group hinges by their rank within their body: the k-th group holds every body's k-th hinge."""
+    ranks: dict[int, int] = {}
+    slots: list[tuple[list[int], list[int]]] = []
+    for hinge, joint in enumerate(hinge_joints):
+        rank = ranks[joint] = ranks.get(joint, -1) + 1
+        if rank == len(slots):
+            slots.append(([], []))
+        slots[rank][0].append(hinge)
+        slots[rank][1].append(joint)
+    return slots
 
 
 def forward_skeleton_from_local_transforms(

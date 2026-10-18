@@ -26,6 +26,7 @@ POINTS = {
         ["{side}_thumb_distal", *["{side}_" + f + "_intermediate" for f in FINGERS[1:]]],
     ),
     "leap": ("palm", (2, -1), ["th_ds", "if_ds", "mf_ds", "rf_ds"]),
+    "mano": ("wrist", (2, -1), [f + "3" for f in FINGERS]),
     "robotiq-3finger": ("palm", (1, 1), ["finger_middle_link_3", "finger_1_link_3", "finger_2_link_3"]),
     "shadow": ("{s}h_palm", (1, -1), ["{s}h_" + f + "distal" for f in ("th", "ff", "mf", "rf", "lf")]),
     "sharpa": ("{side}_hand_C_MC", (0, 1), ["{side}_" + f + "_DP" for f in FINGERS]),
@@ -39,6 +40,9 @@ def test_closing_semantics_match_native_finger_motion(name, side):
     assert len(hand.dofs) == len(hand.actuated_joint_names)
     assert hand.effort_limits.shape == (hand.num_dofs,)
     expected_effort = {"allegro": 0.7, "leap": 0.93}.get(name, np.inf)
+    if name == "mano":  # human strength bounds every flexion; hinges no muscle turns are unbounded
+        expected_effort = [dof.effort_limit for dof in hand.dofs]
+        assert all(np.isfinite(dof.effort_limit) for dof in hand.dofs if dof.role == "flexion")
     np.testing.assert_allclose(hand.effort_limits, expected_effort)
     opened = hand.get_rest_pose(hands="open")["hand_pose"]
     closed = hand.get_rest_pose(hands="closed")["hand_pose"]
@@ -82,8 +86,9 @@ def test_closing_semantics_match_native_finger_motion(name, side):
         if dof.finger not in FINGERS:
             continue
         pose = opened.copy()
-        pose[index] += 0.02 if pose[index] + 0.02 <= upper[index] else -0.02
-        pose = np.clip(pose, lower, upper)
+        pose[index] += 0.02 if pose[index] + 0.02 <= upper[index] or lower[index] == upper[index] else -0.02
+        if lower[index] < upper[index]:  # MANO records anatomical ranges, some empty, that MuJoCo leaves free
+            pose = np.clip(pose, lower, upper)
         moved = tips(pose)
         displacement = np.linalg.norm(moved - initial, axis=1)
         finger_index = FINGERS.index(dof.finger)

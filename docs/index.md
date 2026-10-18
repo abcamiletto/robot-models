@@ -22,6 +22,10 @@ robot-models download g1
 robot-models set g1 /path/to/g1
 ```
 
+[MANO](models/mano.md) and [SMPL](models/smpl.md) are instead built locally from
+your own Body Models files, which cannot be redistributed; install
+`robot-models[body-models]`.
+
 ## Models
 
 | Model | Description |
@@ -36,9 +40,11 @@ robot-models set g1 /path/to/g1
 | [H1](models/h1.md) | Unitree H1 humanoid |
 | [Inspire](models/inspire.md) | Inspire RH56 robotic hand |
 | [LEAP Hand](models/leap.md) | LEAP Hand v1 robotic hand |
+| [MANO](models/mano.md) | MANO human hand as a rigid robot, built locally |
 | [Robotiq 3-Finger](models/robotiq.md) | Robotiq 3-Finger Adaptive Gripper |
 | [Sharpa Wave](models/sharpa.md) | Sharpa Wave robotic hand |
 | [Shadow](models/shadow.md) | Shadow Dexterous Hand E3M5 |
+| [SMPL](models/smpl.md) | SMPL human body as a rigid robot, built locally |
 | [T1](models/t1.md) | Booster Robotics T1 humanoid |
 | [TALOS](models/talos.md) | PAL Robotics TALOS humanoid |
 

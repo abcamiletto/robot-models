@@ -11,6 +11,7 @@ Each hand uses one canonical description. Pinned sources and asset licenses are:
 | `ezgripper` | SAKE EZGripper MuJoCo model | [SAKE-maintained model](https://github.com/vikashplus/ezgripper_sim/tree/0fdf9dbdb5023e9345f392a381cef80b1ebe965d), linked by [SAKE support](https://sakerobotics.com/support/) | Apache-2.0 |
 | `inspire` | Inspire RH56 DFQ, both sides | [Unitree G1 integration](https://github.com/unitreerobotics/unitree_ros/tree/5994d4faef0a9cadd3287f8de0199a67eeb2a259/robots/g1_description) | BSD-3-Clause |
 | `leap` | LEAP Hand v1, both sides | [Menagerie](https://github.com/google-deepmind/mujoco_menagerie/tree/f054586a8e90465d49ee5be15335c4a0c7f57caf/leap_hand) | MIT |
+| `mano` | MANO, both sides, built locally | The user's own [MANO](https://mano.is.tue.mpg.de/) files, through Body Models | [MANO license](https://mano.is.tue.mpg.de/license.html): not redistributed |
 | `robotiq-3finger` | Robotiq 3-Finger Adaptive Gripper | [Historical ROS package](https://github.com/ros-industrial-attic/robotiq/tree/45196f6558fe8ba9d89bc8a105396c68c3e7e892/robotiq_3f_gripper_visualization), authored by Robotiq | BSD-2-Clause |
 | `shadow` | Shadow Hand E3M5, both sides | [Menagerie](https://github.com/google-deepmind/mujoco_menagerie/tree/f054586a8e90465d49ee5be15335c4a0c7f57caf/shadow_hand), original Shadow Robot assets | Apache-2.0 |
 | `sharpa` | Sharpa Wave, both sides | [Manufacturer description](https://github.com/sharpa-robotics/sharpa-urdf-usd-xml/tree/0d19cac602f46456b819e4b6a2c09a74982c9a3e) | Apache-2.0 |
@@ -20,7 +21,8 @@ Robotnik is an integrator, not Barrett Technology. The Robotiq ROS repository is
 archived. SAKE links the EZGripper model on its support page; Vikash Kumar wrote
 the original model and SAKE maintains the pinned revision.
 
-Assets download from [Hugging Face](https://huggingface.co/abcamiletto/robot-models).
+Assets download from [Hugging Face](https://huggingface.co/abcamiletto/robot-models),
+except MANO's: they are [built locally](models/mano.md#assets-are-built-locally).
 Bundle `LICENSE.md` files record license scope and changes. Barrett, Robotiq and
 Shadow bundles also include original descriptions, meshes and file hashes.
 Barrett, Robotiq and EZGripper supply one assembly tagged `right`; the other

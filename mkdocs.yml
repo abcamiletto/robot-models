@@ -45,6 +45,7 @@ nav:
           - G1: models/g1.md
           - GR1: models/gr1.md
           - H1: models/h1.md
+          - SMPL: models/smpl.md
           - T1: models/t1.md
           - TALOS: models/talos.md
       - Hands:
@@ -55,6 +56,7 @@ nav:
           - EZGripper: models/ezgripper.md
           - Inspire: models/inspire.md
           - LEAP Hand: models/leap.md
+          - MANO: models/mano.md
           - Robotiq 3-Finger: models/robotiq.md
           - Sharpa Wave: models/sharpa.md
           - Shadow: models/shadow.md

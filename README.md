@@ -37,13 +37,18 @@ Torch models are `torch.nn.Module` instances. Both families provide
 
 | Family | Model identifiers |
 | --- | --- |
-| `robot_models.humanoids` | `g1`, `gr1`, `h1`, `t1`, `talos` |
-| `robot_models.hands` | `ability`, `allegro`, `barrett`, `brainco`, `ezgripper`, `inspire`, `leap`, `robotiq-3finger`, `sharpa`, `shadow` |
+| `robot_models.humanoids` | `g1`, `gr1`, `h1`, `smpl`, `t1`, `talos` |
+| `robot_models.hands` | `ability`, `allegro`, `barrett`, `brainco`, `ezgripper`, `inspire`, `leap`, `mano`, `robotiq-3finger`, `sharpa`, `shadow` |
 
 Use `list_models(family="hands")` or `list_models(family="humanoids")` to list models.
 Each hand uses one manufacturer, Menagerie or established ROS description.
 See [sources and licenses](docs/hand-sources.md).
 Use [joint semantics, closing presets and torque limits](docs/hand-control.md) for hand-independent control.
+
+`mano` and `smpl` are rigid robots of the MANO and SMPL skins, with Body Models'
+shape coefficients. Their licenses forbid redistribution, so their assets are built
+locally from your own Body Models files (`uv add "robot-models[body-models]"`), never
+downloaded; see [MANO](docs/models/mano.md) and [SMPL](docs/models/smpl.md).
 
 ## MuJoCo
 
@@ -61,7 +66,7 @@ mount.pos = [0, 0, 0.4]
 model = scene.compile()
 ```
 
-`add_hand` supports all ten hands and retains their native collision shapes.
+`add_hand` supports all eleven hands and retains their native collision shapes.
 Barrett and Robotiq need application-specific dynamics and actuation.
 See [mounting and coordinate frames](docs/mujoco.md).
 

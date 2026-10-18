@@ -15,3 +15,13 @@ RUNTIME_MODELS = [
     (name, backend_model_class(name, "numpy"), kwargs)
     for name, kwargs in (("barrett", {}), ("shadow", {"side": "left"}), ("g1", {}))
 ]
+
+
+def xml_path(name: str, kwargs: dict):
+    """The MJCF file a model of these constructor arguments loads."""
+    from robot_models import _assets as assets
+    from robot_models._skinned._sources import SOURCES
+
+    spec = MODEL_SPECS[name]
+    default = name if spec.body_model is None else SOURCES[spec.body_model].variants[0]
+    return assets.model_dir(name) / f"{kwargs.get('side') or kwargs.get('gender') or default}.xml"

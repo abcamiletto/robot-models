@@ -1,6 +1,6 @@
 [project]
 name = "robot-models"
-version = "0.6.0"
+version = "0.7.0"
 description = "Rigid articulated robot models for NumPy, PyTorch, and JAX"
 readme = "README.md"
 authors = [
@@ -32,6 +32,11 @@ jax = [
 mujoco = [
     "mujoco>=3.3.7",
 ]
+body-models = [
+    "body-models>=0.26.1",
+    "coacd>=1.0.14",
+    "mujoco>=3.3.7",
+]
 
 [build-system]
 requires = ["uv_build>=0.11.11,<0.12.0"]
@@ -46,6 +51,8 @@ dev = [
     # Include optional runtimes for type checking
     "torch>=2.5.0",
     "jax>=0.4.33",
+    "body-models>=0.26.1",
+    "coacd>=1.0.14",
 ]
 docs = [
     "mkdocs>=1.6.1",

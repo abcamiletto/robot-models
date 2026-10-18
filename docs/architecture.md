@@ -13,9 +13,10 @@ The import selects NumPy, Torch or JAX.
 | `_assets.py` | Asset paths and Hugging Face downloads |
 | `_common/mjcf.py` | MJCF parsing |
 | `_common/rigid.py` | Kinematics and mesh assembly |
+| `_skinned/` | MANO and SMPL: local builds from Body Models files, shape and conversions |
 
 Skeleton joints follow MJCF body order. Pose coordinates follow independent
-hinges in MuJoCo `qpos` order. Coupled hinges use `joint1 = polycoef(joint2)`
+hinges in MuJoCo `qpos` order; a body's hinges compose in order, as in MuJoCo. Coupled hinges use `joint1 = polycoef(joint2)`
 before FK. Outputs use a Y-up frame with the root at the origin.
 
 Visual and collision groups store packed vertices, faces and link indices.

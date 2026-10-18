@@ -17,8 +17,13 @@ HF_MODEL_REPO_ID = "abcamiletto/robot-models"
 
 
 def model_dir(name: str, model_path: Path | str | None = None) -> Path:
-    """Resolve a model's asset directory from an explicit path, the config, the cache, or a download."""
+    """Resolve a model's asset directory from an explicit path, the config, the cache, or a download.
+
+    Models built from Body Models files are built into that directory instead of downloaded.
+    """
     model_path = model_path if model_path is not None else config.get_model_path(name)
+    if MODEL_SPECS[name].body_model is not None:
+        return build(name, Path(model_path).resolve() if model_path is not None else None)
     required_version = MODEL_SPECS[name].asset_version
     if model_path is not None:
         directory = config.validate_model_path(model_path)
@@ -35,12 +40,21 @@ def model_dir(name: str, model_path: Path | str | None = None) -> Path:
 
 
 def download(name: str, output_dir: Path | None = None) -> Path:
-    """Download and extract one model's ``assets.zip`` from Hugging Face."""
+    """Download and extract one model's ``assets.zip`` from Hugging Face, or build it locally."""
+    if MODEL_SPECS[name].body_model is not None:
+        return build(name, output_dir)
     output_dir = output_dir if output_dir is not None else get_cache_dir() / name
     print(f"Downloading {name} model to {output_dir}...")
     archive = hf_hub_download(HF_MODEL_REPO_ID, f"{name}/assets.zip", cache_dir=get_cache_dir() / "huggingface")
     extract_archive(Path(archive), output_dir, minimum_version=MODEL_SPECS[name].asset_version)
     return output_dir
+
+
+def build(name: str, output_dir: Path | None = None) -> Path:
+    """Build, unless current, a model from the user's own Body Models files; nothing is downloaded."""
+    from robot_models._skinned import _build
+
+    return _build.ensure(name, output_dir if output_dir is not None else get_cache_dir() / name)
 
 
 def get_cache_dir() -> Path:
@@ -96,4 +110,4 @@ def _validate_paths(names: Iterable[str]) -> None:
             raise RuntimeError(f"Unsafe path in archive: {name}")
 
 
-__all__ = ["HF_MODEL_REPO_ID", "download", "extract_archive", "get_cache_dir", "model_dir"]
+__all__ = ["HF_MODEL_REPO_ID", "build", "download", "extract_archive", "get_cache_dir", "model_dir"]

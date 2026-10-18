@@ -19,6 +19,8 @@ def add_hand(
     prefix: str | None = None,
     model_path: Path | str | None = None,
     free: bool = False,
+    shape: Any | None = None,
+    conform_to: Any | None = None,
 ) -> tuple[Any, Any]:
     """Attach a canonical hand and return ``(frame, root_body)``.
 
@@ -30,6 +32,10 @@ def add_hand(
         prefix: Namespace for attached elements; defaults to ``"{name}_{side}_"``.
         model_path: Optional canonical asset directory, as in ``create_model``.
         free: Add a free joint at the hand root, before its hinge coordinates.
+        shape: Body Models shape coefficients of a hand built from Body Models (``"mano"``),
+            which move its joints, meshes and link inertias; the mean shape by default.
+        conform_to: The hand pose such a hand's links and collision pieces are cut at, as in
+            its model's constructor; flat by default.
 
     Returns:
         tuple[mujoco.MjsFrame, mujoco.MjsBody]: Mount frame and attached root body.
@@ -55,9 +61,15 @@ def add_hand(
         frame = found
     if free and frame is not None and frame.parent != spec.worldbody:
         raise ValueError("free=True requires a world-level mount frame")
+    if (shape is not None or conform_to is not None) and definition.body_model is None:
+        raise ValueError(f"{name!r} has no shape or conformed geometry; only hands built from Body Models do")
     mujoco = cast(Any, import_module("mujoco"))  # Native bindings do not provide type stubs.
     directory = assets.model_dir(name, model_path)
     hand = mujoco.MjSpec.from_file(str(directory / f"{side}.xml"))
+    if shape is not None or conform_to is not None:
+        from robot_models._skinned._mujoco import apply_geometry
+
+        apply_geometry(hand, name, directory / f"{side}.xml", shape, conform_to)
     if hand.compiler.settotalmass > 0:
         # Global mass normalization is not applied to an attached subtree.
         compiled = hand.compile()

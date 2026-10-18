@@ -28,7 +28,8 @@ def load(xml_path: Path) -> RigidAssets:
     The root body sits at the origin, as under a MuJoCo free joint at zero. Visual
     meshes are mesh geoms with ``contype`` and ``conaffinity`` set to zero.
     Collision meshes come from contact-enabled geoms and explicit contact pairs.
-    Curved primitives are tessellated for this mesh interface. A hinge
+    Curved primitives are tessellated for this mesh interface. A body's hinges
+    compose in MJCF order, as in MuJoCo. A hinge
     named as ``joint1`` of an ``<equality><joint>`` follows ``joint1 = polycoef(joint2)``;
     every other hinge is a pose coordinate, in MuJoCo ``qpos`` order.
     """
@@ -68,9 +69,6 @@ def load(xml_path: Path) -> RigidAssets:
             if collision:
                 name = attrs.get("name", f"{body.get('name')}_collision_{geom_index}")
                 collisions.append((name, index, vertices, faces))
-    if len({joint for _, joint, _, _ in hinges}) != len(hinges):
-        raise ValueError(f"{xml_path} has a body with more than one hinge")
-
     coupling = _couplings(root)
     hinge_names = [name for name, *_ in hinges]
     actuated = [name for name in hinge_names if name not in coupling]
@@ -224,12 +222,17 @@ def _couplings(root: ET.Element) -> dict[str, tuple[str, Float[np.ndarray, "5"]]
 
 
 def _meshes(root: ET.Element, mesh_dir: Path, defaults: Defaults) -> dict[str, Mesh]:
-    """Load every ``<asset><mesh>`` by name, with its scale applied."""
+    """Load every ``<asset><mesh>`` by name, from its STL file or its inline vertices and faces, scaled."""
     meshes = {}
     for mesh in root.findall("asset/mesh"):
         attrs = _attrs(mesh, "main", defaults)
-        file = Path(attrs["file"])
         scale = _vec(attrs.get("scale", "1 1 1"), 3)
+        if "vertex" in attrs:
+            vertices = np.fromstring(attrs["vertex"], sep=" ").reshape(-1, 3)
+            faces = np.fromstring(attrs["face"], dtype=np.int64, sep=" ").reshape(-1, 3)
+            meshes[attrs["name"]] = (vertices * scale, faces[:, ::-1] if np.prod(scale) < 0 else faces)
+            continue
+        file = Path(attrs["file"])
         meshes[attrs.get("name", file.stem)] = stl.load_stl_mesh(mesh_dir / file, scale=scale)
     return meshes
 

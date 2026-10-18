@@ -49,7 +49,10 @@ def add_hand(
     if side not in definition.sides:
         raise ValueError(f"{name!r} supports side(s): {definition.sides}")
     if isinstance(frame, str):
-        frame = spec.frame(frame)
+        found = spec.frame(frame)
+        if found is None:
+            raise ValueError(f"Frame {frame!r} not found")
+        frame = found
     if free and frame is not None and frame.parent != spec.worldbody:
         raise ValueError("free=True requires a world-level mount frame")
     mujoco = cast(Any, import_module("mujoco"))  # Native bindings do not provide type stubs.

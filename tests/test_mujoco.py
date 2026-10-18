@@ -125,8 +125,16 @@ def test_mujoco_is_an_optional_lazy_import():
 
 
 @pytest.mark.fast
-@pytest.mark.parametrize("by_name", [False, True])
-def test_free_mount_rejects_body_frame_before_resolving_assets(by_name, monkeypatch):
+@pytest.mark.parametrize(
+    "frame_name,free,match",
+    [
+        (None, True, "world-level"),
+        ("wrist", True, "world-level"),
+        ("missing", False, "not found"),
+        ("missing", True, "not found"),
+    ],
+)
+def test_invalid_mount_fails_before_resolving_assets(frame_name, free, match, monkeypatch):
     def unexpected_download(*args, **kwargs):
         pytest.fail("Invalid mount must fail before resolving assets")
 
@@ -134,8 +142,8 @@ def test_free_mount_rejects_body_frame_before_resolving_assets(by_name, monkeypa
     scene = mujoco.MjSpec()
     arm = scene.worldbody.add_body(name="arm")
     frame = arm.add_frame(name="wrist")
-    with pytest.raises(ValueError, match="world-level"):
-        add_hand(scene, "shadow", free=True, frame="wrist" if by_name else frame)
+    with pytest.raises(ValueError, match=match):
+        add_hand(scene, "shadow", free=free, frame=frame if frame_name is None else frame_name)
     assert [body.name for body in scene.bodies] == ["world", "arm"]
     assert not arm.bodies
     assert not arm.joints

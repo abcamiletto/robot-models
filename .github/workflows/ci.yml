@@ -71,3 +71,25 @@ jobs:
             tests/test_hand_control.py \
             tests/test_mujoco.py \
             tests/test_models.py
+
+  # A version in pyproject.toml without its release is tagged and released once every check passes on main.
+  release:
+    if: github.event_name == 'push'
+    needs: [lint, format, typecheck, fast-tests, functional-tests]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Release a new version
+        run: |
+          tag="v$(uv version --short)"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            echo "$tag is already released"
+            exit 0
+          fi
+          uv build
+          gh release create "$tag" dist/*.whl dist/*.tar.gz --target "$GITHUB_SHA" --title "$tag" --generate-notes

@@ -94,6 +94,9 @@ uv run ty check
 uv run pytest -m fast
 ```
 
+To release, bump `version` in `pyproject.toml`: once CI passes on `main`, it tags `vX.Y.Z` and
+publishes a GitHub release with the wheel and source archive.
+
 ## License
 
 Code: [Apache-2.0](LICENSE). Assets use their upstream licenses; see each model's documentation.

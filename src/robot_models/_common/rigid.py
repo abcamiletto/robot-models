@@ -1,6 +1,6 @@
 """Shared rigid articulated mesh helpers."""
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from math import prod
 from typing import Any
@@ -10,47 +10,93 @@ from jaxtyping import Float, Int
 from nanomanifold import SO3
 from trimesh import Trimesh
 
-from robot_models._common.kinematics import affine_transforms, select_joint_chains
+from robot_models._common.kinematics import affine_transforms
 from robot_models._common.ops import at_set, eye_as, zeros_as
 
 Array = Any
-_ToNumpy = Callable[[Any], np.ndarray]
 
 
 @dataclass(frozen=True)
 class MeshAssets:
-    """Packed meshes, each expressed in its skeleton joint's local frame."""
+    """Packed meshes, each expressed in its body's frame."""
 
     vertices: Float[Array, "V 3"]
     faces: Int[Array, "F 3"]
     names: list[str]
-    joint_indices: list[int]
+    body_indices: list[int]
     vertex_offsets: list[int]
     face_offsets: list[int]
 
 
 @dataclass(frozen=True)
 class RigidAssets:
-    """Skeleton, hinge, and link-mesh data of one rigid articulated model.
+    """Bodies, hinges and meshes of one rigid articulated model.
 
-    Every hinge angle is a polynomial of one pose coordinate:
+    Every hinge angle is a polynomial of one pose coordinate (dof):
     ``angle[h] = sum_k hinge_polycoef[h, k] * pose[hinge_drivers[h]] ** k``.
-    Independent hinges use the identity polynomial on their own coordinate.
+    Independent hinges, the dofs, use the identity polynomial on their own coordinate.
     """
 
-    joint_names: list[str]
+    body_names: list[str]
     parents: list[int]
-    local_offsets: Float[Array, "J 3"]
-    rest_local_rotations: Float[Array, "J 3 3"]
+    local_offsets: Float[Array, "B 3"]
+    rest_local_rotations: Float[Array, "B 3 3"]
     hinge_names: list[str]
-    hinge_joint_indices: list[int]
+    hinge_bodies: list[int]
     hinge_axes: Float[Array, "H 3"]
     hinge_drivers: list[int]
     hinge_polycoef: Float[Array, "H 5"]
-    actuated_joint_names: list[str]
-    actuated_joint_limits: Float[Array, "Q 2"]
+    dof_names: list[str]
+    dof_limits: Float[Array, "Q 2"]
     visual: MeshAssets
     collision: MeshAssets
+
+
+class MeshSet:
+    """A model's visual or collision meshes, each rigid in its body's frame (Y-up, meters).
+
+    ``names`` are the MJCF geom names (or ``{body}_{kind}_{index}`` for unnamed geoms) and
+    ``body_indices`` index :attr:`~robot_models.RigidBodyModel.body_names`. Collision meshes
+    triangulate curved primitives; the MJCF and ``add_hand`` keep them analytic, and MuJoCo
+    collides the convex hull of each mesh.
+    """
+
+    def __init__(self, assets: MeshAssets, runtime: Any) -> None:
+        self._assets = assets
+        self._runtime = runtime
+
+    @property
+    def names(self) -> list[str]:
+        return list(self._assets.names)
+
+    @property
+    def body_indices(self) -> list[int]:
+        return list(self._assets.body_indices)
+
+    @property
+    def meshes(self) -> list[Trimesh]:
+        """One independent mesh per geom, in its body's frame."""
+        vertices = np.array(self._runtime.to_numpy(self._assets.vertices))  # a copy: Torch shares its buffers
+        faces = np.array(self._runtime.to_numpy(self._assets.faces))
+        v, f = self._assets.vertex_offsets, self._assets.face_offsets
+        return [
+            Trimesh(vertices[v[i] : v[i + 1]], faces[f[i] : f[i + 1]] - v[i], process=False) for i in range(len(v) - 1)
+        ]
+
+    def pose(self, frames: Float[Array, "*batch B 4 4"]) -> list[Trimesh]:
+        """One mesh per batch element of body frames (``forward_skeleton``'s): every geom posed, concatenated."""
+        xp = self._runtime.xp
+        assets = self._assets
+        links = frames[..., assets.body_indices, :, :]
+        vertices = xp.asarray(assets.vertices, dtype=links.dtype)
+        chunks = []
+        for index, (start, end) in enumerate(zip(assets.vertex_offsets[:-1], assets.vertex_offsets[1:], strict=True)):
+            rotated = vertices[start:end] @ links[..., index, :3, :3].mT
+            chunks.append(rotated + links[..., index, None, :3, 3])
+        posed = xp.concat(chunks, axis=-2) if chunks else zeros_as(links, shape=(*links.shape[:-3], 0, 3), xp=xp)
+        batched = self._runtime.to_numpy(posed).reshape(prod(links.shape[:-3]), len(vertices), 3)
+        faces = self._runtime.to_numpy(assets.faces)
+        return [Trimesh(vertices=batch, faces=faces.copy(), process=False) for batch in batched]
 
 
 def hinge_angles(assets: RigidAssets, pose: Float[Array, "... Q"], *, xp: Any) -> Float[Array, "... H"]:
@@ -63,140 +109,51 @@ def hinge_angles(assets: RigidAssets, pose: Float[Array, "... Q"], *, xp: Any) -
 def forward_skeleton(
     assets: RigidAssets,
     pose: Float[Array, "... Q"],
+    global_rotation: Float[Array, "... 3"],
+    global_translation: Float[Array, "... 3"],
     *,
-    global_rotation: Float[Array, "... 3"] | None,
-    global_translation: Float[Array, "... 3"] | None,
-    joint_indices: Sequence[int] | None,
     xp: Any,
-) -> Float[Array, "... J 4 4"]:
-    """Compute world-space joint transforms from pose coordinates.
+) -> Float[Array, "... B 4 4"]:
+    """World transforms of every body, from pose coordinates and the root's axis-angle rotation and translation.
 
     A body's hinges rotate in MJCF order, each about its axis after the previous ones, as in MuJoCo.
     """
-    num_dofs = len(assets.actuated_joint_names)
-    if pose.ndim < 1 or pose.shape[-1] != num_dofs:
-        raise ValueError(f"pose must have shape [..., {num_dofs}], got {tuple(pose.shape)}")
     batch_shape = tuple(pose.shape[:-1])
-    num_joints = len(assets.parents)
     axes = xp.asarray(assets.hinge_axes, dtype=pose.dtype)
     angles = hinge_angles(assets, pose, xp=xp)
     hinge_rot = SO3.convert(angles[..., None], src="hinge", dst="rotmat", src_kwargs={"axes": axes}, xp=xp)
-
     local_rot = xp.asarray(assets.rest_local_rotations, dtype=pose.dtype)
-    identity = eye_as(hinge_rot, batch_dims=(*batch_shape, num_joints), xp=xp)
-    for hinges, joints in _hinge_slots(assets.hinge_joint_indices):
-        slot = at_set(identity, (..., joints, slice(None), slice(None)), hinge_rot[..., hinges, :, :], xp=xp)
-        local_rot = local_rot @ slot
-    return forward_skeleton_from_local_transforms(
-        local_rot,
-        local_offsets=assets.local_offsets,
-        parents=assets.parents,
-        global_translation=global_translation,
-        global_rotation=global_rotation,
-        joint_indices=joint_indices,
-        xp=xp,
+    identity = eye_as(hinge_rot, batch_dims=(*batch_shape, len(assets.parents)), xp=xp)
+    for hinges, bodies in _hinge_slots(assets.hinge_bodies):
+        local_rot = local_rot @ at_set(
+            identity, (..., bodies, slice(None), slice(None)), hinge_rot[..., hinges, :, :], xp=xp
+        )
+
+    offsets = xp.asarray(assets.local_offsets, dtype=pose.dtype)
+    rotations: list[Any] = []
+    positions: list[Any] = []
+    for body, parent in enumerate(assets.parents):
+        if parent < 0:
+            rotations.append(local_rot[..., body, :, :])
+            positions.append(zeros_as(pose, shape=(*batch_shape, 3), xp=xp))
+            continue
+        rotations.append(rotations[parent] @ local_rot[..., body, :, :])
+        positions.append(positions[parent] + xp.squeeze(rotations[parent] @ offsets[body][..., None], axis=-1))
+    root_rot = SO3.convert(global_rotation, src="axis_angle", dst="rotmat", xp=xp)[..., None, :, :]
+    translations = xp.squeeze(root_rot @ xp.stack(positions, axis=-2)[..., None], axis=-1)
+    return affine_transforms(
+        root_rot @ xp.stack(rotations, axis=-3), translations + global_translation[..., None, :], xp=xp
     )
 
 
-def _hinge_slots(hinge_joints: Sequence[int]) -> list[tuple[list[int], list[int]]]:
+def _hinge_slots(hinge_bodies: Sequence[int]) -> list[tuple[list[int], list[int]]]:
     """Group hinges by their rank within their body: the k-th group holds every body's k-th hinge."""
     ranks: dict[int, int] = {}
     slots: list[tuple[list[int], list[int]]] = []
-    for hinge, joint in enumerate(hinge_joints):
-        rank = ranks[joint] = ranks.get(joint, -1) + 1
+    for hinge, body in enumerate(hinge_bodies):
+        rank = ranks[body] = ranks.get(body, -1) + 1
         if rank == len(slots):
             slots.append(([], []))
         slots[rank][0].append(hinge)
-        slots[rank][1].append(joint)
+        slots[rank][1].append(body)
     return slots
-
-
-def forward_skeleton_from_local_transforms(
-    local_rotations: Float[Array, "... J 3 3"],
-    *,
-    local_offsets: Float[Array, "J 3"],
-    parents: list[int],
-    global_translation: Float[Array, "... 3"] | None = None,
-    global_rotation: Float[Array, "... 3"] | None = None,
-    joint_indices: Sequence[int] | None = None,
-    xp: Any,
-) -> Float[Array, "... J 4 4"]:
-    """Compute rigid hierarchy transforms from local joint transforms.
-
-    With ``joint_indices``, only the selected joints and their ancestors are evaluated.
-    """
-    batch_shape = tuple(local_rotations.shape[:-3])
-    dtype = local_rotations.dtype
-    outputs = range(len(parents)) if joint_indices is None else tuple(int(joint) for joint in joint_indices)
-    chains = select_joint_chains(parents, outputs)
-    if not outputs:
-        return zeros_as(local_rotations, shape=(*batch_shape, 0, 4, 4), xp=xp)
-    if global_translation is None:
-        global_translation = zeros_as(local_rotations, shape=(*batch_shape, 3), xp=xp)
-
-    local_t = xp.asarray(local_offsets, dtype=dtype)
-
-    rot_world: dict[int, Float[Array, "*batch 3 3"]] = {}
-    pos_world: dict[int, Float[Array, "*batch 3"]] = {}
-    for joint in chains:
-        parent = parents[joint]
-        if parent < 0:
-            rot_world[joint] = local_rotations[..., joint, :, :]
-            pos_world[joint] = zeros_as(local_rotations, shape=(*batch_shape, 3), xp=xp)
-            continue
-        parent_rot = rot_world[parent]
-        rot_world[joint] = parent_rot @ local_rotations[..., joint, :, :]
-        local_pos = xp.squeeze(parent_rot @ local_t[joint][..., None], axis=-1)
-        pos_world[joint] = pos_world[parent] + local_pos
-
-    rot = xp.stack([rot_world[joint] for joint in outputs], axis=-3)
-    trans = xp.stack([pos_world[joint] for joint in outputs], axis=-2)
-    if global_rotation is not None:
-        global_rot = SO3.convert(global_rotation, src="axis_angle", dst="rotmat", xp=xp)
-        rot = global_rot[..., None, :, :] @ rot
-        trans = xp.squeeze(global_rot[..., None, :, :] @ trans[..., None], axis=-1)
-    trans = trans + global_translation[..., None, :]
-    return affine_transforms(rot, trans, xp=xp)
-
-
-def forward_meshes_from_links(
-    links: Float[Array, "... L 4 4"],
-    assets: MeshAssets,
-    *,
-    to_numpy: _ToNumpy,
-    xp: Any,
-) -> list[Trimesh]:
-    """Build one concatenated ``Trimesh`` per batch element."""
-    link_rot = links[..., :3, :3]
-    link_pos = links[..., :3, 3]
-    source_vertices = xp.asarray(assets.vertices, dtype=links.dtype)
-    chunks = []
-    for index, (start, end) in enumerate(zip(assets.vertex_offsets[:-1], assets.vertex_offsets[1:], strict=True)):
-        rotated = source_vertices[start:end] @ link_rot[..., index, :, :].mT
-        chunks.append(rotated + link_pos[..., index, None, :])
-    vertices = xp.concat(chunks, axis=-2) if chunks else zeros_as(links, shape=(*links.shape[:-3], 0, 3), xp=xp)
-    batched = to_numpy(vertices).reshape(prod(links.shape[:-3]), len(source_vertices), 3)
-    faces = to_numpy(assets.faces)
-    return [Trimesh(vertices=batch_vertices, faces=faces.copy(), process=False) for batch_vertices in batched]
-
-
-def link_meshes(
-    assets: MeshAssets,
-    *,
-    to_numpy: _ToNumpy,
-) -> list[Trimesh]:
-    """Build one link-local mesh per packed geometry range."""
-    vertices = to_numpy(assets.vertices)
-    faces = to_numpy(assets.faces)
-    meshes = []
-    for vertex_start, vertex_end, face_start, face_end in zip(
-        assets.vertex_offsets[:-1],
-        assets.vertex_offsets[1:],
-        assets.face_offsets[:-1],
-        assets.face_offsets[1:],
-        strict=True,
-    ):
-        link_vertices = vertices[vertex_start:vertex_end].copy()
-        link_faces = faces[face_start:face_end] - vertex_start
-        meshes.append(Trimesh(vertices=link_vertices, faces=link_faces, process=False))
-    return meshes

@@ -5,8 +5,9 @@ import importlib
 import model_cases
 import pytest
 
-from robot_models import _catalog as catalog
 from robot_models import create_model, list_models
+
+CLASSES = {"barrett": "hands.barrett.BarrettHand", "shadow": "hands.shadow.ShadowHand", "g1": "humanoids.g1.G1"}
 
 
 @pytest.mark.fast
@@ -21,16 +22,31 @@ def test_family_catalog_and_filtering():
         list_models(family="unknown")
 
 
+@pytest.mark.fast
+@pytest.mark.parametrize(("name", "kwargs"), [("unknown", {}), ("barrett", {"side": "left"}), ("g1", {"side": "left"})])
+def test_invalid_models_fail_loudly(name, kwargs):
+    with pytest.raises((ValueError, TypeError)):
+        create_model(name, **kwargs)
+
+
 @pytest.mark.parametrize("backend", ("numpy", "torch", "jax"))
-@pytest.mark.parametrize(("name", "model_class", "kwargs"), model_cases.RUNTIME_MODELS)
-def test_named_import_and_factory_select_backend(backend, name, model_class, kwargs):
+@pytest.mark.parametrize(("name", "kwargs"), model_cases.RUNTIME_CASES)
+def test_named_import_and_factory_select_backend(backend, name, kwargs):
     if backend != "numpy":
         pytest.importorskip(backend)
-    module = importlib.import_module(f"{catalog.model_module(name)}.{backend}")
-    model_class = getattr(module, catalog.MODEL_SPECS[name].class_name)
+    package, class_name = CLASSES[name].rsplit(".", 1)
+    model_class = getattr(importlib.import_module(f"robot_models.{package}.{backend}"), class_name)
     model = model_class(**kwargs)
     assert type(create_model(name, runtime=backend, **kwargs)) is model_class
     assert model.name == name
     assert model.runtime.name == backend
     with pytest.raises(TypeError):
         model_class(runtime=backend)
+
+
+@pytest.mark.fast
+def test_outdated_assets_fail_without_changing_files(tmp_path):
+    (tmp_path / "source.json").write_text('{"asset_version": 1}')
+    with pytest.raises(ValueError, match="asset version"):
+        create_model("barrett", model_path=tmp_path)
+    assert (tmp_path / "source.json").read_text() == '{"asset_version": 1}'

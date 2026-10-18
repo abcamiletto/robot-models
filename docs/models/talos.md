@@ -12,7 +12,7 @@ A manual `model_path` is a directory with `talos.xml` and its meshes.
 from robot_models.humanoids.talos.numpy import Talos
 
 model = Talos()
-params = model.get_tpose()
+params = model.get_rest_pose(preset="t_pose")
 ```
 
 Each gripper has one driven hinge, `gripper_*_inner_double_joint`, that three coupled hinges follow, plus three free fingertip hinges.

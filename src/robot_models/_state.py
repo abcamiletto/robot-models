@@ -1,7 +1,7 @@
 """Materialize immutable model data for an array backend.
 
-Reusable backend-specific data lives on materialized state objects. Operation
-execution is lowered by ``ArrayRuntime`` instead.
+Dataclasses recurse (a module for PyTorch, a pytree for JAX), NumPy arrays become the
+backend's arrays, and every other value (names, indices) stays as it is, static.
 """
 
 from __future__ import annotations
@@ -12,136 +12,62 @@ from typing import Any
 import numpy as np
 
 _JAX_DATACLASSES: set[type] = set()
-_STATIC_LEAF_TYPES = (type(None), bool, int, float, str, bytes, np.generic)
 
 
 def numpy_state(value: Any) -> Any:
-    """Materialize model data for NumPy."""
-    if isinstance(value, _STATIC_LEAF_TYPES):
-        return value
-
-    if isinstance(value, np.ndarray):
-        return value.copy()
+    """Materialize model data for NumPy: copies of its arrays."""
     if is_dataclass(value):
-        cls = type(value)
-        return cls(**{field.name: numpy_state(getattr(value, field.name)) for field in fields(value)})
-    if isinstance(value, list):
-        return [numpy_state(item) for item in value]
-    if isinstance(value, tuple):
-        return tuple(numpy_state(item) for item in value)
-    if isinstance(value, dict):
-        return {key: numpy_state(item) for key, item in value.items()}
-    return _static_leaf(value)
+        return type(value)(**{field.name: numpy_state(getattr(value, field.name)) for field in fields(value)})
+    return value.copy() if isinstance(value, np.ndarray) else value
 
 
 def torch_state(value: Any) -> Any:
-    """Recursively register model arrays as PyTorch buffers."""
+    """Materialize model data for PyTorch: modules whose arrays are buffers."""
     import torch
     from torch import nn
 
-    from robot_models._torch_state import StateMapping, StateSequence
-
-    if isinstance(value, _STATIC_LEAF_TYPES):
-        return value
     if is_dataclass(value):
         module = nn.Module()
         for field in fields(value):
-            converted = torch_state(getattr(value, field.name))
-            setattr(module, field.name, converted)
+            setattr(module, field.name, torch_state(getattr(value, field.name)))
         return module
-
-    if isinstance(value, dict):
-        converted = {key: torch_state(item) for key, item in value.items()}
-        if any(isinstance(item, torch.Tensor | nn.Module) for item in converted.values()):
-            return StateMapping(converted)
-        return converted
-
-    if isinstance(value, list | tuple):
-        converted = [torch_state(item) for item in value]
-        if any(isinstance(item, torch.Tensor | nn.Module) for item in converted):
-            return StateSequence(converted)
-        return type(value)(converted)
-
-    if isinstance(value, np.ndarray | torch.Tensor):
-        tensor = torch.tensor(value) if isinstance(value, np.ndarray) else value
-        return nn.Buffer(tensor, persistent=True)
-
-    return _static_leaf(value)
+    return nn.Buffer(torch.tensor(value), persistent=True) if isinstance(value, np.ndarray) else value
 
 
 def jax_state(value: Any) -> Any:
-    """Convert model arrays to JAX arrays while preserving dataclass types."""
-    import jax
+    """Materialize model data for JAX: pytrees of JAX arrays."""
     import jax.numpy as jnp
 
-    if isinstance(value, _STATIC_LEAF_TYPES):
-        return value
-
     if is_dataclass(value):
-        cls = type(value)
-        _register_jax_dataclass(cls, jax)
-        return cls(**{field.name: jax_state(getattr(value, field.name)) for field in fields(value)})
-
-    if isinstance(value, list):
-        return [jax_state(item) for item in value]
-    if isinstance(value, tuple):
-        return tuple(jax_state(item) for item in value)
-    if isinstance(value, dict):
-        return {key: jax_state(item) for key, item in value.items()}
-    if isinstance(value, np.ndarray):
-        return jnp.asarray(value)
-    if isinstance(value, jax.Array):
-        return value
-    return _static_leaf(value)
-
-
-def _static_leaf(value: Any) -> Any:
-    value_type = type(value)
-    raise TypeError(f"Unsupported model state leaf: {value_type.__module__}.{value_type.__qualname__}")
+        register_jax_state(value)
+        return type(value)(**{field.name: jax_state(getattr(value, field.name)) for field in fields(value)})
+    return jnp.asarray(value) if isinstance(value, np.ndarray) else value
 
 
 def register_jax_state(value: Any) -> None:
-    """Restore pytree registrations for already-materialized JAX state."""
-    import jax
-
-    _register_jax_state(value, jax)
-
-
-def _register_jax_state(value: Any, jax: Any) -> None:
-    if isinstance(value, _STATIC_LEAF_TYPES):
+    """Register a dataclass, and those it holds, as JAX pytrees whose non-array leaves are static."""
+    if not is_dataclass(value):
         return
-    if is_dataclass(value):
-        _register_jax_dataclass(type(value), jax)
-        for field in fields(value):
-            _register_jax_state(getattr(value, field.name), jax)
-    elif isinstance(value, list | tuple):
-        for item in value:
-            _register_jax_state(item, jax)
-    elif isinstance(value, dict):
-        for item in value.values():
-            _register_jax_state(item, jax)
-
-
-def _register_jax_dataclass(cls: type, jax: Any) -> None:
+    for field in fields(value):
+        register_jax_state(getattr(value, field.name))
+    cls = type(value)
     if cls in _JAX_DATACLASSES:
         return
+    import jax
 
-    field_names = tuple(field.name for field in fields(cls))
+    names = tuple(field.name for field in fields(cls))
 
-    def flatten(obj):
-        values = tuple(getattr(obj, name) for name in field_names)
-        leaves, tree = jax.tree_util.tree_flatten(values)
-        static = tuple((index, leaf) for index, leaf in enumerate(leaves) if isinstance(leaf, _STATIC_LEAF_TYPES))
-        children = tuple(leaf for leaf in leaves if not isinstance(leaf, _STATIC_LEAF_TYPES))
-        return children, (tree, static)
+    def flatten(obj: Any) -> tuple[tuple[Any, ...], tuple[Any, ...]]:
+        leaves, tree = jax.tree_util.tree_flatten(tuple(getattr(obj, name) for name in names))
+        static = tuple((index, leaf) for index, leaf in enumerate(leaves) if not isinstance(leaf, jax.Array))
+        return tuple(leaf for leaf in leaves if isinstance(leaf, jax.Array)), (tree, static)
 
-    def unflatten(aux_data, children):
-        tree, static = aux_data
+    def unflatten(aux: tuple[Any, ...], children: tuple[Any, ...]) -> Any:
+        tree, static = aux
         leaves = list(children)
-        for index, value in static:
-            leaves.insert(index, value)
-        values = jax.tree_util.tree_unflatten(tree, leaves)
-        return cls(**dict(zip(field_names, values, strict=True)))
+        for index, leaf in static:
+            leaves.insert(index, leaf)
+        return cls(**dict(zip(names, jax.tree_util.tree_unflatten(tree, leaves), strict=True)))
 
     jax.tree_util.register_pytree_node(cls, flatten, unflatten)
     _JAX_DATACLASSES.add(cls)

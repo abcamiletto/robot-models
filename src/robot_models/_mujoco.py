@@ -1,59 +1,47 @@
-"""Attach canonical hand assets through MuJoCo's native model-editing API."""
+"""Attach canonical hands through MuJoCo's native model-editing API."""
 
 from importlib import import_module
 from math import isfinite
-from pathlib import Path
 from typing import Any, cast
 
-from robot_models import _assets as assets
-from robot_models import _catalog as catalog
-from robot_models._spec import Side
+from robot_models._common import mjcf
+from robot_models._common.mjcf import MUJOCO_TO_MODEL
+from robot_models.hands._base import Hand
 
 
 def add_hand(
     spec: Any,
-    name: str,
+    model: Hand,
     *,
-    side: Side = "right",
     frame: Any | None = None,
     prefix: str | None = None,
-    model_path: Path | str | None = None,
     free: bool = False,
-    shape: Any | None = None,
-    conform_to: Any | None = None,
+    actuators: bool = True,
 ) -> tuple[Any, Any]:
-    """Attach a canonical hand and return ``(frame, root_body)``.
+    """Attach a hand model's MJCF and return ``(frame, root_body)``.
 
     Args:
         spec (mujoco.MjSpec): Scene to modify, before compilation.
-        name: Hand factory identifier, such as ``"shadow"`` or ``"allegro"``.
-        side: A side supplied by that hand's canonical assets.
+        model: The hand, such as ``create_model("shadow", side="left")``: its side, assets and,
+            for a hand built from Body Models, its shape and conformed geometry.
         frame (mujoco.MjsFrame | str | None): Existing scene frame, or the world origin.
         prefix: Namespace for attached elements; defaults to ``"{name}_{side}_"``.
-        model_path: Optional canonical asset directory, as in ``create_model``.
         free: Add a free joint at the hand root, before its hinge coordinates.
-        shape: Body Models shape coefficients of a hand built from Body Models (``"mano"``),
-            which move its joints, meshes and link inertias; the mean shape by default.
-        conform_to: The hand pose such a hand's links and collision pieces are cut at, as in
-            its model's constructor; flat by default.
+        actuators: Keep the MJCF's actuators; without them, the hand has none.
 
     Returns:
         tuple[mujoco.MjsFrame, mujoco.MjsBody]: Mount frame and attached root body.
         Placement uses native MuJoCo coordinates (Z-up, quaternion order wxyz).
 
     The hand root is fixed unless ``free=True``. Free roots require a world-level mount.
-    The scene's options are unchanged. Packaged actuators,
-    equalities and collision definitions are retained; none are synthesized.
+    The scene's options are unchanged. Equalities and collision definitions are retained,
+    actuators unless ``actuators=False``; finite ``effort_limits`` bound joint actuators.
     Barrett/Robotiq assets have placeholder inertias for their visual geometry;
     source collisions are supplied; configure appropriate dynamics and actuation.
     Requires the optional ``robot-models[mujoco]`` dependency.
     """
-    name = catalog.normalize_name(name)
-    definition = catalog.model_spec(name)
-    if definition.family != "hands":
-        raise TypeError(f"{name!r} is not a hand")
-    if side not in definition.sides:
-        raise ValueError(f"{name!r} supports side(s): {definition.sides}")
+    if not isinstance(model, Hand):
+        raise TypeError(f"{model.name!r} is not a hand")
     if isinstance(frame, str):
         found = spec.frame(frame)
         if found is None:
@@ -61,15 +49,10 @@ def add_hand(
         frame = found
     if free and frame is not None and frame.parent != spec.worldbody:
         raise ValueError("free=True requires a world-level mount frame")
-    if (shape is not None or conform_to is not None) and definition.body_model is None:
-        raise ValueError(f"{name!r} has no shape or conformed geometry; only hands built from Body Models do")
     mujoco = cast(Any, import_module("mujoco"))  # Native bindings do not provide type stubs.
-    directory = assets.model_dir(name, model_path)
-    hand = mujoco.MjSpec.from_file(str(directory / f"{side}.xml"))
-    if shape is not None or conform_to is not None:
-        from robot_models._skinned._mujoco import apply_geometry
-
-        apply_geometry(hand, name, directory / f"{side}.xml", shape, conform_to)
+    hand = mujoco.MjSpec.from_file(str(model.xml_path))
+    if model._config.shape is not None or model._config.conform_to is not None:
+        _write_geometry(hand, model)
     if hand.compiler.settotalmass > 0:
         # Global mass normalization is not applied to an attached subtree.
         compiled = hand.compile()
@@ -92,8 +75,11 @@ def add_hand(
             hand.delete(joint)
     if free:
         root.add_freejoint()
-    efforts = {name.format(side=side, s=side[0]): dof.effort_limit for name, dof in definition.dofs.items()}
-    for actuator in hand.actuators:
+    efforts = {name: dof.effort_limit for name, dof in zip(model.dof_names, model.dofs, strict=True)}
+    for actuator in list(hand.actuators):
+        if not actuators:
+            hand.delete(actuator)
+            continue
         limit = efforts.get(actuator.target, float("inf"))
         gear = abs(actuator.gear[0])
         if actuator.trntype == mujoco.mjtTrn.mjTRN_JOINT and isfinite(limit) and gear:
@@ -108,7 +94,24 @@ def add_hand(
             actuator.forcerange = [lower, upper]
             actuator.forcelimited = mujoco.mjtLimited.mjLIMITED_TRUE
     frame = spec.worldbody.add_frame() if frame is None else frame
-    prefix = f"{name}_{side}_" if prefix is None else prefix
-    root_name = prefix + root.name
+    prefix = f"{model.name}_{model.side}_" if prefix is None else prefix
+    root_name = prefix + root.name  # attaching prefixes the root's own name
     attachment = spec.attach(hand, frame=frame, prefix=prefix)
     return attachment, spec.body(root_name)
+
+
+def _write_geometry(spec: Any, model: Hand) -> None:
+    """Give a skinned hand's spec the model's geometry: its body offsets, meshes and link inertias."""
+    density = model._source.density  # type: ignore[attr-defined]
+    offsets = model.runtime.to_numpy(model._assets.local_offsets)
+    for body, parent, offset in zip(model.body_names, model.parents, offsets, strict=True):
+        if parent >= 0:
+            spec.body(body).pos = offset @ MUJOCO_TO_MODEL
+    visual = model.visual
+    for name, body, mesh in zip(visual.names, visual.body_indices, visual.meshes, strict=True):
+        mass, center, full = mjcf.inertial(mesh, density)
+        link = spec.body(model.body_names[body])
+        link.mass, link.ipos, link.fullinertia = mass, center, full
+        spec.mesh(spec.geom(name).meshname).uservert = (mesh.vertices @ MUJOCO_TO_MODEL).ravel()
+    for name, mesh in zip(model.collision.names, model.collision.meshes, strict=True):
+        spec.mesh(spec.geom(name).meshname).uservert = (mesh.vertices @ MUJOCO_TO_MODEL).ravel()

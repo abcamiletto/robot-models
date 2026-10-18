@@ -11,7 +11,7 @@ from robot_models.humanoids.smpl.numpy import SmplRobot
 body = SmplRobot(gender="neutral", shape=betas)  # fixed; the mean by default; conform_to as for MANO
 params = body.from_body_models(**smpl_params)
 skeleton = body.forward_skeleton(**params)
-links = body.forward_meshes(**params)  # rigid links
+links = body.visual.pose(skeleton)  # rigid links
 skin = body.forward_vertices(**params)  # SMPL's skin, exactly; faces in body.skin_faces
 ```
 

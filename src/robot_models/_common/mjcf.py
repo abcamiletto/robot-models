@@ -24,7 +24,7 @@ Mesh = tuple[Float[np.ndarray, "V 3"], Int[np.ndarray, "F 3"]]
 
 
 def load(xml_path: Path) -> RigidAssets:
-    """Load an MJCF robot with one skeleton joint per body, in Y-up model coordinates.
+    """Load an MJCF robot's bodies, hinges and meshes, in Y-up model coordinates.
 
     The root body sits at the origin, as under a MuJoCo free joint at zero. Visual
     meshes are mesh geoms with ``contype`` and ``conaffinity`` set to zero.
@@ -68,7 +68,7 @@ def load(xml_path: Path) -> RigidAssets:
                 continue
             vertices, faces = _geom_mesh(attrs, meshes)
             if visual:
-                visuals.append((attrs["mesh"], index, vertices, faces))
+                visuals.append((attrs.get("name", f"{body.get('name')}_visual_{geom_index}"), index, vertices, faces))
             if collision:
                 name = attrs.get("name", f"{body.get('name')}_collision_{geom_index}")
                 collisions.append((name, index, vertices, faces))
@@ -84,20 +84,28 @@ def load(xml_path: Path) -> RigidAssets:
 
     to_model = MUJOCO_TO_MODEL
     return RigidAssets(
-        joint_names=names,
+        body_names=names,
         parents=parents,
         local_offsets=(np.asarray(offsets) @ to_model.T).astype(np.float32),
         rest_local_rotations=(to_model @ np.asarray(rotations) @ to_model.T).astype(np.float32),
         hinge_names=hinge_names,
-        hinge_joint_indices=[joint for _, joint, _, _ in hinges],
+        hinge_bodies=[body for _, body, _, _ in hinges],
         hinge_axes=np.asarray([to_model @ axis for _, _, axis, _ in hinges], dtype=np.float32),
         hinge_drivers=drivers,
         hinge_polycoef=np.asarray(polycoef, dtype=np.float32),
-        actuated_joint_names=actuated,
-        actuated_joint_limits=np.asarray([limits[name] for name in actuated], dtype=np.float32),
+        dof_names=actuated,
+        dof_limits=np.asarray([limits[name] for name in actuated], dtype=np.float32),
         visual=_mesh_assets(visuals),
         collision=_mesh_assets(collisions),
     )
+
+
+def inertial(mesh: trimesh.Trimesh, density: float) -> tuple[float, Float[np.ndarray, "3"], Float[np.ndarray, "6"]]:
+    """A closed model-frame mesh's mass, center and full inertia (xx, yy, zz, xy, xz, yz) in MuJoCo's frame."""
+    to_mujoco = MUJOCO_TO_MODEL.T
+    inertia = to_mujoco @ (mesh.moment_inertia * density) @ to_mujoco.T
+    full = inertia[[0, 1, 2, 0, 0, 1], [0, 1, 2, 1, 2, 2]]
+    return mesh.volume * density, mesh.center_mass @ to_mujoco.T, full
 
 
 def _mesh_assets(pieces: list[tuple[str, int, np.ndarray, np.ndarray]]) -> MeshAssets:
@@ -111,7 +119,7 @@ def _mesh_assets(pieces: list[tuple[str, int, np.ndarray, np.ndarray]]) -> MeshA
         vertices=np.concatenate(vertices).astype(np.float32) if pieces else np.empty((0, 3), dtype=np.float32),
         faces=np.concatenate(faces).astype(np.int64) if pieces else np.empty((0, 3), dtype=np.int64),
         names=[name for name, *_ in pieces],
-        joint_indices=[joint for _, joint, _, _ in pieces],
+        body_indices=[body for _, body, _, _ in pieces],
         vertex_offsets=vertex_offsets,
         face_offsets=face_offsets,
     )

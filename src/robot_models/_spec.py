@@ -1,9 +1,14 @@
 """Static definitions shared by the catalog and model families."""
 
+from __future__ import annotations
+
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from math import inf
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from robot_models._skinned._sources import Source
 
 Family = Literal["hands", "humanoids"]
 Side = Literal["left", "right"]
@@ -17,7 +22,6 @@ class Dof:
 
     finger: Finger
     role: Role
-    closing: Literal[-1, 0, 1]
     effort_limit: float = inf
 
 
@@ -25,15 +29,22 @@ class Dof:
 class ModelSpec:
     """One canonical robot's family, anatomical names and asset requirements.
 
-    ``body_model`` names the Body Models model whose local files a model's assets are
-    built from, instead of downloaded; its assets are never redistributed.
+    ``variants`` are the MJCF files a model offers, ``{variant}.xml``: a hand's sides, SMPL's
+    genders; none for a humanoid of one file, ``{name}.xml``. Catalog names may hold the side as
+    ``{side}`` or its initial as ``{s}``. ``source`` is the Body Models model a model's assets are
+    built from locally, instead of downloaded; its assets are never redistributed.
     """
 
     class_name: str
     family: Family
     joints: Mapping[str, str]
-    sides: tuple[Side, ...] = ()
+    variants: tuple[str, ...] = ()
     asset_version: int = 1
     mirror: tuple[tuple[str, str], ...] = ()
     dofs: Mapping[str, Dof] = field(default_factory=dict)
-    body_model: Literal["mano", "smpl"] | None = None
+    source: Source | None = None
+
+
+def sided(name: str, side: str) -> str:
+    """A catalog name of one side."""
+    return name.format(side=side, s=side[0])

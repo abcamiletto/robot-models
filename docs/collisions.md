@@ -6,16 +6,16 @@ All hands and humanoids provide visual and collision meshes through the same API
 from robot_models.hands.shadow.numpy import ShadowHand
 
 hand = ShadowHand()
-params = hand.get_rest_pose()
-visual = hand.forward_meshes(**params)
-collision = hand.forward_meshes(geometry="collision", **params)
+frames = hand.forward_skeleton(**hand.get_rest_pose())
+visual = hand.visual.pose(frames)
+collision = hand.collision.pose(frames)
 ```
 
-`link_meshes` and `collision_meshes` return local meshes in each joint's Y-up
-frame. `collision_names` and `collision_joint_indices` identify collision pieces;
-`forward_links(geometry="collision", **params)` returns their world transforms.
-A joint can have several pieces. Transforms use the chosen array backend;
-`Trimesh` outputs use host NumPy arrays.
+`visual` and `collision` are mesh sets: `meshes` are local meshes in each body's Y-up frame,
+`names` their MJCF geom names and `body_indices` their bodies, so that `frames[body_indices]`
+places each one; `pose(frames)` concatenates them all, one mesh per batch element. A body can
+have several pieces. Transforms use the chosen array backend; `Trimesh` outputs use host NumPy
+arrays.
 
 ## Source geometry
 

@@ -63,7 +63,7 @@ class RobotState:
     color: tuple[int, int, int]
     mesh_handle: viser.MeshHandle | None = None
     changed_keys: set[str] = field(default_factory=set)
-    hands: Literal["default", "flat", "rest"] = "default"
+    hands: Literal["flat", "rest"] | None = None
 
 
 @dataclass
@@ -106,13 +106,13 @@ def main() -> None:
         controls = {name: add_robot_controls(server, name, state) for name, state in states.items()}
 
     with tabs.add_tab("Presets"), server.gui.add_folder("Hands"):
-        for label, hands in (("Default hands", "default"), ("Flat hands", "flat"), ("Rest hands", "rest")):
+        for label, hands in (("Default hands", None), ("Flat hands", "flat"), ("Rest hands", "rest")):
             button = server.gui.add_button(label)
 
             @button.on_click
             def _(_, hands=hands) -> None:
                 for name, state in states.items():
-                    if state.model.has_hands:
+                    if pose_key(state.params) == "hand_pose":
                         apply_hands(state, controls[name].sliders, hands)
 
     def show_robot_controls(name: str) -> None:
@@ -178,7 +178,7 @@ def mutable_params(params: dict[str, Any]) -> dict[str, np.ndarray]:
 
 
 def update_robot_mesh(server: viser.ViserServer, state: RobotState) -> None:
-    mesh = state.model.forward_meshes(**state.params)[0]
+    mesh = state.model.visual.pose(state.model.forward_skeleton(**state.params))[0]
     if state.mesh_handle is not None:
         state.mesh_handle.remove()
     state.mesh_handle = server.scene.add_mesh_simple(
@@ -208,11 +208,11 @@ def add_robot_controls(server: viser.ViserServer, name: str, state: RobotState) 
     with server.gui.add_folder(name, expand_by_default=True) as folder:
         with server.gui.add_folder("Pose"):
             for coord_index in range(state.model.num_dofs):
-                lo, hi = slider_limits(state.model.actuated_joint_limits[coord_index])
+                lo, hi = slider_limits(state.model.dof_limits[coord_index])
                 initial = float(state.params[key][coord_index])
                 lo = min(lo, initial)
                 hi = max(hi, initial)
-                label = pose_slider_label(state.model, coord_index)
+                label = state.model.dof_names[coord_index]
                 handles.append(
                     add_slider(
                         server,
@@ -228,18 +228,6 @@ def add_robot_controls(server: viser.ViserServer, name: str, state: RobotState) 
                 )
         reset_button(server, handles)
     return RobotControls(folder, handles)
-
-
-def pose_slider_label(model: RigidBodyModel, index: int) -> str:
-    for name, joint_slice in model.actuated_joint_slices.items():
-        if joint_slice.start <= index < joint_slice.stop:
-            dof = joint_slice.stop - joint_slice.start
-            if dof == 3:
-                return f"{name}_{'xyz'[index - joint_slice.start]}"
-            if dof > 1:
-                return f"{name}_{index - joint_slice.start}"
-            return name
-    raise IndexError(f"Pose coordinate index out of range: {index}")
 
 
 def slider_limits(limits: np.ndarray) -> tuple[float, float]:
@@ -280,8 +268,8 @@ def reset_button(server: viser.ViserServer, handles: list[SliderHandle]) -> None
             slider.handle.value = slider.initial
 
 
-def apply_hands(state: RobotState, sliders: list[SliderHandle], hands: Literal["default", "flat", "rest"]) -> None:
-    preset = state.model.get_rest_pose(hands=hands)
+def apply_hands(state: RobotState, sliders: list[SliderHandle], hands: Literal["flat", "rest"] | None) -> None:
+    preset = state.model.get_rest_pose(preset=hands)
     key = pose_key(state.params)
     state.hands = hands
     state.params[key] = np.asarray(preset[key]).copy()

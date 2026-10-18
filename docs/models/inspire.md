@@ -12,7 +12,7 @@ A manual `model_path` is a directory with `left.xml`, `right.xml` and their mesh
 from robot_models.hands.inspire.numpy import InspireHand
 
 hand = InspireHand(side="right")
-params = hand.get_rest_pose(hands="rest")
+params = hand.get_rest_pose(preset="rest")
 ```
 
 Intermediate and distal hinges follow their drivers through the URDF mimic ratios. The root is the hand base; on a G1 it sits 0.0415 m along the `*_wrist_yaw_link` x axis.

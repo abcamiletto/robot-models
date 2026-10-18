@@ -12,9 +12,9 @@ A local `model_path` must contain `left.xml`, `right.xml` and their mesh folders
 from robot_models.hands.sharpa.numpy import SharpaHand
 
 hand = SharpaHand(side="right")  # also supports side="left"
-params = hand.get_rest_pose(hands="rest")
+params = hand.get_rest_pose(preset="rest")
 skeleton = hand.forward_skeleton(**params)
-meshes = hand.forward_meshes(**params)
+meshes = hand.visual.pose(hand.forward_skeleton(**params))
 ```
 
 The `flat` preset is the zero joint pose. The `rest` preset uses 0.2 radians

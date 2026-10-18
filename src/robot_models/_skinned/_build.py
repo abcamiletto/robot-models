@@ -23,8 +23,11 @@ from typing import Any, cast
 import numpy as np
 import trimesh
 
+from robot_models import _assets as assets
+from robot_models import _catalog as catalog
+from robot_models._common import mjcf
 from robot_models._common.mjcf import MUJOCO_TO_MODEL
-from robot_models._skinned._sources import MIRROR, SOURCES, Source
+from robot_models._skinned._sources import MIRROR, Source
 
 ASSET_VERSION = 4
 NEAREST = 4  # rest link vertices each piece vertex follows
@@ -35,53 +38,48 @@ CONTACT_MARGIN = 0.002  # m: link pairs this close at rest do not collide with e
 
 
 def ensure(name: str, directory: Path) -> Path:
-    """Return ``directory`` holding current assets of every configured variant, building them if needed."""
-    source = SOURCES[name]
+    """Return ``directory`` holding current assets of every configured variant, building them if needed.
+
+    The model's first variant is the base whose links the collision pieces decompose; it must be configured.
+    """
+    spec = catalog.model_spec(name)
+    source, base = cast(Source, spec.source), spec.variants[0]
     sources = {}
-    for variant in source.variants:
+    for variant in spec.variants:
         try:
             sources[variant] = source.path(variant)
         except FileNotFoundError:
             continue
-    if source.base not in sources:
+    if base not in sources:
         raise FileNotFoundError(
             f"{name} is built locally from Body Models' {source.body_model.upper()} files, which cannot be "
-            f"redistributed, starting from its {source.base} model. Configure it with "
-            f"`body-models set {source.body_model}-{source.base} PATH`."
+            f"redistributed, starting from its {base} model. Configure it with "
+            f"`body-models set {source.body_model}-{base} PATH`."
         )
     manifest = _manifest(directory)
     built = manifest.get("variants", {})
     fresh = all(built.get(variant, {}).get("stamp") == _stamp(path) for variant, path in sources.items())
     if manifest.get("asset_version") == ASSET_VERSION and fresh:
         return directory
-    build(name, directory, sources)
+    build(source, base, directory, sources)
     return directory
 
 
-def build(name: str, directory: Path, sources: dict[str, Path]) -> None:
+def build(source: Source, base: str, directory: Path, sources: dict[str, Path]) -> None:
     """Build every variant in ``sources`` into ``directory``, replacing it once complete."""
-    source = SOURCES[name]
-    print(f"Building {name} from Body Models' local {source.body_model.upper()} files into {directory}...")
+    print(f"Building {source.body_model} from Body Models' local {source.body_model.upper()} files into {directory}...")
     directory.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=f".{directory.name}-", dir=directory.parent) as temporary:
         staging = Path(temporary) / "assets"
         staging.mkdir()
-        pieces = _pieces(source, directory, staging)
+        pieces = _pieces(source, base, directory, staging)
         variants = {}
         for variant, path in sources.items():
-            _write_variant(source, variant, pieces, staging)
+            _write_variant(source, base, variant, pieces, staging)
             variants[variant] = {"source": str(path), "stamp": _stamp(path)}
         manifest = {"asset_version": ASSET_VERSION, "body_model": source.body_model, "variants": variants}
         (staging / "source.json").write_text(json.dumps(manifest, indent=2) + "\n")
-        previous = Path(temporary) / "previous"
-        if directory.exists():
-            directory.rename(previous)
-        try:
-            staging.rename(directory)
-        except OSError:
-            if previous.exists():
-                previous.rename(directory)
-            raise
+        assets.swap(staging, directory)
 
 
 @dataclass(frozen=True)
@@ -163,9 +161,9 @@ def cut(skin: Skin) -> list[Cut]:
     return cuts
 
 
-def _pieces(source: Source, previous: Path, staging: Path) -> dict[str, np.ndarray]:
+def _pieces(source: Source, base: str, previous: Path, staging: Path) -> dict[str, np.ndarray]:
     """The base variant's convex pieces (hull vertices in their link's rest frame), reused when current."""
-    path = source.path(source.base)
+    path = source.path(base)
     cached = previous / "pieces.npz"
     if cached.is_file():
         with np.load(cached) as data:
@@ -176,13 +174,13 @@ def _pieces(source: Source, previous: Path, staging: Path) -> dict[str, np.ndarr
     import coacd
 
     coacd.set_log_level("error")
-    base = skin(source, source.base)
+    rest = skin(source, base)
     vertices, piece, link = [], [], []
-    for joint, link_cut in enumerate(cut(base)):
-        local = link_cut.apply(base.vertices) - base.joints[joint]
+    for joint, link_cut in enumerate(cut(rest)):
+        local = link_cut.apply(rest.vertices) - rest.joints[joint]
         parts = coacd.run_coacd(
             coacd.Mesh(local, link_cut.faces),
-            threshold=source.concavity(base.names[joint]),
+            threshold=source.concavity(rest.names[joint]),
             max_convex_hull=-1,
             preprocess_mode="off",
             mcts_iterations=150,
@@ -203,9 +201,11 @@ def _pieces(source: Source, previous: Path, staging: Path) -> dict[str, np.ndarr
     return pieces
 
 
-def _write_variant(source: Source, variant: str, pieces: dict[str, np.ndarray], staging: Path) -> None:
+def _write_variant(
+    source: Source, base_variant: str, variant: str, pieces: dict[str, np.ndarray], staging: Path
+) -> None:
     own = skin(source, variant)
-    base = own if variant == source.base else skin(source, source.base)
+    base = own if variant == base_variant else skin(source, base_variant)
     own_cuts, base_cuts = cut(own), cut(base)
     sign = MIRROR if variant in source.mirrored else np.eye(3)
     order = _depth_first(own.parents)
@@ -245,7 +245,6 @@ def _write_variant(source: Source, variant: str, pieces: dict[str, np.ndarray], 
         skin_weight=skin_weight,
         piece_index=by_link(nearest_index),
         piece_weight=by_link(nearest_weight),
-        density=np.float64(source.density),
     )
     xml = _mjcf(source, variant, own, order, offsets, hinges, links, own_cuts, piece_vertices)
     (staging / f"{variant}.xml").write_text(xml)
@@ -297,11 +296,8 @@ def _mjcf(source, variant, own, order, offsets, hinges, links, cuts, pieces) -> 
         _mesh(asset, name, links[joint] @ to_mujoco.T, cuts[joint].faces)
         body = ET.SubElement(bodies[own.parents[joint]], "body", name=name, pos=_fmt(offset @ to_mujoco.T))
         bodies[joint] = body
-        mass = link.volume * source.density
-        inertia = to_mujoco @ (link.moment_inertia * source.density) @ to_mujoco.T
-        center = _fmt(link.center_mass @ to_mujoco.T)
-        full = _fmt(inertia[[0, 1, 2, 0, 0, 1], [0, 1, 2, 1, 2, 2]])
-        ET.SubElement(body, "inertial", pos=center, mass=_fmt(mass), fullinertia=full)
+        mass, center, full = mjcf.inertial(link, source.density)
+        ET.SubElement(body, "inertial", pos=_fmt(center), mass=_fmt(mass), fullinertia=_fmt(full))
         if own.parents[joint] < 0 and source.free:
             ET.SubElement(body, "freejoint", name="root")
         if name in hinges:

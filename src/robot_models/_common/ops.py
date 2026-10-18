@@ -15,16 +15,12 @@ def at_set(
     slices: tuple,
     values: Num[Array, "..."] | float,
     *,
-    copy: bool = True,
     xp: Any,
 ) -> Num[Array, "..."]:
-    """Set elements of an array in a backend-independent way."""
+    """A copy of an array with elements set, in a backend-independent way."""
     if xp.__name__ == "jax.numpy":
         return array.at[slices].set(values)
-
-    if copy:
-        array = array.clone() if xp.__name__ == "torch" else xp.asarray(array, copy=True)
-
+    array = array.clone() if xp.__name__ == "torch" else xp.asarray(array, copy=True)
     array[slices] = values
     return array
 

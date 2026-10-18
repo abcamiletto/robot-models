@@ -2,12 +2,10 @@
 
 import numpy as np
 import pytest
+from model_cases import HAND_CASES as CASES
 
-from robot_models import _assets as assets
-from robot_models import _catalog as catalog
 from robot_models import create_model
 
-CASES = [(name, side) for name, spec in catalog.MODEL_SPECS.items() for side in spec.sides]
 FINGERS = ("thumb", "index", "middle", "ring", "pinky")
 # Palm body, palmar face (axis/sign in that body's frame), and distal bodies in finger order.
 POINTS = {
@@ -37,24 +35,22 @@ POINTS = {
 def test_closing_semantics_match_native_finger_motion(name, side):
     mujoco = pytest.importorskip("mujoco")
     hand = create_model(name, side=side)
-    assert len(hand.dofs) == len(hand.actuated_joint_names)
+    assert len(hand.dofs) == len(hand.dof_names)
     assert hand.effort_limits.shape == (hand.num_dofs,)
     expected_effort = {"allegro": 0.7, "leap": 0.93}.get(name, np.inf)
     if name == "mano":  # human strength bounds every flexion; hinges no muscle turns are unbounded
         expected_effort = [dof.effort_limit for dof in hand.dofs]
         assert all(np.isfinite(dof.effort_limit) for dof in hand.dofs if dof.role == "flexion")
     np.testing.assert_allclose(hand.effort_limits, expected_effort)
-    opened = hand.get_rest_pose(hands="open")["hand_pose"]
-    closed = hand.get_rest_pose(hands="closed")["hand_pose"]
+    opened = hand.get_rest_pose(preset="open")["hand_pose"]
+    closed = hand.get_rest_pose(preset="closed")["hand_pose"]
     fully_closed = hand.close(opened, 1000)
     if name == "mano":  # its presets are natural: closed bends to manotorch's anatomical maxima, within the limits
-        fully_closed = np.minimum(
-            fully_closed, np.radians([45 if n == "thumb1_bend" else 90 for n in hand.actuated_joint_names])
-        )
+        fully_closed = np.minimum(fully_closed, np.radians([45 if n == "thumb1_bend" else 90 for n in hand.dof_names]))
     np.testing.assert_allclose(fully_closed, closed)
     np.testing.assert_array_equal(hand.close(opened, 0), opened)
 
-    model = mujoco.MjModel.from_xml_path(str(assets.model_dir(name) / f"{side}.xml"))
+    model = mujoco.MjModel.from_xml_path(str(hand.xml_path))
     data = mujoco.MjData(model)
     data.qpos[:] = hand.to_qpos(opened)[-model.nq :]
     mujoco.mj_kinematics(model, data)
@@ -86,7 +82,7 @@ def test_closing_semantics_match_native_finger_motion(name, side):
     initial = tips(opened)
     moved = tips(hand.close(opened, 0.02))
     assert np.all(np.linalg.norm(moved - palm_world, axis=1) < np.linalg.norm(initial - palm_world, axis=1))
-    lower, upper = np.asarray(hand.actuated_joint_limits).T
+    lower, upper = np.asarray(hand.dof_limits).T
     for index, dof in enumerate(hand.dofs):
         if dof.finger not in FINGERS:
             continue
@@ -96,12 +92,12 @@ def test_closing_semantics_match_native_finger_motion(name, side):
         moved = tips(pose)
         displacement = np.linalg.norm(moved - initial, axis=1)
         finger_index = FINGERS.index(dof.finger)
-        assert displacement[finger_index] > 1e-7, hand.actuated_joint_names[index]
+        assert displacement[finger_index] > 1e-7, hand.dof_names[index]
         np.testing.assert_allclose(np.delete(displacement, finger_index), 0, atol=1e-7)
-        if dof.role == "flexion" and dof.closing:
+        if hand.closing[index]:
             before = np.linalg.norm(initial[finger_index] - palm_world)
             after = np.linalg.norm(moved[finger_index] - palm_world)
-            assert after < before, hand.actuated_joint_names[index]
+            assert after < before, hand.dof_names[index]
 
 
 @pytest.mark.parametrize("name,side", [("shadow", "left"), ("robotiq-3finger", "right")])
@@ -110,11 +106,11 @@ def test_close_broadcasts_and_preserves_backend(name, side, backend):
     if backend != "numpy":
         pytest.importorskip(backend)
     reference = create_model(name, side=side)
-    pose = reference.get_rest_pose(hands="open", batch_dims=(2, 3))["hand_pose"].copy()
+    pose = reference.get_rest_pose(preset="open", batch_dims=(2, 3))["hand_pose"].copy()
     angles = np.array([[0, 0.02, 10], [0.03, -0.02, -10]], dtype=np.float32)
     expected = reference.close(pose, angles)
     hand = create_model(name, side=side, runtime=backend)
-    pose = hand.runtime.asarray(pose, like=hand.actuated_joint_limits)
+    pose = hand.runtime.asarray(pose, like=hand.dof_limits)
     amount = hand.runtime.asarray(angles, like=pose)
     actual = hand.close(pose, amount)
     assert type(actual) is type(pose) and actual.dtype == pose.dtype

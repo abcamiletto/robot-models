@@ -1,40 +1,20 @@
 """Canonical model data; geometry and kinematics come from the source assets."""
 
-from math import inf
 from types import MappingProxyType
+from typing import cast
 
+from robot_models._skinned._sources import MANO_HINGES, MANO_ROLES, SOURCES
 from robot_models._spec import Dof, Finger, ModelSpec
-
-# Nominal maximal voluntary torques (N·m) of MANO's bend and spread hinges (thumb CMC: and twist), per finger
-# joint: fingertip strength (40-50 N for the index) times each joint's lever, weaker for the ring and pinky.
-# Hinges no muscle turns are held by the joint's passive structure: unbounded.
-_MANO_EFFORT: dict[Finger, tuple[tuple[float, ...], ...]] = {
-    "index": ((3.0, 0.8), (1.5,), (0.7,)),
-    "middle": ((3.0, 0.8), (1.5,), (0.7,)),
-    "pinky": ((1.5, 0.5), (0.8,), (0.4,)),
-    "ring": ((2.0, 0.6), (1.0,), (0.5,)),
-    "thumb": ((3.0, 2.0, 1.0), (2.0,), (1.0,)),
-}
-
-
-def _mano_dofs(finger: Finger, joint: int, bend: float, spread: float = inf, twist: float = inf) -> dict[str, Dof]:
-    """A MANO joint's three hinges: bend flexes, spread abducts, twist rotates the finger."""
-    return {
-        f"{finger}{joint}_bend": Dof(finger, "flexion", 1, bend),
-        f"{finger}{joint}_spread": Dof(finger, "abduction", 0, spread),
-        f"{finger}{joint}_twist": Dof(finger, "rotation", 0, twist),
-    }
-
 
 MODELS = {
     "ability": ModelSpec(
         class_name="AbilityHand",
         dofs=MappingProxyType(
             {
-                "{side}_thumb_cmc_joint": Dof("thumb", "rotation", 0),
-                "{side}_thumb_mcp_joint": Dof("thumb", "flexion", 1),
+                "{side}_thumb_cmc_joint": Dof("thumb", "rotation"),
+                "{side}_thumb_mcp_joint": Dof("thumb", "flexion"),
                 **{
-                    f"{{side}}_{finger}_mcp_joint": Dof(finger, "flexion", 1)
+                    f"{{side}}_{finger}_mcp_joint": Dof(finger, "flexion")
                     for finger in ("index", "middle", "ring", "pinky")
                 },
             }
@@ -55,23 +35,21 @@ MODELS = {
                 "pinky_pip": "{side}_pinky_distal_link",
             }
         ),
-        sides=("right", "left"),
+        variants=("right", "left"),
     ),
     "allegro": ModelSpec(
         class_name="AllegroHand",
         dofs=MappingProxyType(
             {
                 **{
-                    f"{prefix}j{index}": Dof(
-                        finger, "abduction" if index == 0 else "flexion", 0 if index == 0 else 1, 0.7
-                    )
+                    f"{prefix}j{index}": Dof(finger, "abduction" if index == 0 else "flexion", 0.7)
                     for prefix, finger in (("ff", "index"), ("mf", "middle"), ("rf", "ring"))
                     for index in range(4)
                 },
-                "thj0": Dof("thumb", "rotation", 0, 0.7),
-                "thj1": Dof("thumb", "abduction", 0, 0.7),
-                "thj2": Dof("thumb", "flexion", 1, 0.7),
-                "thj3": Dof("thumb", "flexion", 1, 0.7),
+                "thj0": Dof("thumb", "rotation", 0.7),
+                "thj1": Dof("thumb", "abduction", 0.7),
+                "thj2": Dof("thumb", "flexion", 0.7),
+                "thj3": Dof("thumb", "flexion", 0.7),
             }
         ),
         family="hands",
@@ -92,31 +70,31 @@ MODELS = {
                 "ring_dip": "rf_distal",
             }
         ),
-        sides=("right", "left"),
+        variants=("right", "left"),
     ),
     "barrett": ModelSpec(
         class_name="BarrettHand",
         dofs=MappingProxyType(
             {
-                "bh_j32_joint": Dof("thumb", "flexion", 1),
-                "bh_j11_joint": Dof("palm", "abduction", 0),
-                "bh_j12_joint": Dof("index", "flexion", 1),
-                "bh_j22_joint": Dof("middle", "flexion", 1),
+                "bh_j32_joint": Dof("thumb", "flexion"),
+                "bh_j11_joint": Dof("palm", "abduction"),
+                "bh_j12_joint": Dof("index", "flexion"),
+                "bh_j22_joint": Dof("middle", "flexion"),
             }
         ),
         family="hands",
         joints=MappingProxyType({"wrist": "bh_base_link"}),
-        sides=("right",),
+        variants=("right",),
         asset_version=3,
     ),
     "brainco": ModelSpec(
         class_name="BrainCoHand",
         dofs=MappingProxyType(
             {
-                "{side}_thumb_metacarpal_joint": Dof("thumb", "abduction", 0),
-                "{side}_thumb_proximal_joint": Dof("thumb", "flexion", 1),
+                "{side}_thumb_metacarpal_joint": Dof("thumb", "abduction"),
+                "{side}_thumb_proximal_joint": Dof("thumb", "flexion"),
                 **{
-                    f"{{side}}_{finger}_proximal_joint": Dof(finger, "flexion", 1)
+                    f"{{side}}_{finger}_proximal_joint": Dof(finger, "flexion")
                     for finger in ("index", "middle", "ring", "pinky")
                 },
             }
@@ -138,29 +116,29 @@ MODELS = {
                 "pinky_dip": "{side}_pinky_distal_link",
             }
         ),
-        sides=("right", "left"),
+        variants=("right", "left"),
     ),
     "ezgripper": ModelSpec(
         class_name="EZGripper",
         dofs=MappingProxyType(
             {
-                f"F{index}_{joint}": Dof(finger, "flexion", 1)
+                f"F{index}_{joint}": Dof(finger, "flexion")
                 for index, finger in ((1, "thumb"), (2, "index"))
                 for joint in ("palm_knuckle", "knuckle_tip")
             }
         ),
         family="hands",
         joints=MappingProxyType({"wrist": "mount"}),
-        sides=("right",),
+        variants=("right",),
     ),
     "inspire": ModelSpec(
         class_name="InspireHand",
         dofs=MappingProxyType(
             {
-                "{side}_thumb_proximal_yaw_joint": Dof("thumb", "rotation", 0),
-                "{side}_thumb_proximal_pitch_joint": Dof("thumb", "flexion", 1),
+                "{side}_thumb_proximal_yaw_joint": Dof("thumb", "rotation"),
+                "{side}_thumb_proximal_pitch_joint": Dof("thumb", "flexion"),
                 **{
-                    f"{{side}}_{finger}_proximal_joint": Dof(finger, "flexion", 1)
+                    f"{{side}}_{finger}_proximal_joint": Dof(finger, "flexion")
                     for finger in ("index", "middle", "ring", "pinky")
                 },
             }
@@ -182,7 +160,7 @@ MODELS = {
                 "pinky_pip": "{side}_pinky_intermediate",
             }
         ),
-        sides=("right", "left"),
+        variants=("right", "left"),
     ),
     # Source body names use bs/px/md/ds for base, proximal, middle and distal.
     "leap": ModelSpec(
@@ -190,16 +168,14 @@ MODELS = {
         dofs=MappingProxyType(
             {
                 **{
-                    f"{prefix}_{joint}": Dof(
-                        finger, "abduction" if joint == "rot" else "flexion", 0 if joint == "rot" else 1, 0.93
-                    )
+                    f"{prefix}_{joint}": Dof(finger, "abduction" if joint == "rot" else "flexion", 0.93)
                     for prefix, finger in (("if", "index"), ("mf", "middle"), ("rf", "ring"))
                     for joint in ("mcp", "rot", "pip", "dip")
                 },
-                "th_cmc": Dof("thumb", "abduction", 0, 0.93),
-                "th_axl": Dof("thumb", "rotation", 0, 0.93),
-                "th_mcp": Dof("thumb", "flexion", 1, 0.93),
-                "th_ipl": Dof("thumb", "flexion", 1, 0.93),
+                "th_cmc": Dof("thumb", "abduction", 0.93),
+                "th_axl": Dof("thumb", "rotation", 0.93),
+                "th_mcp": Dof("thumb", "flexion", 0.93),
+                "th_ipl": Dof("thumb", "flexion", 0.93),
             }
         ),
         family="hands",
@@ -220,17 +196,16 @@ MODELS = {
                 "ring_dip": "rf_ds",
             }
         ),
-        sides=("right", "left"),
+        variants=("right", "left"),
     ),
     # Built locally from the user's MANO files (Body Models); three hinges per joint: bend, spread, twist.
     "mano": ModelSpec(
         class_name="ManoRobot",
         dofs=MappingProxyType(
             {
-                name: dof
-                for finger, joints in _MANO_EFFORT.items()
-                for joint, efforts in enumerate(joints, 1)
-                for name, dof in _mano_dofs(finger, joint, *efforts).items()
+                f"{joint}_{hinge}": Dof(cast(Finger, joint[:-1]), role, effort)
+                for joint, hinges in MANO_HINGES.items()
+                for (hinge, role), (effort, _, _) in zip(MANO_ROLES, hinges, strict=True)
             }
         ),
         family="hands",
@@ -245,16 +220,16 @@ MODELS = {
                 **{f"thumb_{joint}": f"thumb{index + 1}" for index, joint in enumerate(("cmc", "mcp", "ip"))},
             }
         ),
-        sides=("right", "left"),
-        body_model="mano",
+        variants=("right", "left"),
+        source=SOURCES["mano"],
     ),
     "robotiq-3finger": ModelSpec(
         class_name="Robotiq3Finger",
         dofs=MappingProxyType(
             {
-                **{f"palm_finger_{index}_joint": Dof("palm", "abduction", 0) for index in (1, 2)},
+                **{f"palm_finger_{index}_joint": Dof("palm", "abduction") for index in (1, 2)},
                 **{
-                    f"finger_{index}_joint_{joint}": Dof(finger, "flexion", 1)
+                    f"finger_{index}_joint_{joint}": Dof(finger, "flexion")
                     for index, finger in (("1", "index"), ("2", "middle"), ("middle", "thumb"))
                     for joint in (1, 2, 3)
                 },
@@ -262,7 +237,7 @@ MODELS = {
         ),
         family="hands",
         joints=MappingProxyType({"wrist": "palm"}),
-        sides=("right",),
+        variants=("right",),
         asset_version=3,
     ),
     "sharpa": ModelSpec(
@@ -270,9 +245,7 @@ MODELS = {
         dofs=MappingProxyType(
             {
                 **{
-                    f"{{side}}_{finger}_{joint}": Dof(
-                        finger, "abduction" if joint.endswith("AA") else "flexion", 0 if joint.endswith("AA") else 1
-                    )
+                    f"{{side}}_{finger}_{joint}": Dof(finger, "abduction" if joint.endswith("AA") else "flexion")
                     for finger in ("thumb", "index", "middle", "ring", "pinky")
                     for joint in (
                         ("CMC_FE", "CMC_AA", "MCP_FE", "MCP_AA", "IP")
@@ -280,7 +253,7 @@ MODELS = {
                         else ("MCP_FE", "MCP_AA", "PIP", "DIP")
                     )
                 },
-                "{side}_pinky_CMC": Dof("palm", "flexion", 1),
+                "{side}_pinky_CMC": Dof("palm", "flexion"),
             }
         ),
         family="hands",
@@ -304,28 +277,26 @@ MODELS = {
                 "pinky_dip": "{side}_pinky_DP",
             }
         ),
-        sides=("right", "left"),
+        variants=("right", "left"),
     ),
     # Anatomical joints with coincident hinges use the distal body of each pair.
     "shadow": ModelSpec(
         class_name="ShadowHand",
         dofs=MappingProxyType(
             {
-                "{s}h_WRJ2": Dof("wrist", "abduction", 0),
-                "{s}h_WRJ1": Dof("wrist", "flexion", 0),
+                "{s}h_WRJ2": Dof("wrist", "abduction"),
+                "{s}h_WRJ1": Dof("wrist", "flexion"),
                 **{
-                    f"{{s}}h_{prefix}J{index}": Dof(
-                        finger, "abduction" if index == 4 else "flexion", 0 if index == 4 else 1
-                    )
+                    f"{{s}}h_{prefix}J{index}": Dof(finger, "abduction" if index == 4 else "flexion")
                     for prefix, finger in (("FF", "index"), ("MF", "middle"), ("RF", "ring"), ("LF", "pinky"))
                     for index in (4, 3, 2, 1)
                 },
-                "{s}h_LFJ5": Dof("palm", "flexion", 1),
-                "{s}h_THJ5": Dof("thumb", "rotation", 0),
-                "{s}h_THJ4": Dof("thumb", "abduction", 0),
-                "{s}h_THJ3": Dof("thumb", "abduction", 0),
-                "{s}h_THJ2": Dof("thumb", "flexion", 1),
-                "{s}h_THJ1": Dof("thumb", "flexion", 1),
+                "{s}h_LFJ5": Dof("palm", "flexion"),
+                "{s}h_THJ5": Dof("thumb", "rotation"),
+                "{s}h_THJ4": Dof("thumb", "abduction"),
+                "{s}h_THJ3": Dof("thumb", "abduction"),
+                "{s}h_THJ2": Dof("thumb", "flexion"),
+                "{s}h_THJ1": Dof("thumb", "flexion"),
             }
         ),
         family="hands",
@@ -349,7 +320,7 @@ MODELS = {
                 "pinky_dip": "{s}h_lfdistal",
             }
         ),
-        sides=("right", "left"),
+        variants=("right", "left"),
         asset_version=2,
     ),
 }

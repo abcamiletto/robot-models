@@ -1,7 +1,3 @@
-"""Numpy EZGripper."""
+from robot_models._registry import model_class
 
-from robot_models._backend import model_for_backend
-
-EZGripper = model_for_backend("ezgripper", "numpy", module=__name__)
-
-__all__ = ["EZGripper"]
+EZGripper = model_class("ezgripper", "numpy")

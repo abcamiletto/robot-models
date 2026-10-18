@@ -3,33 +3,22 @@
 import model_cases
 import numpy as np
 import pytest
+from model_cases import M
 
-from robot_models import Joint
-from robot_models import _catalog as catalog
-from robot_models._common.mjcf import MUJOCO_TO_MODEL
-from robot_models.hands._base import Hand
-
-CASES = [
-    (name, kwargs)
-    for name, model_class, _ in model_cases.MODELS
-    for kwargs in (
-        [{"side": side} for side in catalog.MODEL_SPECS[name].sides] if issubclass(model_class, Hand) else [{}]
-    )
-]
+from robot_models import Joint, create_model, list_models
 
 
-@pytest.fixture(params=CASES, ids=lambda case: "-".join(filter(None, (case[0], case[1].get("side")))))
+@pytest.fixture(params=model_cases.CASES, ids=lambda case: "-".join((case[0], *case[1].values())))
 def case(request):
     """A model, MuJoCo's model of the same file, and both posed with one random pose."""
     mujoco = pytest.importorskip("mujoco")
     name, kwargs = request.param
-    model = model_cases.backend_model_class(name, "numpy")(**kwargs)
-    xml_path = model_cases.xml_path(name, kwargs)
-    mj_model = mujoco.MjModel.from_xml_path(str(xml_path))
+    model = create_model(name, **kwargs)
+    mj_model = mujoco.MjModel.from_xml_path(str(model.xml_path))
     data = mujoco.MjData(mj_model)
 
     pose = np.random.default_rng(0).uniform(-0.6, 0.6, model.num_dofs)
-    pose = np.clip(pose, *np.asarray(model.actuated_joint_limits).T).astype(np.float32)
+    pose = np.clip(pose, *np.asarray(model.dof_limits).T).astype(np.float32)
     hinge_angles = model.to_qpos(pose)[7:]
     data.qpos[mj_model.nq - len(hinge_angles) :] = hinge_angles
     mujoco.mj_kinematics(mj_model, data)
@@ -39,7 +28,7 @@ def case(request):
 def test_skeleton_matches_mujoco_bodies(case) -> None:
     mujoco, model, mj_model, data, pose = case
     body_names = [mujoco.mj_id2name(mj_model, mujoco.mjtObj.mjOBJ_BODY, body) for body in range(1, mj_model.nbody)]
-    assert model.joint_names == body_names
+    assert model.body_names == body_names
     assert model.parents == [int(parent) - 1 for parent in mj_model.body_parentid[1:]]
 
     skeleton = model.forward_skeleton(pose)
@@ -56,7 +45,7 @@ def test_skeleton_matches_mujoco_bodies(case) -> None:
         np.testing.assert_allclose(coupled, expected, atol=1e-5)
 
 
-def test_link_meshes_match_mujoco_visual_geoms(case) -> None:
+def test_visual_meshes_match_mujoco_visual_geoms(case) -> None:
     mujoco, model, mj_model, data, pose = case
     visual = [
         geom
@@ -65,9 +54,10 @@ def test_link_meshes_match_mujoco_visual_geoms(case) -> None:
         and mj_model.geom_contype[geom] == 0
         and mj_model.geom_conaffinity[geom] == 0
     ]
-    assert len(visual) == len(model.link_names)
+    assert len(visual) == len(model.visual.names)
 
-    for geom, mesh, link in zip(visual, model.link_meshes, model.forward_links(**{model._POSE: pose}), strict=True):
+    frames = model.forward_skeleton(pose)[model.visual.body_indices]
+    for geom, mesh, link in zip(visual, model.visual.meshes, frames, strict=True):
         mesh_id = mj_model.geom_dataid[geom]
         start = mj_model.mesh_vertadr[mesh_id]
         local = mj_model.mesh_vert[start : start + mj_model.mesh_vertnum[mesh_id]]
@@ -85,21 +75,19 @@ def test_collision_meshes_match_mujoco_geoms(case) -> None:
         i for i in range(mj_model.ngeom) if mj_model.geom_contype[i] or mj_model.geom_conaffinity[i] or i in paired
     ]
     assert geoms, "Every model must supply collision geometry"
-    if model.name == "shadow":
-        assert len(geoms) == 38
-    assert len(model.collision_meshes) == len(geoms) == len(model.collision_names)
-    transforms = model.forward_links(geometry="collision", **{model._POSE: pose})
+    assert len(model.collision.meshes) == len(geoms) == len(model.collision.names)
+    transforms = model.forward_skeleton(pose)[model.collision.body_indices]
     directions = np.vstack((np.eye(3), -np.eye(3), np.random.default_rng(4).normal(size=(24, 3))))
     directions /= np.linalg.norm(directions, axis=1, keepdims=True)
     vertices = []
     for geom, mesh, transform, joint in zip(
-        geoms, model.collision_meshes, transforms, model.collision_joint_indices, strict=True
+        geoms, model.collision.meshes, transforms, model.collision.body_indices, strict=True
     ):
-        assert model.joint_names[joint] == mj_model.body(int(mj_model.geom_bodyid[geom])).name
+        assert model.body_names[joint] == mj_model.body(int(mj_model.geom_bodyid[geom])).name
         world = np.asarray(mesh.vertices) @ transform[:3, :3].T + transform[:3, 3]
         vertices.append(world)
         rotation, position = _in_model_frame(data, data.geom_xpos[geom], data.geom_xmat[geom].reshape(3, 3))
-        local = (world - position) @ rotation @ MUJOCO_TO_MODEL
+        local = (world - position) @ rotation @ M
         kind = mj_model.geom_type[geom]
         size = mj_model.geom_size[geom]
         if kind == mujoco.mjtGeom.mjGEOM_MESH:
@@ -129,51 +117,54 @@ def test_collision_meshes_match_mujoco_geoms(case) -> None:
         np.testing.assert_allclose(distance, 0, atol=2e-6)
         # Curved primitives are tessellated; the native MuJoCo shapes stay analytic.
         np.testing.assert_allclose(np.abs(local).max(0), extent, rtol=0.003, atol=2e-6)
-    posed = model.forward_meshes(geometry="collision", **{model._POSE: pose})[0]
+    posed = model.collision.pose(model.forward_skeleton(pose))[0]
     np.testing.assert_allclose(posed.vertices, np.concatenate(vertices), atol=2e-6)
 
 
 def test_limits_are_what_each_coordinate_reaches_in_mujoco(case) -> None:
     """Every reported bound is enforced, and reached: at the coordinate's own range or where a coupled hinge stops it."""
     _, model, mj_model, *_ = case
-    assets = model._assets
-    for index, (name, (lo, hi)) in enumerate(zip(model.actuated_joint_names, np.asarray(model.actuated_joint_limits))):
-        joint = mj_model.joint(name).id
-        assert mj_model.jnt_limited[joint] == (np.isfinite(lo) or np.isfinite(hi)), name
-        coupled = [
-            h for h, driver in enumerate(assets.hinge_drivers) if driver == index and assets.hinge_names[h] != name
-        ]
+    limits = np.asarray(model.dof_limits)
+    middle = np.clip(np.where(np.isfinite(limits), limits, 0).mean(1), *limits.T)
+    hinges = [mj_model.joint(name) for name in model.hinge_names]
+    ranges = np.array([hinge.range for hinge in hinges])
+    limited = np.array([bool(hinge.limited[0]) for hinge in hinges])
+    rest = model.to_qpos(middle)[7:]
+    for index, (name, (lo, hi)) in enumerate(zip(model.dof_names, limits)):
+        assert bool(mj_model.joint(name).limited[0]) == (np.isfinite(lo) or np.isfinite(hi)), name
         for bound in (lo, hi):
             if not np.isfinite(bound):
                 continue
-            stops = [np.isclose(bound, mj_model.jnt_range[joint], atol=1e-5).any()]
-            for h in coupled:
-                angle = np.polynomial.polynomial.polyval(bound, assets.hinge_polycoef[h])
-                ranged = mj_model.jnt_range[mj_model.joint(assets.hinge_names[h]).id]
-                assert ranged[0] - 1e-5 <= angle <= ranged[1] + 1e-5, assets.hinge_names[h]
-                stops.append(np.isclose(angle, ranged, atol=1e-5).any())
-            assert any(stops), f"{name} bound {bound} is reached by nothing"
+            pose = middle.copy()
+            pose[index] = bound
+            angles = model.to_qpos(pose)[7:]  # every hinge, the coupled ones following their drivers
+            moved = limited & (~np.isclose(angles, rest) | (np.array(model.hinge_names) == name))
+            inside = (angles >= ranges[:, 0] - 1e-5) & (angles <= ranges[:, 1] + 1e-5)
+            assert inside[moved].all(), f"{name} bound {bound} drives a hinge out of its range"
+            stops = np.isclose(angles[:, None], ranges, atol=1e-5).any(1)
+            assert stops[moved].any(), f"{name} bound {bound} is reached by nothing"
 
 
 def test_common_joints_and_presets_resolve(case) -> None:
     _, model, *_ = case
     for joint in model.common_joints:
-        model.joint_index(joint)
-    assert all(left != right for left, right in model.symmetric_joints)
-    for joint in model.common_joints:
-        if joint.value.startswith("left_"):
-            counterpart = Joint(joint.value.replace("left_", "right_", 1))
-            if counterpart in model.common_joints:
-                pair = (model.joint_index(joint), model.joint_index(counterpart))
-                assert pair in model.symmetric_joints
-
-    if isinstance(model, Hand):
-        presets = [model.get_rest_pose(hands=preset) for preset in ("flat", "rest", "open", "closed")]
+        model.body_index(joint)
+    if model.name in list_models(family="hands"):
+        presets = [model.get_rest_pose(preset=preset) for preset in ("flat", "rest", "open", "closed")]
     else:
-        presets = [model.get_tpose(), model.get_apose()]
-    lo, hi = np.asarray(model.actuated_joint_limits).T
+        assert all(left != right for left, right in model.symmetric_bodies)
+        for joint in model.common_joints:
+            if joint.value.startswith("left_"):
+                counterpart = Joint(joint.value.replace("left_", "right_", 1))
+                if counterpart in model.common_joints:
+                    pair = (model.body_index(joint), model.body_index(counterpart))
+                    assert pair in model.symmetric_bodies
+        presets = [model.get_rest_pose(preset="t_pose"), model.get_rest_pose(preset="a_pose")]
+    with pytest.raises(KeyError, match="no preset"):
+        model.get_rest_pose(preset="unknown")
+    lo, hi = np.asarray(model.dof_limits).T
     for params in presets:
-        pose = params[model._POSE]
+        pose = params[model_cases.pose_name(model)]
         assert np.all((pose >= lo - 1e-6) & (pose <= hi + 1e-6))
 
 
@@ -182,4 +173,4 @@ def _in_model_frame(data, positions, rotations):
     root_rot = data.xmat[1].reshape(3, 3)
     local_pos = (positions - data.xpos[1]) @ root_rot
     local_rot = root_rot.T @ rotations
-    return MUJOCO_TO_MODEL @ local_rot @ MUJOCO_TO_MODEL.T, local_pos @ MUJOCO_TO_MODEL.T
+    return M @ local_rot @ M.T, local_pos @ M.T

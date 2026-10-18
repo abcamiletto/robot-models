@@ -8,7 +8,7 @@ joint, about the body frame's x, y and z axes in that order, without limits.
 ```python
 from robot_models.humanoids.smpl.numpy import SmplRobot
 
-body = SmplRobot(gender="neutral")
+body = SmplRobot(gender="neutral", shape=betas)  # fixed; the mean by default
 params = body.from_body_models(**smpl_params)
 skeleton = body.forward_skeleton(**params)
 links = body.forward_meshes(**params)  # rigid links
@@ -17,7 +17,7 @@ skin = body.forward_vertices(**params)  # SMPL's skin, exactly; faces in body.sk
 
 SMPL is built like [MANO](mano.md): locally, from your own files as Body Models
 configures them (`body-models set smpl-neutral PATH`, likewise `male` and `female`),
-in about two minutes, never downloaded or redistributed. `shape`, the conversion
+in about two minutes, never downloaded or redistributed. The shape fixed at construction, the conversion
 from and to Body Models parameters (its `pelvis_rotation` folds into
 `global_rotation`), the rigid links of the rest skin and their convex pieces
 (about 960) follow the same principle. Links have 1000 kg/m³ density; the root has

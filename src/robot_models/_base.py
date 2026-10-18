@@ -26,7 +26,7 @@ from robot_models._runtime import ArrayRuntime
 from robot_models._spec import Side
 
 Array = Any
-ParameterRole = Literal["pose", "transform", "identity"]
+ParameterRole = Literal["pose", "transform"]
 GeometryKind = Literal["visual", "collision"]
 
 
@@ -63,6 +63,7 @@ class ModelConfig:
     name: str
     side: Side | None = None
     variant: str | None = None
+    shape: tuple[float, ...] | None = None  # Body Models shape coefficients, fixed at construction
 
 
 class RigidBodyModel(ABC):
@@ -84,11 +85,13 @@ class RigidBodyModel(ABC):
         """Construct a canonical robot from its description."""
 
     def _load(self, xml_name: str, model_path: Path | str | None, runtime: ArrayRuntime) -> None:
+        self._set_assets(mjcf.load(assets.model_dir(self.name, model_path) / xml_name), runtime)
+
+    def _set_assets(self, rigid: rigid_ops.RigidAssets, runtime: ArrayRuntime) -> None:
         self._runtime = runtime
         if runtime.name == "jax":
             _register_jax_model(type(self))
-        xml_path = assets.model_dir(self.name, model_path) / xml_name
-        self._assets = runtime._materialize(mjcf.load(xml_path))
+        self._assets = runtime._materialize(rigid)
 
     @property
     def runtime(self) -> ArrayRuntime:

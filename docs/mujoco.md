@@ -16,8 +16,8 @@ model = scene.compile()
 All eleven [hands](hand-sources.md) are supported. Barrett, Robotiq and EZGripper use
 only the `right` assembly tag; the others provide both sides. Assets download
 automatically; MANO's are built locally. Pass `model_path` to use a local bundle.
-For MANO, `shape` takes Body Models' shape coefficients and moves the joints, meshes
-and link inertias before attachment.
+For MANO, `shape` takes Body Models' shape coefficients, as `ManoRobot(shape=...)`,
+and moves the joints, meshes and link inertias before attachment.
 
 ## Mount on a robot
 

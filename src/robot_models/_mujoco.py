@@ -66,7 +66,7 @@ def add_hand(
     if shape is not None:
         from robot_models._skinned._mujoco import apply_shape
 
-        apply_shape(hand, directory, side, shape)
+        apply_shape(hand, directory / f"{side}.xml", shape)
     if hand.compiler.settotalmass > 0:
         # Global mass normalization is not applied to an attached subtree.
         compiled = hand.compile()

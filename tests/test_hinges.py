@@ -1,4 +1,4 @@
-"""Bodies with several hinges, inline meshes and batched offsets against MuJoCo."""
+"""Bodies with several hinges and inline meshes against MuJoCo."""
 
 import numpy as np
 import pytest
@@ -38,17 +38,3 @@ def test_hinges_of_one_body_compose_in_order_as_in_mujoco(tmp_path):
     np.testing.assert_allclose(skeleton[:, :3, 3], (data.xpos[1:] - data.xpos[1]) @ MUJOCO_TO_MODEL.T, atol=1e-6)
     rotations = MUJOCO_TO_MODEL @ data.xmat[1:].reshape(-1, 3, 3) @ MUJOCO_TO_MODEL.T
     np.testing.assert_allclose(skeleton[:, :3, :3], rotations, atol=1e-6)
-
-    # Batched offsets replace the asset offsets per batch element.
-    offsets = np.stack([assets.local_offsets, 2 * assets.local_offsets])
-    batched = rigid.forward_skeleton(
-        assets,
-        np.stack([pose, pose]),
-        global_rotation=None,
-        global_translation=None,
-        joint_indices=None,
-        local_offsets=offsets,
-        xp=np,
-    )
-    np.testing.assert_allclose(batched[0], skeleton, atol=1e-6)
-    np.testing.assert_allclose(batched[1, :, :3, 3], 2 * skeleton[:, :3, 3], atol=1e-6)

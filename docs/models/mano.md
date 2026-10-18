@@ -9,9 +9,8 @@ per finger joint, about its anatomical bend, spread and twist axes.
 ```python
 from robot_models.hands.mano.numpy import ManoRobot
 
-hand = ManoRobot(side="right")
+hand = ManoRobot(side="right", shape=betas)  # Body Models' 10 coefficients; the mean by default
 params = hand.get_rest_pose(hands="rest")
-params["shape"] = betas  # Body Models' 10 shape coefficients; the mean shape by default
 skeleton = hand.forward_skeleton(**params)
 links = hand.forward_meshes(**params)  # rigid links
 pieces = hand.forward_meshes(geometry="collision", **params)
@@ -29,12 +28,20 @@ the asset cache, or into a configured `model_path`. Building needs
 triggers a rebuild. `robot-models download mano` builds ahead of time. Never
 publish the built directory: it is derived from the MANO files.
 
+## Shape
+
+The shape is fixed when the model is built: a `ManoRobot` is one hand. Its joint
+offsets, links, collision pieces and `add_hand` masses are those of `shape`, and
+`hand.shape` returns it. Every rest quantity is linear in the shape coefficients,
+so a model of any shape loads as fast as the mean one; use one model per shape.
+
 ## Kinematics
 
-At any pose and shape, the joint frames are Body Models' `forward_skeleton`.
-Convert Body Models parameters (axis-angle `hand_pose` 15×3, `wrist_rotation`,
-`global_rotation`, `global_translation`, `shape`) with `from_body_models`, and back
-with `to_body_models`:
+At any pose, the joint frames are Body Models' `forward_skeleton` at the model's
+shape. Convert Body Models parameters (axis-angle `hand_pose` 15×3,
+`wrist_rotation`, `global_rotation`, `global_translation`) with `from_body_models`,
+and back with `to_body_models`, which also returns the model's `shape`. A `shape`
+given to `from_body_models` must be the model's:
 
 ```python
 params = hand.from_body_models(**mano_params)
@@ -61,16 +68,14 @@ skins its corners most, and each opening is closed by a fan to its centroid.
 At rest they are the skin. Posed, they move rigidly, so they depart from MANO's skin
 where it blends between joints and where its pose correctives act, by about 1 cm
 at the palm and thumb base in a relaxed grasp. `forward_meshes()` poses the rigid
-links of any shape, as for every robot, and `link_meshes` holds them at the mean
-shape. `forward_vertices()` poses the exact skin through Body Models, as Body Models'
+links, as for every robot, and `link_meshes` holds them. `forward_vertices()` poses the exact skin through Body Models, as Body Models'
 own `forward_vertices` does (differentiable, with `vertex_indices`); its faces are
 `skin_faces`.
 
 The collision geometry is a CoACD convex decomposition (Wei et al., SIGGRAPH 2022)
 of the right mean-shape links, about 380 pieces; the left hand's are mirrored.
-Every rest quantity is linear in the shape coefficients: joint offsets, link and
-piece vertices follow the rest skin, pieces by inverse-distance weights over
-their link's four nearest vertices. Links have 1100 kg/m³ tissue density.
+At other shapes, piece vertices follow the rest skin by inverse-distance weights
+over their link's four nearest vertices. Links have 1100 kg/m³ tissue density.
 
 ## Control
 
@@ -86,7 +91,7 @@ import mujoco
 from robot_models import add_hand
 
 scene = mujoco.MjSpec()
-mount, root = add_hand(scene, "mano", side="left", free=True, shape=betas)
+mount, root = add_hand(scene, "mano", side="left", free=True, shape=betas)  # as ManoRobot(shape=betas)
 ```
 
 The packaged MJCF has a position actuator per hinge (kp 10 N·m/rad), and excludes

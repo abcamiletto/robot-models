@@ -31,7 +31,8 @@ class ModelConfig:
     """Static identity preserved when a model is serialized or passed through JAX.
 
     ``variant`` is the MJCF file the model loads (a hand's side, SMPL's gender), ``directory``
-    holds it; ``shape`` and ``conform_to`` fix a skinned robot's geometry.
+    holds it, with another description's ``kinematics`` if given.
+    ``shape`` and ``conform_to`` fix a skinned robot's geometry.
     """
 
     name: str
@@ -39,10 +40,12 @@ class ModelConfig:
     directory: Path
     shape: tuple[float, ...] | None = None
     conform_to: tuple[float, ...] | None = None
+    kinematics: str | None = None
 
     @property
     def xml_path(self) -> Path:
-        return self.directory / f"{self.variant or self.name}.xml"
+        stem = self.variant or self.name
+        return self.directory / (f"{stem}-{self.kinematics}.xml" if self.kinematics else f"{stem}.xml")
 
 
 class RigidBodyModel(ABC):
@@ -60,18 +63,27 @@ class RigidBodyModel(ABC):
     _config: ModelConfig
     _assets: rigid_ops.RigidAssets
 
-    def _setup(self, variant: str | None, model_path: Path | str | None, shape: Any, conform_to: Any) -> None:
+    def _setup(
+        self,
+        variant: str | None,
+        model_path: Path | str | None,
+        shape: Any,
+        conform_to: Any,
+        kinematics: str | None = None,
+    ) -> None:
         if self._runtime.name == "torch":
             from torch import nn
 
             nn.Module.__init__(cast(Any, self))  # the class factory's torch classes are modules
         if self._runtime.name == "jax":
             _register_jax_model(type(self))
-        variants = catalog.model_spec(self._name).variants
-        if variant not in (variants or (None,)):
-            raise ValueError(f"{self._name!r} offers {variants}, not {variant!r}")
+        spec = catalog.model_spec(self._name)
+        if variant not in (spec.variants or (None,)):
+            raise ValueError(f"{self._name!r} offers {spec.variants}, not {variant!r}")
+        if kinematics is not None and variant not in spec.kinematics.get(kinematics, ()):
+            raise ValueError(f"{self._name!r} {variant} has no {kinematics!r} kinematics: {dict(spec.kinematics)}")
         directory = assets.model_dir(self._name, model_path)
-        self._config = ModelConfig(self._name, variant, directory, _static(shape), _static(conform_to))
+        self._config = ModelConfig(self._name, variant, directory, _static(shape), _static(conform_to), kinematics)
         self._load()
 
     def _load(self) -> None:
@@ -166,7 +178,7 @@ class RigidBodyModel(ABC):
         self, *, preset: str | None = None, batch_dims: tuple[int, ...] = (), dtype: Any | None = None
     ) -> dict[str, Float[Array, "..."]]:
         """Parameters at rest: all zeros, or a preset pose (hands: ``flat``, ``rest``, ``open``, ``closed``;
-        humanoids: ``t_pose``, ``a_pose``) at the origin."""
+        humanoids: ``t_pose``, ``a_pose``) at the origin, within :attr:`dof_limits`."""
         xp, like = self._runtime.xp, self._assets.local_offsets
         params = {
             name: zeros_as(like, shape=(*batch_dims, *dims), dtype=dtype, xp=xp)
@@ -178,7 +190,9 @@ class RigidBodyModel(ABC):
             if key not in presets:
                 raise KeyError(f"{self.name} has no preset {preset!r}: {sorted(presets)}")
             pose = self._runtime.asarray(presets[key], like=params[self._POSE])
-            params[self._POSE] = self._runtime.xp.broadcast_to(pose, params[self._POSE].shape)
+            limits = self._runtime.asarray(self.dof_limits, like=pose)  # other kinematics may narrow a preset's
+            pose = xp.clip(pose, limits[:, 0], limits[:, 1])
+            params[self._POSE] = xp.broadcast_to(pose, params[self._POSE].shape)
         return params
 
     def _preset_key(self, preset: str) -> str:

@@ -32,7 +32,8 @@ class ModelSpec:
     ``variants`` are the MJCF files a model offers, ``{variant}.xml``: a hand's sides, SMPL's
     genders; none for a humanoid of one file, ``{name}.xml``. Catalog names may hold the side as
     ``{side}`` or its initial as ``{s}``. ``source`` is the Body Models model a model's assets are
-    built from locally, instead of downloaded; its assets are never redistributed.
+    built from locally, instead of downloaded; its assets are never redistributed. ``kinematics``
+    names other descriptions' kinematics and the variants offering them, ``{variant}-{kinematics}.xml``.
     """
 
     class_name: str
@@ -43,6 +44,7 @@ class ModelSpec:
     mirror: tuple[tuple[str, str], ...] = ()
     dofs: Mapping[str, Dof] = field(default_factory=dict)
     source: Source | None = None
+    kinematics: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
 
 
 def sided(name: str, side: str) -> str:

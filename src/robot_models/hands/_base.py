@@ -25,21 +25,29 @@ class Hand(RigidBodyModel):
         self,
         *,
         side: Side = "right",
+        kinematics: str | None = None,
         shape: Sequence[float] | None = None,
         conform_to: Sequence[float] | None = None,
         model_path: Path | str | None = None,
     ) -> None:
         """Load one side of the hand.
 
+        ``kinematics`` selects another description's joint placements and ranges on the same
+        bodies, joints and meshes, such as Shadow's ``"openai"``; ``None`` keeps the hand's own.
         ``shape`` and ``conform_to`` fix the geometry of a hand built from Body Models (MANO): its
         shape coefficients (the mean by default) and the ``hand_pose`` its links are cut at (flat
         by default). ``model_path`` is an explicit asset directory.
         """
-        self._setup(side, model_path, shape, conform_to)
+        self._setup(side, model_path, shape, conform_to, kinematics)
 
     @property
     def side(self) -> Side:
         return cast(Side, self._config.variant)
+
+    @property
+    def kinematics(self) -> str | None:
+        """The other kinematics the hand was loaded with, ``None`` for its own."""
+        return self._config.kinematics
 
     @property
     def dofs(self) -> tuple[Dof, ...]:

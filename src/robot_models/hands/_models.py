@@ -321,6 +321,8 @@ MODELS = {
             }
         ),
         variants=("right", "left"),
-        asset_version=2,
+        asset_version=3,
+        # OpenAI Gym's (DexGraspNet's): its little-finger metacarpal hinge and thumb base sit elsewhere in the palm.
+        kinematics=MappingProxyType({"openai": ("right",)}),
     ),
 }

@@ -5,7 +5,7 @@ The import selects NumPy, Torch or JAX.
 
 | Module | Purpose |
 | --- | --- |
-| `hands/_models.py`, `humanoids/_models.py` | Names, anatomical mappings, sides, symmetry rules and asset versions |
+| `hands/_models.py`, `humanoids/_models.py` | Names, anatomical mappings, sides, other kinematics, symmetry rules and asset versions |
 | `_spec.py`, `_catalog.py` | Definition schema and model catalog |
 | `hands/_base.py`, `humanoids/_base.py` | Family constructors, poses and presets |
 | `_registry.py` | `create_model` and the class factory `model_class(name, runtime)` |

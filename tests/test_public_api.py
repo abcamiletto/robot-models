@@ -23,7 +23,15 @@ def test_family_catalog_and_filtering():
 
 
 @pytest.mark.fast
-@pytest.mark.parametrize(("name", "kwargs"), [("unknown", {}), ("barrett", {"side": "left"}), ("g1", {"side": "left"})])
+@pytest.mark.parametrize(
+    ("name", "kwargs"),
+    [
+        ("unknown", {}),
+        ("barrett", {"side": "left"}),
+        ("g1", {"side": "left"}),
+        ("shadow", {"side": "left", "kinematics": "openai"}),
+    ],
+)
 def test_invalid_models_fail_loudly(name, kwargs):
     with pytest.raises((ValueError, TypeError)):
         create_model(name, **kwargs)

@@ -27,6 +27,8 @@ Bundle `LICENSE.md` files record license scope and changes. Barrett, Robotiq and
 Shadow bundles also include original descriptions, meshes and file hashes.
 Barrett, Robotiq and EZGripper supply one assembly tagged `right`; the other
 hands supply both sides. Pose coordinates describe joints, not motor counts.
+Shadow's right hand also offers OpenAI Gym's kinematics, in its own MJCF on the
+same meshes; see [OpenAI kinematics](models/shadow.md#openai-kinematics).
 
 ## Preparation and validation
 
@@ -53,19 +55,23 @@ mapping. Reference FK uses upstream descriptions without robot-models:
 
 
 Shadow was checked at five poses per side: body transforms match exactly and
-surface error is below 8e-9 m. Fixtures and licenses remain in
+surface error is below 8e-9 m. Its OpenAI kinematics match DexGraspNet's own forward
+kinematics of OpenAI's MJCF ([`bd1b13d`](https://github.com/PKU-EPIC/DexGraspNet/tree/bd1b13d7248729af117e1d46aaa6266b147a3c7b))
+at 3,000 random poses, every body within 1e-9 m. Fixtures and licenses remain in
 `tests/reference_hands/`. Original preparation and audit tools are in
 [publication history](https://github.com/abcamiletto/robot-models/tree/27fdab1/scripts).
 
 ## Published bundles
 
 Collision updates are published at Hugging Face
-[revision `3d1aa6d0`](https://huggingface.co/abcamiletto/robot-models/commit/3d1aa6d070de82469cc3e87e20d34dbba05a9e89).
+[revision `3d1aa6d0`](https://huggingface.co/abcamiletto/robot-models/commit/3d1aa6d070de82469cc3e87e20d34dbba05a9e89),
+Shadow's OpenAI kinematics (asset version 3) at
+[revision `331c5b93`](https://huggingface.co/abcamiletto/robot-models/commit/331c5b935e3a52215d4e38dcef47c3739095b168).
 Archive SHA-256 digests:
 
 | Bundle | SHA-256 |
 | --- | --- |
 | `barrett/assets.zip` | `82b99a6e590ba07d7239c3a64d423757ac34c32123cd7d06c3ce829f05e58b98` |
 | `robotiq-3finger/assets.zip` | `21bd9a9f861a96cc0d95d8090a31746c6fa5f0f7aba44a697f7b1436f1f3f43a` |
-| `shadow/assets.zip` | `9ded526a4db0bd679174a87f43e71bacb4eb911196701d33949378689ef9330d` |
+| `shadow/assets.zip` | `6081a8cf39ddad8d9e352e93afa9213846b5ee612d51c2250fe5b18d80bc1c4e` |
 | `ezgripper/assets.zip` (unchanged) | `1d3869c8c6f3ed475368abfabe14765a1abf15003e1cdae1bebf363926387ecb` |

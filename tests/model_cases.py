@@ -13,14 +13,19 @@ RUNTIME_CASES = [("barrett", {}), ("shadow", {"side": "left"}), ("g1", {})]
 
 
 def variants(name: str) -> list[dict]:
-    """The constructor arguments of each MJCF file a model offers."""
+    """The constructor arguments of each MJCF file a model offers, its other kinematics included."""
     spec = MODEL_SPECS[name]
     key = "side" if spec.family == "hands" else "gender"
-    return [{key: variant} for variant in spec.variants] or [{}]
+    own = [{key: variant} for variant in spec.variants] or [{}]
+    return own + [{key: v, "kinematics": k} for k, sides in spec.kinematics.items() for v in sides]
 
 
 CASES = [(name, kwargs) for name in list_models() for kwargs in variants(name)]
-HAND_CASES = [(name, kwargs["side"]) for name, kwargs in CASES if name in list_models(family="hands")]
+HAND_CASES = [
+    (name, kwargs["side"])
+    for name, kwargs in CASES
+    if name in list_models(family="hands") and "kinematics" not in kwargs
+]
 
 
 def pose_name(model) -> str:

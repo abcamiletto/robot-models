@@ -42,14 +42,14 @@ MODELS = {
         dofs=MappingProxyType(
             {
                 **{
-                    f"{prefix}j{index}": Dof(finger, "abduction" if index == 0 else "flexion", 0.7)
+                    f"{prefix}j{index}": Dof(finger, "abduction" if index == 0 else "flexion")
                     for prefix, finger in (("ff", "index"), ("mf", "middle"), ("rf", "ring"))
                     for index in range(4)
                 },
-                "thj0": Dof("thumb", "rotation", 0.7),
-                "thj1": Dof("thumb", "abduction", 0.7),
-                "thj2": Dof("thumb", "flexion", 0.7),
-                "thj3": Dof("thumb", "flexion", 0.7),
+                "thj0": Dof("thumb", "rotation"),
+                "thj1": Dof("thumb", "abduction"),
+                "thj2": Dof("thumb", "flexion"),
+                "thj3": Dof("thumb", "flexion"),
             }
         ),
         family="hands",
@@ -85,7 +85,6 @@ MODELS = {
         family="hands",
         joints=MappingProxyType({"wrist": "bh_base_link"}),
         variants=("right",),
-        asset_version=3,
     ),
     "brainco": ModelSpec(
         class_name="BrainCoHand",
@@ -168,14 +167,14 @@ MODELS = {
         dofs=MappingProxyType(
             {
                 **{
-                    f"{prefix}_{joint}": Dof(finger, "abduction" if joint == "rot" else "flexion", 0.93)
+                    f"{prefix}_{joint}": Dof(finger, "abduction" if joint == "rot" else "flexion")
                     for prefix, finger in (("if", "index"), ("mf", "middle"), ("rf", "ring"))
                     for joint in ("mcp", "rot", "pip", "dip")
                 },
-                "th_cmc": Dof("thumb", "abduction", 0.93),
-                "th_axl": Dof("thumb", "rotation", 0.93),
-                "th_mcp": Dof("thumb", "flexion", 0.93),
-                "th_ipl": Dof("thumb", "flexion", 0.93),
+                "th_cmc": Dof("thumb", "abduction"),
+                "th_axl": Dof("thumb", "rotation"),
+                "th_mcp": Dof("thumb", "flexion"),
+                "th_ipl": Dof("thumb", "flexion"),
             }
         ),
         family="hands",
@@ -203,9 +202,9 @@ MODELS = {
         class_name="ManoRobot",
         dofs=MappingProxyType(
             {
-                f"{joint}_{hinge}": Dof(cast(Finger, joint[:-1]), role, effort)
-                for joint, hinges in MANO_HINGES.items()
-                for (hinge, role), (effort, _, _) in zip(MANO_ROLES, hinges, strict=True)
+                f"{joint}_{hinge}": Dof(cast(Finger, joint[:-1]), role)
+                for joint in MANO_HINGES
+                for hinge, role in MANO_ROLES
             }
         ),
         family="hands",
@@ -238,7 +237,6 @@ MODELS = {
         family="hands",
         joints=MappingProxyType({"wrist": "palm"}),
         variants=("right",),
-        asset_version=3,
     ),
     "sharpa": ModelSpec(
         class_name="SharpaHand",
@@ -321,7 +319,6 @@ MODELS = {
             }
         ),
         variants=("right", "left"),
-        asset_version=3,
         # OpenAI Gym's (DexGraspNet's): its little-finger metacarpal hinge and thumb base sit elsewhere in the palm.
         kinematics=MappingProxyType({"openai": ("right",)}),
     ),

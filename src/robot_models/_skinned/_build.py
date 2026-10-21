@@ -29,7 +29,6 @@ from robot_models._common import mjcf
 from robot_models._common.mjcf import MUJOCO_TO_MODEL
 from robot_models._skinned._sources import MIRROR, Source
 
-ASSET_VERSION = 4
 NEAREST = 4  # rest link vertices each piece vertex follows
 STIFFNESS = 10.0  # N·m/rad of the packaged position actuators
 DAMPING = 0.003  # N·m·s/rad per hinge
@@ -59,7 +58,7 @@ def ensure(name: str, directory: Path) -> Path:
     manifest = _manifest(directory)
     built = manifest.get("variants", {})
     fresh = all(built.get(variant, {}).get("stamp") == _stamp(path) for variant, path in sources.items())
-    if manifest.get("asset_version") == ASSET_VERSION and fresh:
+    if fresh:
         return directory
     build(source, base, directory, sources)
     return directory
@@ -77,7 +76,7 @@ def build(source: Source, base: str, directory: Path, sources: dict[str, Path]) 
         for variant, path in sources.items():
             _write_variant(source, base, variant, pieces, staging)
             variants[variant] = {"source": str(path), "stamp": _stamp(path)}
-        manifest = {"asset_version": ASSET_VERSION, "body_model": source.body_model, "variants": variants}
+        manifest = {"body_model": source.body_model, "variants": variants}
         (staging / "source.json").write_text(json.dumps(manifest, indent=2) + "\n")
         assets.swap(staging, directory)
 
@@ -373,4 +372,4 @@ def _stamp(path: Path) -> str:
     return f"{path}:{status.st_size}:{status.st_mtime_ns}"
 
 
-__all__ = ["ASSET_VERSION", "build", "cut", "ensure", "skin"]
+__all__ = ["build", "cut", "ensure", "skin"]

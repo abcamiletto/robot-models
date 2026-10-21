@@ -42,9 +42,9 @@ def test_mounted_hand_matches_fk_and_preserves_definitions(name, side):
     assert model.ngeom == original.ngeom + 1
     assert model.nv == len(hand.to_qpos(np.zeros(hand.num_dofs))[7:]) + 1
     assert model.opt.timestep == 0.003
-    if not np.isfinite(hand.effort_limits).any():
-        np.testing.assert_array_equal(model.actuator_forcerange, original.actuator_forcerange)
-        np.testing.assert_array_equal(model.actuator_forcelimited, original.actuator_forcelimited)
+    np.testing.assert_array_equal(model.actuator_forcerange, original.actuator_forcerange)
+    efforts = model.jnt_actfrcrange[[model.joint(prefix + joint).id for joint in hand.dof_names], 1]
+    np.testing.assert_allclose(efforts, hand.effort_limits)
 
     lo, hi = np.asarray(hand.dof_limits).T
     for fraction in (0.0, 0.37, 1.0):
@@ -151,31 +151,11 @@ def test_free_mount_is_quiet_and_starts_with_root_coordinates(name, side, tmp_pa
     assert model.jnt_bodyid[0] == model.body(root.name).id
     assert model.jnt_qposadr[0] == 0
     np.testing.assert_allclose(model.qpos0[:7], [0.1, -0.2, 0.4, 0.5, 0.5, 0.5, 0.5])
-    if name in ("allegro", "leap"):
-        limit = 0.7 if name == "allegro" else 0.93
-        assert model.actuator_forcelimited.all()
-        np.testing.assert_allclose(model.actuator_forcerange, np.tile([-limit, limit], (model.nu, 1)))
-        data = mujoco.MjData(model)
-        data.ctrl[:] = 1e6
-        mujoco.mj_forward(model, data)
-        assert np.all(np.abs(data.actuator_force) <= limit + 1e-6)
 
 
-def test_effort_limits_account_for_gear_and_preserve_stricter_bounds(tmp_path):
-    xml = """<mujoco><compiler angle="radian"/><worldbody><body name="palm">
-      <joint name="ffj1" type="hinge"/>
-      <geom type="sphere" size="0.01" mass="1"/>
-      </body></worldbody><actuator>
-      <motor name="geared" joint="ffj1" gear="2"/>
-      <motor name="stricter" joint="ffj1" gear="-2" forcerange="-0.1 0.2"/>
-      </actuator></mujoco>"""
-    (tmp_path / "right.xml").write_text(xml)
+def test_without_actuators_the_hand_has_none():
     scene = mujoco.MjSpec()
-    add_hand(scene, create_model("allegro", model_path=tmp_path))
-    model = scene.compile()
-    np.testing.assert_allclose(model.actuator_forcerange, [[-0.35, 0.35], [-0.1, 0.2]])
-    scene = mujoco.MjSpec()
-    add_hand(scene, create_model("allegro", model_path=tmp_path), actuators=False)
+    add_hand(scene, create_model("allegro"), actuators=False)
     assert scene.compile().nu == 0
 
 

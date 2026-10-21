@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import functools
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib import import_module
-from math import inf
 from pathlib import Path
 from typing import Any, Literal
 
@@ -18,25 +17,26 @@ MIRROR = np.diag([-1.0, 1.0, 1.0])
 
 # MANO's hinges, per joint: its bend, spread and twist hinges' peak torque (N·m) and enforced limits (degrees).
 # Torques are nominal maximal voluntary torques: fingertip strength (40-50 N for the index) times each joint's lever,
-# weaker for the ring and pinky; hinges no muscle turns are unbounded, held by the joint's passive structure. Limits
-# are human maximal ranges widened generously, beyond any real hand: 99.9% of 237k synthesized MANO grasps (six
-# methods) lie within, the others bend a joint where no hand can (a finger folded back flat).
+# weaker for the ring and pinky; a finger's spread at its base matches its bend (Li et al. 2003, Clin Biomech 18:908).
+# Hinges no muscle turns hold half their joint's bend, as its ligaments do. Limits are human maximal ranges widened
+# generously, beyond any real hand: 99.9% of 237k synthesized MANO grasps (six methods) lie within, the others bend
+# a joint where no hand can (a finger folded back flat).
 MANO_HINGES: dict[str, tuple[tuple[float, float, float], ...]] = {
-    "index1": ((3.0, -90, 150), (0.8, -60, 60), (inf, -60, 60)),
-    "index2": ((1.5, -60, 150), (inf, -45, 45), (inf, -60, 60)),
-    "index3": ((0.7, -75, 135), (inf, -45, 45), (inf, -60, 60)),
-    "middle1": ((3.0, -90, 150), (0.8, -60, 60), (inf, -60, 60)),
-    "middle2": ((1.5, -60, 150), (inf, -45, 45), (inf, -60, 60)),
-    "middle3": ((0.7, -75, 135), (inf, -45, 45), (inf, -60, 60)),
-    "pinky1": ((1.5, -90, 150), (0.5, -60, 60), (inf, -60, 60)),
-    "pinky2": ((0.8, -60, 150), (inf, -45, 45), (inf, -60, 60)),
-    "pinky3": ((0.4, -75, 135), (inf, -45, 45), (inf, -60, 60)),
-    "ring1": ((2.0, -90, 150), (0.6, -60, 60), (inf, -60, 60)),
-    "ring2": ((1.0, -60, 150), (inf, -45, 45), (inf, -60, 60)),
-    "ring3": ((0.5, -75, 135), (inf, -45, 45), (inf, -60, 60)),
+    "index1": ((3.0, -90, 150), (2.3, -60, 60), (1.5, -60, 60)),
+    "index2": ((1.5, -60, 150), (0.75, -45, 45), (0.75, -60, 60)),
+    "index3": ((0.7, -75, 135), (0.35, -45, 45), (0.35, -60, 60)),
+    "middle1": ((3.0, -90, 150), (2.3, -60, 60), (1.5, -60, 60)),
+    "middle2": ((1.5, -60, 150), (0.75, -45, 45), (0.75, -60, 60)),
+    "middle3": ((0.7, -75, 135), (0.35, -45, 45), (0.35, -60, 60)),
+    "pinky1": ((1.5, -90, 150), (1.2, -60, 60), (0.75, -60, 60)),
+    "pinky2": ((0.8, -60, 150), (0.4, -45, 45), (0.4, -60, 60)),
+    "pinky3": ((0.4, -75, 135), (0.2, -45, 45), (0.2, -60, 60)),
+    "ring1": ((2.0, -90, 150), (1.5, -60, 60), (1.0, -60, 60)),
+    "ring2": ((1.0, -60, 150), (0.5, -45, 45), (0.5, -60, 60)),
+    "ring3": ((0.5, -75, 135), (0.25, -45, 45), (0.25, -60, 60)),
     "thumb1": ((3.0, -75, 150), (2.0, -60, 90), (1.0, -75, 120)),
-    "thumb2": ((2.0, -90, 105), (inf, -75, 60), (inf, -90, 60)),
-    "thumb3": ((1.0, -75, 135), (inf, -60, 90), (inf, -60, 90)),
+    "thumb2": ((2.0, -90, 105), (1.0, -75, 60), (1.0, -90, 60)),
+    "thumb3": ((1.0, -75, 135), (0.5, -60, 90), (0.5, -60, 90)),
 }
 MANO_ROLES = (("bend", "flexion"), ("spread", "abduction"), ("twist", "rotation"))
 
@@ -46,7 +46,8 @@ class Source:
     """How one skinned robot is built from a Body Models model.
 
     ``hinges`` gives, for the mean-shape rest joints of a variant, each joint's three hinge
-    axes in rotation order (rows) and their names and enforced ranges (none: unlimited).
+    axes in rotation order (rows) and their names and enforced ranges (none: unlimited);
+    ``efforts`` the hinges' actuator torque bounds, in N·m.
     """
 
     body_model: str
@@ -60,6 +61,7 @@ class Source:
     mirrored: tuple[str, ...] = ()  # variants whose pieces mirror the base's
     free: bool = False
     actuated: bool = False
+    efforts: Mapping[str, float] = field(default_factory=dict, compare=False)
 
     def create(self, variant: str, runtime: Literal["numpy", "torch", "jax"] = "numpy") -> Any:
         """The Body Models model of a variant, from its configured local file."""
@@ -116,6 +118,11 @@ SOURCES: dict[str, Source] = {
         options=lambda side: {"side": side, "flat_hand_mean": True, "flip_shapedirs": side == "left"},
         mirrored=("left",),
         actuated=True,
+        efforts={
+            f"{joint}_{hinge}": effort
+            for joint, hinges in MANO_HINGES.items()
+            for (hinge, _), (effort, _, _) in zip(MANO_ROLES, hinges, strict=True)
+        },
     ),
     "smpl": Source(
         body_model="smpl",

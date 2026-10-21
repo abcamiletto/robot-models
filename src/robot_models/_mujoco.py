@@ -1,7 +1,6 @@
 """Attach canonical hands through MuJoCo's native model-editing API."""
 
 from importlib import import_module
-from math import isfinite
 from typing import Any, cast
 
 from robot_models._common import mjcf
@@ -35,7 +34,7 @@ def add_hand(
 
     The hand root is fixed unless ``free=True``. Free roots require a world-level mount.
     The scene's options are unchanged. Equalities and collision definitions are retained,
-    actuators unless ``actuators=False``; finite ``effort_limits`` bound joint actuators.
+    actuators unless ``actuators=False``; ``effort_limits`` bound every actuator on each coordinate's joint.
     Barrett/Robotiq assets have placeholder inertias for their visual geometry;
     source collisions are supplied; configure appropriate dynamics and actuation.
     Requires the optional ``robot-models[mujoco]`` dependency.
@@ -75,24 +74,12 @@ def add_hand(
             hand.delete(joint)
     if free:
         root.add_freejoint()
-    efforts = {name: dof.effort_limit for name, dof in zip(model.dof_names, model.dofs, strict=True)}
-    for actuator in list(hand.actuators):
-        if not actuators:
+    if not actuators:
+        for actuator in list(hand.actuators):
             hand.delete(actuator)
-            continue
-        limit = efforts.get(actuator.target, float("inf"))
-        gear = abs(actuator.gear[0])
-        if actuator.trntype == mujoco.mjtTrn.mjTRN_JOINT and isfinite(limit) and gear:
-            force = limit / gear
-            lower, upper = -force, force
-            if (
-                actuator.forcelimited != mujoco.mjtLimited.mjLIMITED_FALSE
-                and actuator.forcerange[0] < actuator.forcerange[1]
-            ):
-                lower = max(lower, actuator.forcerange[0])
-                upper = min(upper, actuator.forcerange[1])
-            actuator.forcerange = [lower, upper]
-            actuator.forcelimited = mujoco.mjtLimited.mjLIMITED_TRUE
+    for name, effort in zip(model.dof_names, model.runtime.to_numpy(model.effort_limits), strict=True):
+        hand.joint(name).actfrcrange = [-effort, effort]
+        hand.joint(name).actfrclimited = mujoco.mjtLimited.mjLIMITED_TRUE
     frame = spec.worldbody.add_frame() if frame is None else frame
     prefix = f"{model.name}_{model.side}_" if prefix is None else prefix
     root_name = prefix + root.name  # attaching prefixes the root's own name

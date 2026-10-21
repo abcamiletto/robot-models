@@ -58,8 +58,9 @@ class Hand(RigidBodyModel):
 
     @property
     def effort_limits(self) -> Float[Array, "Q"]:
-        """Peak joint torques in N·m; ``inf`` means no verified coordinate limit."""
-        return self.runtime.asarray([dof.effort_limit for dof in self.dofs], like=self.dof_limits)
+        """Each coordinate's peak torque in N·m, its MJCF ``actuatorfrcrange``; through a coupling, it drives the
+        coupled hinges too."""
+        return self._assets.dof_efforts
 
     @property
     def closing(self) -> Float[Array, "Q"]:

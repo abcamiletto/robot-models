@@ -34,7 +34,7 @@ def load(xml_path: Path) -> RigidAssets:
     named as ``joint1`` of an ``<equality><joint>`` follows ``joint1 = polycoef(joint2)``;
     every other hinge is a pose coordinate, in MuJoCo ``qpos`` order. A coordinate's limits are
     what it can reach in MuJoCo: its enforced range, narrowed to where its coupled hinges stay
-    within theirs.
+    within theirs. Its effort is the largest magnitude of its ``actuatorfrcrange``.
     """
     root = ET.parse(xml_path).getroot()
     compiler = root.find("compiler")
@@ -46,6 +46,7 @@ def load(xml_path: Path) -> RigidAssets:
 
     names, parents, offsets, rotations = [], [], [], []
     hinges: list[tuple[str, int, Float[np.ndarray, "3"], tuple[float, float]]] = []
+    efforts: dict[str, float] = {}
     visuals: list[tuple[str, int, Float[np.ndarray, "V 3"], Int[np.ndarray, "F 3"]]] = []
     collisions: list[tuple[str, int, Float[np.ndarray, "V 3"], Int[np.ndarray, "F 3"]]] = []
     paired = {pair.attrib[key] for pair in root.findall("contact/pair") for key in ("geom1", "geom2")}
@@ -59,6 +60,7 @@ def load(xml_path: Path) -> RigidAssets:
             attrs = _attrs(joint, cls, defaults)
             if attrs.get("type") != "free":
                 hinges.append((attrs["name"], index, *_hinge(attrs)))
+                efforts[attrs["name"]] = _effort(attrs)
         for geom_index, geom in enumerate(body.findall("geom")):
             attrs = _attrs(geom, cls, defaults)
             contact = int(attrs.get("contype", "1")) or int(attrs.get("conaffinity", "1"))
@@ -95,6 +97,7 @@ def load(xml_path: Path) -> RigidAssets:
         hinge_polycoef=np.asarray(polycoef, dtype=np.float32),
         dof_names=actuated,
         dof_limits=np.asarray([limits[name] for name in actuated], dtype=np.float32),
+        dof_efforts=np.asarray([efforts[name] for name in actuated], dtype=np.float32),
         visual=_mesh_assets(visuals),
         collision=_mesh_assets(collisions),
     )
@@ -208,6 +211,13 @@ def _hinge(attrs: dict[str, str]) -> tuple[Float[np.ndarray, "3"], tuple[float, 
     enforced = "range" in attrs and attrs.get("limited") != "false"
     lo, hi = _vec(attrs["range"], 2) if enforced else (-np.inf, np.inf)
     return axis / np.linalg.norm(axis), (float(lo), float(hi))
+
+
+def _effort(attrs: dict[str, str]) -> float:
+    """Return a joint's largest actuator force magnitude, ``inf`` when unbounded."""
+    if "actuatorfrcrange" not in attrs or attrs.get("actuatorfrclimited") == "false":
+        return np.inf
+    return float(np.abs(_vec(attrs["actuatorfrcrange"], 2)).max())
 
 
 def _reachable(

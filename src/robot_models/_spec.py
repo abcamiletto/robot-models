@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from math import inf
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
@@ -18,11 +17,10 @@ Role = Literal["flexion", "abduction", "rotation"]
 
 @dataclass(frozen=True)
 class Dof:
-    """Meaning of one pose coordinate; effort is a peak joint torque in N·m."""
+    """Meaning of one pose coordinate."""
 
     finger: Finger
     role: Role
-    effort_limit: float = inf
 
 
 @dataclass(frozen=True)
@@ -40,7 +38,6 @@ class ModelSpec:
     family: Family
     joints: Mapping[str, str]
     variants: tuple[str, ...] = ()
-    asset_version: int = 1
     mirror: tuple[tuple[str, str], ...] = ()
     dofs: Mapping[str, Dof] = field(default_factory=dict)
     source: Source | None = None

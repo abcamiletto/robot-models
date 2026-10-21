@@ -48,6 +48,7 @@ class RigidAssets:
     hinge_polycoef: Float[Array, "H 5"]
     dof_names: list[str]
     dof_limits: Float[Array, "Q 2"]
+    dof_efforts: Float[Array, "Q"]
     visual: MeshAssets
     collision: MeshAssets
 

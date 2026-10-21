@@ -50,11 +50,3 @@ def test_named_import_and_factory_select_backend(backend, name, kwargs):
     assert model.runtime.name == backend
     with pytest.raises(TypeError):
         model_class(runtime=backend)
-
-
-@pytest.mark.fast
-def test_outdated_assets_fail_without_changing_files(tmp_path):
-    (tmp_path / "source.json").write_text('{"asset_version": 1}')
-    with pytest.raises(ValueError, match="asset version"):
-        create_model("barrett", model_path=tmp_path)
-    assert (tmp_path / "source.json").read_text() == '{"asset_version": 1}'

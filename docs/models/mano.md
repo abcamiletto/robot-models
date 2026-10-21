@@ -99,11 +99,10 @@ weights over the link's four nearest vertices, as grasp-bench does. Links have
 ## Control
 
 `dofs` mark bend as flexion, which `closing` closes, spread as abduction and twist as rotation.
-`effort_limits` are nominal human maximal voluntary torques of each bend and
-spread hinge (the thumb's base: also twist), from fingertip strength times each
-joint's lever; the hinges no muscle turns are unbounded, as the joint's passive
-structure holds them. Presets: `flat` and `open` are the flat hand, `rest` a
-relaxed curl, `closed` every bend at manotorch's anatomical maximum (90°, the thumb's
+`effort_limits` are nominal human maximal voluntary torques, from fingertip
+strength times each joint's lever; a finger's base spread matches its bend, and
+the hinges no muscle turns hold half their joint's bend, as its ligaments do.
+Presets: `flat` and `open` are the flat hand, `rest` a relaxed curl, `closed` every bend at manotorch's anatomical maximum (90°, the thumb's
 base 45°): natural poses, well within the limits.
 
 ```python

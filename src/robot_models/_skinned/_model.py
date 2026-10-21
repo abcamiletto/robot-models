@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Literal, Self, cast
 
@@ -70,7 +70,10 @@ class Skinned(RigidBodyModel):
         signs = np.sign(np.linalg.det(frames)).astype(np.float32)
         frames[..., 2] *= signs[:, None]
         conversion = Conversion(built.pose_rows, frames, signs, built.root, built.shape)
-        self._assets = self._runtime._materialize(built.assets)
+        assets = built.assets
+        if source.efforts:
+            assets = replace(assets, dof_efforts=np.asarray([source.efforts[n] for n in assets.dof_names], np.float32))
+        self._assets = self._runtime._materialize(assets)
         self._conversion = self._runtime._materialize(conversion)
         self._skin = source.create(path.stem, self._runtime.name)
 

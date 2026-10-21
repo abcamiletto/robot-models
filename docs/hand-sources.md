@@ -65,13 +65,15 @@ at 3,000 random poses, every body within 1e-9 m. Fixtures and licenses remain in
 
 Collision updates are published at Hugging Face
 [revision `3d1aa6d0`](https://huggingface.co/abcamiletto/robot-models/commit/3d1aa6d070de82469cc3e87e20d34dbba05a9e89),
-Shadow's OpenAI kinematics (asset version 3) at
-[revision `331c5b93`](https://huggingface.co/abcamiletto/robot-models/commit/331c5b935e3a52215d4e38dcef47c3739095b168).
+Shadow's OpenAI kinematics at
+[revision `331c5b93`](https://huggingface.co/abcamiletto/robot-models/commit/331c5b935e3a52215d4e38dcef47c3739095b168),
+effort limits at
+[revision `9ab6b8eb`](https://huggingface.co/abcamiletto/robot-models/commit/9ab6b8ebed54bd60567ae084aea560ac81f0e1d8).
 Archive SHA-256 digests:
 
 | Bundle | SHA-256 |
 | --- | --- |
-| `barrett/assets.zip` | `82b99a6e590ba07d7239c3a64d423757ac34c32123cd7d06c3ce829f05e58b98` |
-| `robotiq-3finger/assets.zip` | `21bd9a9f861a96cc0d95d8090a31746c6fa5f0f7aba44a697f7b1436f1f3f43a` |
-| `shadow/assets.zip` | `6081a8cf39ddad8d9e352e93afa9213846b5ee612d51c2250fe5b18d80bc1c4e` |
-| `ezgripper/assets.zip` (unchanged) | `1d3869c8c6f3ed475368abfabe14765a1abf15003e1cdae1bebf363926387ecb` |
+| `barrett/assets.zip` | `1025fe38abe64be9af4fc47de6008cfb7362f99a0c0970bdf6f58f3a525fbbc7` |
+| `robotiq-3finger/assets.zip` | `a96b21ba10dc3979a79b8de8ad9c045b45a4625544a12ef71615e05ba893f2b5` |
+| `shadow/assets.zip` | `775535052bf968bf6e6a5cce1daf63b8f14348cb458256c7e13b52e166e7472b` |
+| `ezgripper/assets.zip` | `25a27e4239677aec5c5f558105625a8404e754eb9ad9e14d0543c1ea1b25d681` |

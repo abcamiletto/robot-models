@@ -1,5 +1,6 @@
 """Attach canonical hands through MuJoCo's native model-editing API."""
 
+import functools
 from importlib import import_module
 from typing import Any, cast
 
@@ -49,7 +50,7 @@ def add_hand(
     if free and frame is not None and frame.parent != spec.worldbody:
         raise ValueError("free=True requires a world-level mount frame")
     mujoco = cast(Any, import_module("mujoco"))  # Native bindings do not provide type stubs.
-    hand = mujoco.MjSpec.from_file(str(model.xml_path))
+    hand = _parsed(str(model.xml_path), model.xml_path.stat().st_mtime_ns).copy()
     if model._config.shape is not None or model._config.conform_to is not None:
         _write_geometry(hand, model)
     if hand.compiler.settotalmass > 0:
@@ -95,10 +96,17 @@ def _write_geometry(spec: Any, model: Hand) -> None:
         if parent >= 0:
             spec.body(body).pos = offset @ MUJOCO_TO_MODEL
     visual = model.visual
-    for name, body, mesh in zip(visual.names, visual.body_indices, visual.meshes, strict=True):
-        mass, center, full = mjcf.inertial(mesh, density)
+    for name, body, (vertices, faces) in zip(visual.names, visual.body_indices, visual.arrays, strict=True):
+        mass, center, full = mjcf.inertial(vertices, faces, density)
         link = spec.body(model.body_names[body])
         link.mass, link.ipos, link.fullinertia = mass, center, full
-        spec.mesh(spec.geom(name).meshname).uservert = (mesh.vertices @ MUJOCO_TO_MODEL).ravel()
-    for name, mesh in zip(model.collision.names, model.collision.meshes, strict=True):
-        spec.mesh(spec.geom(name).meshname).uservert = (mesh.vertices @ MUJOCO_TO_MODEL).ravel()
+        spec.mesh(spec.geom(name).meshname).uservert = (vertices @ MUJOCO_TO_MODEL).ravel()
+    for name, (vertices, _) in zip(model.collision.names, model.collision.arrays, strict=True):
+        spec.mesh(spec.geom(name).meshname).uservert = (vertices @ MUJOCO_TO_MODEL).ravel()
+
+
+@functools.cache
+def _parsed(path: str, modified: int) -> Any:
+    """An MJCF file's spec, parsed once per version of the file, for :func:`add_hand` to copy."""
+    mujoco = cast(Any, import_module("mujoco"))
+    return mujoco.MjSpec.from_file(path)

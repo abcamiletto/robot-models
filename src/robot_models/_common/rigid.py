@@ -77,12 +77,16 @@ class MeshSet:
     @property
     def meshes(self) -> list[Trimesh]:
         """One independent mesh per geom, in its body's frame."""
-        vertices = np.array(self._runtime.to_numpy(self._assets.vertices))  # a copy: Torch shares its buffers
+        return [Trimesh(vertices, faces, process=False) for vertices, faces in self.arrays]
+
+    @property
+    def arrays(self) -> list[tuple[Float[np.ndarray, "V 3"], Int[np.ndarray, "F 3"]]]:
+        """Each geom's vertices and faces as NumPy arrays, in its body's frame: :attr:`meshes` without a Trimesh each,
+        which takes most of the time for hundreds of collision pieces."""
+        vertices = np.array(self._runtime.to_numpy(self._assets.vertices), np.float64)  # a copy: Torch shares buffers
         faces = np.array(self._runtime.to_numpy(self._assets.faces))
         v, f = self._assets.vertex_offsets, self._assets.face_offsets
-        return [
-            Trimesh(vertices[v[i] : v[i + 1]], faces[f[i] : f[i + 1]] - v[i], process=False) for i in range(len(v) - 1)
-        ]
+        return [(vertices[v[i] : v[i + 1]], faces[f[i] : f[i + 1]] - v[i]) for i in range(len(v) - 1)]
 
     def pose(self, frames: Float[Array, "*batch B 4 4"]) -> list[Trimesh]:
         """One mesh per batch element of body frames (``forward_skeleton``'s): every geom posed, concatenated."""

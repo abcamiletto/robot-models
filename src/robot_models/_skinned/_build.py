@@ -12,6 +12,7 @@ here may be redistributed: it is derived from the MANO or SMPL model files.
 
 from __future__ import annotations
 
+import functools
 import json
 import tempfile
 import xml.etree.ElementTree as ET
@@ -36,8 +37,10 @@ ARMATURE = 1e-4  # kg·m²
 CONTACT_MARGIN = 0.002  # m: link pairs this close at rest do not collide with each other
 
 
+@functools.cache
 def ensure(name: str, directory: Path) -> Path:
-    """Return ``directory`` holding current assets of every configured variant, building them if needed.
+    """Return ``directory`` holding current assets of every configured variant, building them if needed; checked
+    once per process.
 
     The model's first variant is the base whose links the collision pieces decompose; it must be configured.
     """
@@ -291,11 +294,10 @@ def _mjcf(source, variant, own, order, offsets, hinges, links, cuts, pieces) -> 
     actuators = []
     for joint, offset in zip(order, offsets):
         name = own.names[joint]
-        link = trimesh.Trimesh(links[joint], cuts[joint].faces, process=False)
         _mesh(asset, name, links[joint] @ to_mujoco.T, cuts[joint].faces)
         body = ET.SubElement(bodies[own.parents[joint]], "body", name=name, pos=_fmt(offset @ to_mujoco.T))
         bodies[joint] = body
-        mass, center, full = mjcf.inertial(link, source.density)
+        mass, center, full = mjcf.inertial(links[joint], cuts[joint].faces, source.density)
         ET.SubElement(body, "inertial", pos=_fmt(center), mass=_fmt(mass), fullinertia=_fmt(full))
         if own.parents[joint] < 0 and source.free:
             ET.SubElement(body, "freejoint", name="root")

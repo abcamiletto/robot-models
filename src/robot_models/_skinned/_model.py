@@ -16,7 +16,7 @@ from robot_models._base import RigidBodyModel
 from robot_models._common import rigid as rigid_ops
 from robot_models._common import zeros_as
 from robot_models._skinned._geometry import geometry
-from robot_models._skinned._sources import Source
+from robot_models._skinned._sources import Source, numpy_model
 from robot_models.hands._base import Hand
 from robot_models.humanoids._base import Humanoid
 
@@ -75,7 +75,9 @@ class Skinned(RigidBodyModel):
             assets = replace(assets, dof_efforts=np.asarray([source.efforts[n] for n in assets.dof_names], np.float32))
         self._assets = self._runtime._materialize(assets)
         self._conversion = self._runtime._materialize(conversion)
-        self._skin = source.create(path.stem, self._runtime.name)
+        # NumPy's model holds no state, so models share it; a Torch one is a module its model moves between devices
+        numpy = self._runtime.name == "numpy"
+        self._skin = numpy_model(source, path.stem) if numpy else source.create(path.stem, self._runtime.name)
 
     @classmethod
     def conformed_to(cls, **arguments: Any) -> tuple[Self, dict[str, Float[Array, "..."]]]:

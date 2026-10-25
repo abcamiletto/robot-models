@@ -103,12 +103,15 @@ def load(xml_path: Path) -> RigidAssets:
     )
 
 
-def inertial(mesh: trimesh.Trimesh, density: float) -> tuple[float, Float[np.ndarray, "3"], Float[np.ndarray, "6"]]:
+def inertial(
+    vertices: Float[np.ndarray, "V 3"], faces: Int[np.ndarray, "F 3"], density: float
+) -> tuple[float, Float[np.ndarray, "3"], Float[np.ndarray, "6"]]:
     """A closed model-frame mesh's mass, center and full inertia (xx, yy, zz, xy, xz, yz) in MuJoCo's frame."""
     to_mujoco = MUJOCO_TO_MODEL.T
-    inertia = to_mujoco @ (mesh.moment_inertia * density) @ to_mujoco.T
+    properties = trimesh.triangles.mass_properties(np.asarray(vertices, np.float64)[faces], density=density)
+    inertia = to_mujoco @ properties.inertia @ to_mujoco.T
     full = inertia[[0, 1, 2, 0, 0, 1], [0, 1, 2, 1, 2, 2]]
-    return mesh.volume * density, mesh.center_mass @ to_mujoco.T, full
+    return properties.mass, properties.center_mass @ to_mujoco.T, full
 
 
 def _mesh_assets(pieces: list[tuple[str, int, np.ndarray, np.ndarray]]) -> MeshAssets:

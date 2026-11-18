@@ -37,7 +37,7 @@ Torch models are `torch.nn.Module` instances. Both families provide
 
 | Family | Model identifiers |
 | --- | --- |
-| `robot_models.humanoids` | `g1`, `gr1`, `h1`, `smpl`, `t1`, `talos` |
+| `robot_models.humanoids` | `anatomic-soma`, `g1`, `gr1`, `h1`, `smpl`, `t1`, `talos` |
 | `robot_models.hands` | `ability`, `allegro`, `barrett`, `brainco`, `ezgripper`, `inspire`, `leap`, `mano`, `robotiq-3finger`, `sharpa`, `shadow` |
 
 Use `list_models(family="hands")` or `list_models(family="humanoids")` to list models.

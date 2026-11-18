@@ -42,6 +42,7 @@ nav:
   - Hand sources and validation: hand-sources.md
   - Models:
       - Humanoids:
+          - Anatomical SOMA: models/anatomic-soma.md
           - G1: models/g1.md
           - GR1: models/gr1.md
           - H1: models/h1.md

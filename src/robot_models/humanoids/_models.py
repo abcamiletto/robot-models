@@ -6,6 +6,32 @@ from robot_models._skinned._sources import SOURCES
 from robot_models._spec import ModelSpec
 
 MODELS = {
+    "anatomic-soma": ModelSpec(
+        class_name="AnatomicSoma",
+        family="humanoids",
+        mirror=(("Left", "Right"),),
+        joints=MappingProxyType(
+            {
+                "pelvis": "Hips",
+                "neck": "Neck1",
+                "head": "Head",
+                "left_shoulder": "LeftArm",
+                "right_shoulder": "RightArm",
+                "left_elbow": "LeftForeArm",
+                "right_elbow": "RightForeArm",
+                "left_wrist": "LeftHand",
+                "right_wrist": "RightHand",
+                "left_hip": "LeftLeg",
+                "right_hip": "RightLeg",
+                "left_knee": "LeftShin",
+                "right_knee": "RightShin",
+                "left_ankle": "LeftFoot",
+                "right_ankle": "RightFoot",
+                "left_foot": "LeftToeBase",
+                "right_foot": "RightToeBase",
+            }
+        ),
+    ),
     "g1": ModelSpec(
         class_name="G1",
         family="humanoids",

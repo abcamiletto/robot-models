@@ -32,6 +32,7 @@ your own Body Models files, which cannot be redistributed; install
 | --- | --- |
 | [Ability Hand](models/ability.md) | PSYONIC Ability Hand robotic hand |
 | [Allegro](models/allegro.md) | Wonik Robotics Allegro robotic hand |
+| [Anatomical SOMA](models/anatomic-soma.md) | NVIDIA's simulated human with hinge joints |
 | [Barrett BH280](models/barrett.md) | Barrett BH280 robotic hand |
 | [BrainCo](models/brainco.md) | BrainCo Revo 2 robotic hand |
 | [EZGripper](models/ezgripper.md) | SAKE EZGripper |

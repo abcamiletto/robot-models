@@ -1,0 +1,1 @@
+"""AnatomicSoma: canonical model bindings."""
